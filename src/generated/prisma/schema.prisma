@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Business/Organization model
+model Business {
+  id        String       @id @default(cuid())
+  name      String
+  type      BusinessType
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  address   String?
+  phone     String?
+  email     String       @unique
+  settings  Json? // Store business-specific settings
+
+  // Relations
+  services      Service[]
+  staff         Staff[]
+  clients       Client[]
+  appointments  Appointment[]
+  businessHours BusinessHours[]
+
+  @@map("businesses")
+}
+
+// Business type enum
+enum BusinessType {
+  HAIR_SALON
+  BARBERSHOP
+  NAIL_SALON
+  PHYSIOTHERAPY
+  PSYCHOLOGY
+  OTHER
+}
+
+// Staff/Service Provider model
+model Staff {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  role      StaffRole
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  businessId   String
+  business     Business      @relation(fields: [businessId], references: [id])
+  services     Service[] // Services they can provide
+  schedules    Schedule[] // Their working schedules
+  appointments Appointment[] // Appointments assigned to them
+
+  @@map("staff")
+}
+
+enum StaffRole {
+  OWNER
+  ADMIN
+  PROVIDER
+}
+
+// Client model
+model Client {
+  id        String   @id @default(cuid())
+  email     String
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  businessId   String
+  business     Business      @relation(fields: [businessId], references: [id])
+  appointments Appointment[]
+
+  // Composite unique constraint for email per business
+  @@unique([email, businessId])
+  @@map("clients")
+}
+
+// Service model
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  duration    Int // Duration in minutes
+  price       Decimal
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  businessId   String
+  business     Business      @relation(fields: [businessId], references: [id])
+  providers    Staff[] // Staff who can provide this service
+  appointments Appointment[]
+
+  @@map("services")
+}
+
+// Appointment model
+model Appointment {
+  id        String            @id @default(cuid())
+  startTime DateTime
+  endTime   DateTime
+  status    AppointmentStatus
+  notes     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  // Relations
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id])
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  staffId    String
+  staff      Staff    @relation(fields: [staffId], references: [id])
+  payment    Payment?
+
+  @@map("appointments")
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+// Payment model
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Decimal
+  status        PaymentStatus
+  paymentMethod PaymentMethod
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  CASH
+  TRANSFER
+}
+
+// Schedule model for staff working hours
+model Schedule {
+  id        String @id @default(cuid())
+  dayOfWeek Int // 0-6 for Sunday-Saturday
+  startTime String // Format: "HH:mm"
+  endTime   String // Format: "HH:mm"
+
+  // Relations
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id])
+
+  @@map("schedules")
+}
+
+// Business Hours model
+model BusinessHours {
+  id        String  @id @default(cuid())
+  dayOfWeek Int // 0-6 for Sunday-Saturday
+  startTime String // Format: "HH:mm"
+  endTime   String // Format: "HH:mm"
+  isClosed  Boolean @default(false)
+
+  // Relations
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  @@map("business_hours")
+}
