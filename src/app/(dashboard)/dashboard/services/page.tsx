@@ -1,87 +1,102 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Plus, Clock, DollarSign } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Service, ServiceCategory, Staff } from '@prisma/client';
+import { ServiceFilters } from '@/components/services/service-filters';
+import ServiceList from '@/components/services/ServiceList';
+import { useFilteredServices } from '@/hooks/useFilteredServices';
+import { ServiceFiltersState } from '@/hooks/useServiceFilters';
+import CreateServiceButton from '@/components/services/CreateServiceButton';
+import { useToast } from '@/components/ui/use-toast';
 
-interface Service {
-  id: number;
-  name: string;
-  description: string;
-  duration: number;
-  price: number;
-}
+type ServiceWithRelations = Service & {
+  category: ServiceCategory | null;
+  providers: Staff[];
+};
 
 export default function ServicesPage() {
-  const [services] = useState<Service[]>([
-    {
-      id: 1,
-      name: 'Corte de Cabelo',
-      description: 'Corte masculino ou feminino',
-      duration: 30,
-      price: 25.0,
+  const [services, setServices] = useState<ServiceWithRelations[]>([]);
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+  const [providers, setProviders] = useState<Staff[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  const [filters, setFilters] = useState<ServiceFiltersState>({
+    search: '',
+    sort: 'name',
+    priceRange: {
+      min: 0,
+      max: Infinity,
     },
-    {
-      id: 2,
-      name: 'Manicure',
-      description: 'Tratamento completo para unhas',
-      duration: 45,
-      price: 20.0,
-    },
-  ]);
+    duration: null,
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch services
+        const searchParams = new URLSearchParams({
+          search: filters.search,
+          sort: filters.sort,
+          minPrice: filters.priceRange.min.toString(),
+          maxPrice: filters.priceRange.max.toString(),
+          ...(filters.duration && { duration: filters.duration.toString() }),
+        });
+
+        const [servicesRes, categoriesRes, providersRes] = await Promise.all([
+          fetch(`/api/services?${searchParams}`),
+          fetch('/api/categories'),
+          fetch('/api/providers')
+        ]);
+
+        if (!servicesRes.ok) throw new Error('Failed to fetch services');
+        if (!categoriesRes.ok) throw new Error('Failed to fetch categories');
+        if (!providersRes.ok) throw new Error('Failed to fetch providers');
+        
+        const [servicesData, categoriesData, providersData] = await Promise.all([
+          servicesRes.json(),
+          categoriesRes.json(),
+          providersRes.json()
+        ]);
+
+        setServices(servicesData);
+        setCategories(categoriesData);
+        setProviders(providersData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load data. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [filters, toast]);
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Serviços</h1>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center">
-          <Plus className="h-5 w-5 mr-2" />
-          Novo Serviço
-        </button>
+        <h1 className="text-2xl font-semibold">Services</h1>
+        <CreateServiceButton />
       </div>
 
-      {/* Search and filters */}
-      <div className="flex items-center space-x-4">
-        <div className="flex-1 relative">
-          <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Procurar serviços..."
-            className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-      </div>
+      <ServiceFilters
+        onFiltersChange={setFilters}
+        initialFilters={filters}
+        disabled={isLoading}
+      />
 
-      {/* Services grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {services.map((service) => (
-          <div
-            key={service.id}
-            className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6 space-y-4"
-          >
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">
-                {service.name}
-              </h3>
-              <p className="text-sm text-gray-500">{service.description}</p>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center text-gray-500">
-                <Clock className="h-4 w-4 mr-2" />
-                {service.duration} min
-              </div>
-              <div className="flex items-center text-gray-900 font-medium">
-                <DollarSign className="h-4 w-4 mr-1" />
-                {service.price.toFixed(2)} €
-              </div>
-            </div>
-            <div className="pt-4 flex justify-end border-t">
-              <button className="text-sm text-indigo-600 hover:text-indigo-900">
-                Editar
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <ServiceList 
+        services={services}
+        categories={categories}
+        providers={providers}
+        isLoading={isLoading}
+      />
     </div>
   );
 } 

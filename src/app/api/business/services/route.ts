@@ -1,70 +1,35 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/supabase';
-import { z } from 'zod';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { PrismaClient } from '@prisma/client';
 
-const serviceSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  duration: z.number().min(1),
-  price: z.number().min(0),
-});
+const prisma = new PrismaClient();
 
-const servicesSchema = z.array(serviceSchema);
-
-export async function POST(request: Request) {
+// GET: List all services for a business
+export async function GET(request: Request) {
   try {
-    const session = await getSession();
-
+    const session = await getServerSession(authOptions);
     if (!session) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const { services } = await request.json();
-    
-    // Validate input
-    const validatedServices = servicesSchema.parse(services);
-
-    // Delete existing services
-    await prisma.service.deleteMany({
-      where: {
-        businessId: session.user.id,
-      },
+    const staff = await prisma.staff.findUnique({
+      where: { email: session.user?.email },
+      include: { business: true }
     });
 
-    // Create new services
-    await prisma.service.createMany({
-      data: validatedServices.map((service) => ({
-        businessId: session.user.id,
-        name: service.name,
-        description: service.description,
-        duration: service.duration,
-        price: service.price,
-      })),
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return new NextResponse('Invalid input data', { status: 400 });
-    }
-    console.error('Error saving services:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const session = await getSession();
-
-    if (!session) {
+    if (!staff) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
     const services = await prisma.service.findMany({
-      where: {
-        businessId: session.user.id,
+      where: { businessId: staff.businessId },
+      select: {
+        id: true,
+        name: true,
+        duration: true,
       },
+      orderBy: { name: 'asc' },
     });
 
     return NextResponse.json(services);
@@ -72,4 +37,53 @@ export async function GET(request: Request) {
     console.error('Error fetching services:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
-} 
+}
+
+// POST: Create a new service
+export async function POST(request: Request) {
+  const supabase = createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const formData = await request.formData()
+    const name = formData.get('name') as string
+    const description = formData.get('description') as string
+    const price = parseFloat(formData.get('price') as string)
+    const duration = parseInt(formData.get('duration') as string)
+    const categoryId = formData.get('categoryId') as string
+
+    const business = await prisma.business.findFirst({
+      where: { email: session.user.email }
+    })
+
+    if (!business) {
+      return NextResponse.json({ error: 'Business not found' }, { status: 404 })
+    }
+
+    const service = await prisma.service.create({
+      data: {
+        name,
+        description,
+        price,
+        duration,
+        categoryId: categoryId || null,
+        business: {
+          connect: { id: business.id }
+        }
+      },
+      include: {
+        category: true,
+        providers: true
+      }
+    })
+
+    return NextResponse.json(service)
+  } catch (error) {
+    console.error('Error creating service:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}

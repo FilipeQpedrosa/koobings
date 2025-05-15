@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -14,29 +8,218 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Business/Organization model
 model Business {
-  id        String       @id @default(cuid())
-  name      String
-  type      BusinessType
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  address   String?
-  phone     String?
-  email     String       @unique
-  settings  Json? // Store business-specific settings
-
-  // Relations
-  services      Service[]
-  staff         Staff[]
-  clients       Client[]
-  appointments  Appointment[]
-  businessHours BusinessHours[]
+  id                  String               @id @default(cuid())
+  name                String
+  type                BusinessType
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  address             String?
+  phone               String?
+  email               String               @unique
+  settings            Json?
+  appointments        Appointment[]
+  businessHours       BusinessHours[]
+  clientRelationships ClientRelationship[]
+  clients             Client[]
+  categories          ServiceCategory[]
+  services            Service[]
+  staff               Staff[]
 
   @@map("businesses")
 }
 
-// Business type enum
+model Staff {
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  name               String
+  role               StaffRole
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  businessId         String
+  appointments       Appointment[]
+  relationshipNotes  RelationshipNote[]
+  schedules          Schedule[]
+  business           Business             @relation(fields: [businessId], references: [id])
+  preferredByClients ClientRelationship[] @relation("ClientRelationshipToStaff")
+  services           Service[]            @relation("ServiceToStaff")
+
+  @@map("staff")
+}
+
+model ServiceCategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id])
+  services    Service[]
+
+  @@map("service_categories")
+}
+
+model Client {
+  id            String               @id @default(cuid())
+  name          String
+  phone         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  businessId    String
+  appointments  Appointment[]
+  relationship  ClientRelationship?
+  sensitiveInfo ClientSensitiveInfo?
+  business      Business             @relation(fields: [businessId], references: [id])
+
+  @@map("clients")
+}
+
+model ClientSensitiveInfo {
+  id               String    @id @default(cuid())
+  email            String
+  notes            String?
+  medicalInfo      String?
+  documents        Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  clientId         String    @unique
+  encryptionStatus Boolean   @default(false)
+  lastAccessedAt   DateTime?
+  accessLog        Json?
+  client           Client    @relation(fields: [clientId], references: [id])
+
+  @@map("client_sensitive_info")
+}
+
+model Service {
+  id           String           @id @default(cuid())
+  name         String
+  description  String?
+  duration     Int
+  price        Decimal
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  businessId   String
+  categoryId   String?
+  appointments Appointment[]
+  business     Business         @relation(fields: [businessId], references: [id])
+  category     ServiceCategory? @relation(fields: [categoryId], references: [id])
+  providers    Staff[]          @relation("ServiceToStaff")
+
+  @@map("services")
+}
+
+model Appointment {
+  id         String            @id @default(cuid())
+  startTime  DateTime
+  endTime    DateTime
+  status     AppointmentStatus
+  notes      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  businessId String
+  clientId   String
+  serviceId  String
+  staffId    String
+  business   Business          @relation(fields: [businessId], references: [id])
+  client     Client            @relation(fields: [clientId], references: [id])
+  service    Service           @relation(fields: [serviceId], references: [id])
+  staff      Staff             @relation(fields: [staffId], references: [id])
+  payment    Payment?
+
+  @@map("appointments")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Decimal
+  status        PaymentStatus
+  paymentMethod PaymentMethod
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  appointmentId String        @unique
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id])
+
+  @@map("payments")
+}
+
+model Schedule {
+  id        String @id @default(cuid())
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  staffId   String
+  staff     Staff  @relation(fields: [staffId], references: [id])
+
+  @@map("schedules")
+}
+
+model BusinessHours {
+  id         String   @id @default(cuid())
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+  isClosed   Boolean  @default(false)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  @@map("business_hours")
+}
+
+model ClientRelationship {
+  id                    String             @id @default(cuid())
+  clientId              String             @unique
+  businessId            String
+  status                ClientStatus       @default(ACTIVE)
+  relationshipStartDate DateTime           @default(now())
+  lastVisit             DateTime?
+  visitFrequency        Int?
+  lifetimeValue         Decimal?
+  preferences           Json?
+  internalNotes         String?
+  flags                 ClientFlag[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  business              Business           @relation(fields: [businessId], references: [id])
+  client                Client             @relation(fields: [clientId], references: [id])
+  noteHistory           RelationshipNote[]
+  visitHistory          VisitHistory[]
+  preferredStaff        Staff[]            @relation("ClientRelationshipToStaff")
+
+  @@map("client_relationships")
+}
+
+model VisitHistory {
+  id                 String             @id @default(cuid())
+  relationshipId     String
+  visitDate          DateTime
+  serviceType        String
+  staffNotes         String?
+  clientFeedback     String?
+  followUpRequired   Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  clientRelationship ClientRelationship @relation(fields: [relationshipId], references: [id])
+
+  @@map("visit_history")
+}
+
+model RelationshipNote {
+  id                 String             @id @default(cuid())
+  relationshipId     String
+  noteType           NoteType
+  content            String
+  createdById        String
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  createdBy          Staff              @relation(fields: [createdById], references: [id])
+  clientRelationship ClientRelationship @relation(fields: [relationshipId], references: [id])
+
+  @@map("relationship_notes")
+}
+
 enum BusinessType {
   HAIR_SALON
   BARBERSHOP
@@ -46,91 +229,10 @@ enum BusinessType {
   OTHER
 }
 
-// Staff/Service Provider model
-model Staff {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  name      String
-  role      StaffRole
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Relations
-  businessId   String
-  business     Business      @relation(fields: [businessId], references: [id])
-  services     Service[] // Services they can provide
-  schedules    Schedule[] // Their working schedules
-  appointments Appointment[] // Appointments assigned to them
-
-  @@map("staff")
-}
-
 enum StaffRole {
   OWNER
   ADMIN
   PROVIDER
-}
-
-// Client model
-model Client {
-  id        String   @id @default(cuid())
-  email     String
-  name      String
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  businessId   String
-  business     Business      @relation(fields: [businessId], references: [id])
-  appointments Appointment[]
-
-  // Composite unique constraint for email per business
-  @@unique([email, businessId])
-  @@map("clients")
-}
-
-// Service model
-model Service {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  duration    Int // Duration in minutes
-  price       Decimal
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  businessId   String
-  business     Business      @relation(fields: [businessId], references: [id])
-  providers    Staff[] // Staff who can provide this service
-  appointments Appointment[]
-
-  @@map("services")
-}
-
-// Appointment model
-model Appointment {
-  id        String            @id @default(cuid())
-  startTime DateTime
-  endTime   DateTime
-  status    AppointmentStatus
-  notes     String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  // Relations
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id])
-  clientId   String
-  client     Client   @relation(fields: [clientId], references: [id])
-  serviceId  String
-  service    Service  @relation(fields: [serviceId], references: [id])
-  staffId    String
-  staff      Staff    @relation(fields: [staffId], references: [id])
-  payment    Payment?
-
-  @@map("appointments")
 }
 
 enum AppointmentStatus {
@@ -138,22 +240,6 @@ enum AppointmentStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
-}
-
-// Payment model
-model Payment {
-  id            String        @id @default(cuid())
-  amount        Decimal
-  status        PaymentStatus
-  paymentMethod PaymentMethod
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  // Relations
-  appointmentId String      @unique
-  appointment   Appointment @relation(fields: [appointmentId], references: [id])
-
-  @@map("payments")
 }
 
 enum PaymentStatus {
@@ -170,31 +256,29 @@ enum PaymentMethod {
   TRANSFER
 }
 
-// Schedule model for staff working hours
-model Schedule {
-  id        String @id @default(cuid())
-  dayOfWeek Int // 0-6 for Sunday-Saturday
-  startTime String // Format: "HH:mm"
-  endTime   String // Format: "HH:mm"
-
-  // Relations
-  staffId String
-  staff   Staff  @relation(fields: [staffId], references: [id])
-
-  @@map("schedules")
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  VIP
+  BLOCKED
+  POTENTIAL
 }
 
-// Business Hours model
-model BusinessHours {
-  id        String  @id @default(cuid())
-  dayOfWeek Int // 0-6 for Sunday-Saturday
-  startTime String // Format: "HH:mm"
-  endTime   String // Format: "HH:mm"
-  isClosed  Boolean @default(false)
+enum NoteType {
+  GENERAL
+  PREFERENCE
+  INCIDENT
+  FEEDBACK
+  FOLLOW_UP
+  SPECIAL_REQUEST
+}
 
-  // Relations
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id])
-
-  @@map("business_hours")
+enum ClientFlag {
+  ALLERGIES
+  MEDICAL_CONDITION
+  PAYMENT_ISSUES
+  SPECIAL_CARE
+  VIP_TREATMENT
+  CANCELLED_FREQUENTLY
+  RESCHEDULE_FREQUENTLY
 }
