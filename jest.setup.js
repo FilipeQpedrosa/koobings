@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom'
+import { MOCK_SENDGRID_API_KEY } from './src/lib/services/__mocks__/email';
+
+// Set mock environment variables
+process.env.SENDGRID_API_KEY = MOCK_SENDGRID_API_KEY;
+process.env.EMAIL_FROM = 'test@example.com';
 
 // Mock PrismaClient
 const mockClient = {

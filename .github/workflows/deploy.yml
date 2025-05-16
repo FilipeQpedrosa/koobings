@@ -17,7 +17,9 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
       NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
-      SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+      # Using mock SendGrid key for tests
+      SENDGRID_API_KEY: 'SG.mock_key_for_testing_purposes_only'
+      EMAIL_FROM: 'test@example.com'
     steps:
       - uses: actions/checkout@v4
       
