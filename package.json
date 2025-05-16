@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "vercel-build": "prisma generate && prisma db push && next build"
+    "vercel-build": "prisma generate && next build"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -24,7 +24,8 @@
     "@geist-ui/core": "^2.3.8",
     "@geist-ui/icons": "^1.0.2",
     "@headlessui/react": "^2.2.3",
-    "@hookform/resolvers": "^3.3.4",
+    "@heroicons/react": "^2.2.0",
+    "@hookform/resolvers": "^3.10.0",
     "@prisma/client": "^5.10.2",
     "@radix-ui/react-alert-dialog": "^1.1.13",
     "@radix-ui/react-avatar": "^1.0.4",
@@ -58,12 +59,13 @@
     "react-colorful": "^5.6.1",
     "react-day-picker": "^8.10.0",
     "react-dom": "^18",
-    "react-hook-form": "^7.50.1",
+    "react-hook-form": "^7.56.3",
     "resend": "^4.5.1",
     "sonner": "^2.0.3",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.22.4"
+    "yup": "^1.6.1",
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
