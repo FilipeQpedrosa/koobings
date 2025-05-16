@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import StaffNavbar from '@/components/staff/StaffNavbar';
+import StaffSidebar from '@/components/staff/StaffSidebar';
 
 export default async function StaffLayout({
   children,
@@ -10,19 +10,14 @@ export default async function StaffLayout({
 }) {
   const session = await getServerSession(authOptions);
 
-  // Check if user is authenticated and is a staff member
-  if (!session?.user || session.user.type !== 'staff') {
-    redirect('/staff/auth/signin');
+  if (!session?.user || session.user.role !== 'staff') {
+    redirect('/auth/signin');
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <StaffNavbar />
-      <main className="py-10">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          {children}
-        </div>
-      </main>
+    <div className="flex min-h-screen">
+      <StaffSidebar />
+      <main className="flex-1 p-8">{children}</main>
     </div>
   );
 } 
