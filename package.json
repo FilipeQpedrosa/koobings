@@ -12,8 +12,7 @@
     "db:seed": "prisma db seed",
     "test:email": "ts-node scripts/test-email.ts",
     "notifications:start": "ts-node src/scripts/start-notification-scheduler.ts",
-    "prisma:seed": "ts-node prisma/seed.ts",
-    "seed": "ts-node src/scripts/seed-services.ts"
+    "prisma:seed": "ts-node prisma/seed.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
