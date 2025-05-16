@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from 'bcryptjs';
+import { Business, Staff } from "@prisma/client";
 
 export type UserRole = 'staff' | 'business';
 
@@ -60,7 +61,14 @@ export const authOptions: NextAuthOptions = {
 
         // Try to find staff member first
         const staff = await prisma.staff.findUnique({
-          where: { email: credentials.email }
+          where: { email: credentials.email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            businessId: true
+          }
         });
 
         if (staff) {
@@ -78,11 +86,17 @@ export const authOptions: NextAuthOptions = {
 
         // If not staff, try business owner
         const business = await prisma.business.findUnique({
-          where: { email: credentials.email }
+          where: { email: credentials.email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            passwordHash: true // Assuming this is the correct field name in your schema
+          }
         });
 
         if (business) {
-          const isPasswordValid = await compare(credentials.password, business.password);
+          const isPasswordValid = await compare(credentials.password, business.passwordHash);
           if (isPasswordValid) {
             return {
               id: business.id,

@@ -61,6 +61,7 @@ model Business {
   address             String?
   phone               String?
   email               String               @unique
+  passwordHash        String               // Added password hash field
   settings            Json?
   status              BusinessStatus       @default(PENDING)
   verification        BusinessVerification?
