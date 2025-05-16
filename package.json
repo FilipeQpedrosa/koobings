@@ -9,9 +9,6 @@
     "lint": "next lint",
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
-    "db:seed": "prisma db seed",
-    "test:email": "ts-node scripts/test-email.ts",
-    "notifications:start": "ts-node src/scripts/start-notification-scheduler.ts",
     "prisma:seed": "ts-node prisma/seed.ts"
   },
   "prisma": {
@@ -62,6 +59,7 @@
     "react-dom": "^18",
     "react-hook-form": "^7.50.1",
     "resend": "^4.5.1",
+    "sonner": "^2.0.3",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.22.4"
