@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma, type PrismaClient } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-config';
+import { authOptions } from '@/lib/auth';
 import { startOfWeek, endOfWeek, parseISO } from 'date-fns';
 
 interface AvailabilitySlot {
