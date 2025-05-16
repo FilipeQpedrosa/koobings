@@ -1,32 +1,55 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BusinessType } from '@prisma/client';
+import { hash } from 'bcryptjs';
 
 export default function BusinessOnboardingForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setError('');
+    setPasswordError('');
 
     const formData = new FormData(event.currentTarget);
-    const data = {
-      name: formData.get('name'),
-      type: formData.get('type'),
-      email: formData.get('email'),
-      phone: formData.get('phone'),
-      address: formData.get('address'),
-      settings: {
-        timezone: formData.get('timezone'),
-        currency: formData.get('currency'),
-        language: formData.get('language')
-      }
-    };
+    const password = formData.get('password') as string;
+    const confirmPassword = formData.get('confirmPassword') as string;
+
+    // Validate password
+    if (password !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters long');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
+      // Hash the password
+      const passwordHash = await hash(password, 12);
+
+      const data = {
+        name: formData.get('name'),
+        type: formData.get('type'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        address: formData.get('address'),
+        passwordHash,
+        settings: {
+          timezone: formData.get('timezone'),
+          currency: formData.get('currency'),
+          language: formData.get('language')
+        }
+      };
+
       const response = await fetch('/api/admin/businesses', {
         method: 'POST',
         headers: {
@@ -100,6 +123,37 @@ export default function BusinessOnboardingForm() {
             required
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
+        </div>
+
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            Password
+          </label>
+          <input
+            type="password"
+            name="password"
+            id="password"
+            required
+            minLength={8}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            Confirm Password
+          </label>
+          <input
+            type="password"
+            name="confirmPassword"
+            id="confirmPassword"
+            required
+            minLength={8}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+          {passwordError && (
+            <p className="mt-1 text-sm text-red-600">{passwordError}</p>
+          )}
         </div>
 
         <div>

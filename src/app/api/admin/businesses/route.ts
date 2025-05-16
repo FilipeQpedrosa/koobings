@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -68,30 +68,34 @@ export async function POST(request: Request) {
       email,
       phone,
       address,
-      settings
+      settings,
+      passwordHash
     } = body;
 
-    const business = await prisma.business.create({
-      data: {
-        name,
-        type,
-        email,
-        phone,
-        address,
-        settings,
-        status: 'PENDING',
-        verification: {
-          create: {
-            status: 'PENDING',
-            submittedAt: new Date()
-          }
-        },
-        systemAdmins: {
-          connect: {
-            id: admin.id
-          }
+    const businessData: Prisma.BusinessCreateInput = {
+      name,
+      type,
+      email,
+      phone,
+      address,
+      settings,
+      passwordHash,
+      status: 'PENDING',
+      verification: {
+        create: {
+          status: 'PENDING',
+          submittedAt: new Date()
         }
       },
+      systemAdmins: {
+        connect: {
+          id: admin.id
+        }
+      }
+    };
+
+    const business = await prisma.business.create({
+      data: businessData,
       include: {
         verification: true
       }
