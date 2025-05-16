@@ -17,23 +17,8 @@ export async function middleware(request: NextRequest) {
                      request.nextUrl.pathname.startsWith('/business') ||
                      request.nextUrl.pathname.startsWith('/dashboard')
 
-  // For local development, use ports
-  if (process.env.NODE_ENV === 'development') {
-    const isStaffPort = currentUrl.port === '5002'
-    
-    // Staff routes should only be accessed on port 5002
-    if (isStaffPath && !isStaffPort) {
-      currentUrl.port = '5002'
-      return NextResponse.redirect(currentUrl)
-    }
-
-    // Non-staff routes should only be accessed on port 5001
-    if (isStaffPort && !isStaffPath && !isAuthPage) {
-      currentUrl.port = '5001'
-      return NextResponse.redirect(currentUrl)
-    }
-  } else {
-    // In production, use subdomains    
+  // In production, use subdomains    
+  if (process.env.NODE_ENV === 'production') {
     // Staff routes should only be accessed on staff subdomain
     if (isStaffPath && !isStaffDomain) {
       return NextResponse.redirect(new URL(request.nextUrl.pathname, `https://staff.${baseUrl}`))
@@ -46,8 +31,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Staff Portal Access Control
-  if ((process.env.NODE_ENV === 'development' && currentUrl.port === '5002') || 
-      (process.env.NODE_ENV === 'production' && isStaffDomain)) {
+  if (isStaffPath) {
     // Redirect non-staff users to staff login
     if (!token || token.type !== 'staff') {
       if (!isAuthPage) {
@@ -63,14 +47,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // Customer Portal Access Control
-  if ((process.env.NODE_ENV === 'development' && currentUrl.port === '5001') || 
-      (process.env.NODE_ENV === 'production' && !isStaffDomain)) {
+  if (!isStaffPath) {
     // Prevent staff users from accessing customer portal
     if (token?.type === 'staff') {
-      const staffUrl = process.env.NODE_ENV === 'development' 
-        ? new URL('/staff/dashboard', `${currentUrl.protocol}//${currentUrl.hostname}:5002`)
-        : new URL('/staff/dashboard', `https://staff.${baseUrl}`)
-      return NextResponse.redirect(staffUrl)
+      return NextResponse.redirect(new URL('/staff/dashboard', request.url))
     }
 
     // Redirect authenticated customers away from auth pages
@@ -84,12 +64,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/staff/:path*',
-    '/auth/:path*',
-    '/api/staff/:path*',
-    '/api/client/:path*',
-    '/api/patient/:path*',
-    '/api/admin/:path*',
-    '/((?!api/|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ]
 } 
