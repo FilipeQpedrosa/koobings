@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  env: {
-    CUSTOMER_PORT: 3000,
-    STAFF_PORT: 4000,
-  }
+  // Remove environment variables that might conflict with Vercel
+  swcMinify: true,
+  reactStrictMode: true
 }
 
 module.exports = nextConfig 
