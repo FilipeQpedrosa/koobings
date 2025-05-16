@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:customer\" \"npm run dev:staff\"",
-    "dev:customer": "next dev -p 5001",
-    "dev:staff": "next dev -p 5002",
+    "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
