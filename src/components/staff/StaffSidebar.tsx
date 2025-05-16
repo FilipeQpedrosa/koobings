@@ -3,9 +3,9 @@ import { usePathname } from 'next/navigation';
 import { Calendar, Home, Users } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/staff-portal/dashboard', icon: Home },
-  { name: 'Schedule', href: '/staff-portal/schedule', icon: Calendar },
-  { name: 'Patients', href: '/staff-portal/patients', icon: Users },
+  { name: 'Dashboard', href: '/staff/dashboard', icon: Home },
+  { name: 'Schedule', href: '/staff/schedule', icon: Calendar },
+  { name: 'Patients', href: '/staff/patients', icon: Users },
 ];
 
 export default function StaffSidebar() {
