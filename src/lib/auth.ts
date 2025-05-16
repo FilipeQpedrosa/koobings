@@ -2,26 +2,16 @@ import { NextAuthOptions } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from 'bcryptjs';
-import { StaffRole } from "@prisma/client";
 
-interface BaseUser {
+export type UserRole = 'staff' | 'business';
+
+interface User {
   id: string;
   email: string;
   name: string;
+  role: UserRole;
+  businessId?: string;
 }
-
-interface StaffUser extends BaseUser {
-  type: 'staff';
-  role: StaffRole;
-  businessId: string;
-  businessName: string;
-}
-
-interface PatientUser extends BaseUser {
-  type: 'patient';
-}
-
-type User = StaffUser | PatientUser;
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -33,10 +23,8 @@ declare module "next-auth" {
     id: string;
     email: string;
     name: string;
-    type: 'staff' | 'patient';
-    role?: StaffRole;
+    role: UserRole;
     businessId?: string;
-    businessName?: string;
   }
 }
 
@@ -45,10 +33,8 @@ declare module "next-auth/jwt" {
     id: string;
     email: string;
     name: string;
-    type: 'staff' | 'patient';
-    role?: StaffRole;
+    role: UserRole;
     businessId?: string;
-    businessName?: string;
   }
 }
 
@@ -58,13 +44,11 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/auth/signin',
-    signOut: '/auth/signout',
     error: '/auth/error',
   },
   providers: [
     CredentialsProvider({
-      id: 'patient-login',
-      name: "Patient Login",
+      name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
@@ -74,71 +58,42 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const patient = await prisma.patient.findUnique({
-          where: { email: credentials.email },
-          include: {
-            sensitiveInfo: true
-          }
-        });
-
-        if (!patient || !patient.sensitiveInfo?.notes) {
-          return null;
-        }
-
-        // Extract password hash from notes
-        const passwordHash = patient.sensitiveInfo.notes.replace('Password hash: ', '');
-        const isPasswordValid = await compare(credentials.password, passwordHash);
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: patient.id,
-          email: patient.email,
-          name: patient.name,
-          type: 'patient' as const
-        };
-      }
-    }),
-    CredentialsProvider({
-      id: 'staff-login',
-      name: "Staff Login",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
+        // Try to find staff member first
         const staff = await prisma.staff.findUnique({
-          where: { email: credentials.email },
-          include: {
-            business: true
-          }
+          where: { email: credentials.email }
         });
 
-        if (!staff) {
-          return null;
+        if (staff) {
+          const isPasswordValid = await compare(credentials.password, staff.password);
+          if (isPasswordValid) {
+            return {
+              id: staff.id,
+              email: staff.email,
+              name: staff.name,
+              role: 'staff' as const,
+              businessId: staff.businessId
+            };
+          }
         }
 
-        const isPasswordValid = await compare(credentials.password, staff.password);
+        // If not staff, try business owner
+        const business = await prisma.business.findUnique({
+          where: { email: credentials.email }
+        });
 
-        if (!isPasswordValid) {
-          return null;
+        if (business) {
+          const isPasswordValid = await compare(credentials.password, business.password);
+          if (isPasswordValid) {
+            return {
+              id: business.id,
+              email: business.email,
+              name: business.name,
+              role: 'business' as const
+            };
+          }
         }
 
-        return {
-          id: staff.id,
-          email: staff.email,
-          name: staff.name,
-          type: 'staff' as const,
-          role: staff.role,
-          businessId: staff.businessId,
-          businessName: staff.business.name
-        };
+        return null;
       }
     })
   ],
@@ -148,11 +103,9 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
-        token.type = user.type;
-        if (user.type === 'staff') {
-          token.role = user.role;
+        token.role = user.role;
+        if (user.businessId) {
           token.businessId = user.businessId;
-          token.businessName = user.businessName;
         }
       }
       return token;
@@ -162,12 +115,8 @@ export const authOptions: NextAuthOptions = {
         id: token.id,
         email: token.email,
         name: token.name,
-        type: token.type,
-        ...(token.type === 'staff' && {
-          role: token.role,
-          businessId: token.businessId,
-          businessName: token.businessName
-        })
+        role: token.role,
+        ...(token.businessId && { businessId: token.businessId })
       };
       return session;
     }
