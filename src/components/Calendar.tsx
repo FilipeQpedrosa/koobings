@@ -1,71 +1,100 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import ptLocale from '@fullcalendar/core/locales/pt';
+import * as React from 'react';
+import { DayPicker } from 'react-day-picker';
+import { cn } from '@/lib/utils';
 
-interface CalendarProps {
-  events?: Array<{
-    id: string | number;
-    title: string;
-    start: string | Date;
-    end: string | Date;
-    color?: string;
-  }>;
-  onEventClick?: (eventInfo: any) => void;
-  onDateSelect?: (selectInfo: any) => void;
-  onDateClick?: (dateInfo: any) => void;
-}
+type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-export default function Calendar({
-  events = [],
-  onEventClick,
-  onDateSelect,
-  onDateClick,
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  ...props
 }: CalendarProps) {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return null;
-  }
-
   return (
-    <FullCalendar
-      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-      initialView="timeGridWeek"
-      headerToolbar={{
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,timeGridDay',
+    <DayPicker
+      mode="single"
+      showOutsideDays={showOutsideDays}
+      className={cn('p-3', className)}
+      classNames={{
+        months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
+        month: 'space-y-4',
+        caption: 'flex justify-center pt-1 relative items-center',
+        caption_label: 'text-sm font-medium',
+        nav: 'space-x-1 flex items-center',
+        nav_button: cn(
+          'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100',
+          'border border-gray-200 rounded-md hover:bg-gray-100',
+          'flex items-center justify-center'
+        ),
+        nav_button_previous: 'absolute left-1',
+        nav_button_next: 'absolute right-1',
+        table: 'w-full border-collapse space-y-1',
+        head_row: 'flex',
+        head_cell: 'text-gray-500 rounded-md w-9 font-normal text-[0.8rem]',
+        row: 'flex w-full mt-2',
+        cell: 'h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-gray-100/50 [&:has([aria-selected])]:bg-gray-100 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20',
+        day: cn(
+          'h-9 w-9 p-0 font-normal aria-selected:opacity-100',
+          'rounded-md hover:bg-gray-100 focus:bg-gray-100',
+          'flex items-center justify-center'
+        ),
+        day_range_end: 'day-range-end',
+        day_selected:
+          'bg-blue-600 text-white hover:bg-blue-600 hover:text-white focus:bg-blue-600 focus:text-white',
+        day_today: 'bg-gray-100',
+        day_outside:
+          'day-outside text-gray-400 opacity-50 aria-selected:bg-gray-100/50 aria-selected:text-gray-400 aria-selected:opacity-30',
+        day_disabled: 'text-gray-400 opacity-50',
+        day_range_middle:
+          'aria-selected:bg-gray-100 aria-selected:text-gray-600',
+        day_hidden: 'invisible',
+        ...classNames,
       }}
-      locale={ptLocale}
-      slotMinTime="08:00:00"
-      slotMaxTime="20:00:00"
-      expandRows={true}
-      height="100%"
-      events={events}
-      selectable={true}
-      selectMirror={true}
-      dayMaxEvents={true}
-      weekends={true}
-      eventClick={onEventClick}
-      select={onDateSelect}
-      dateClick={onDateClick}
-      allDaySlot={false}
-      slotDuration="00:30:00"
-      slotLabelInterval="01:00"
-      businessHours={{
-        daysOfWeek: [1, 2, 3, 4, 5, 6],
-        startTime: '08:00',
-        endTime: '20:00',
-      }}
+      {...props}
     />
   );
-} 
+}
+
+function ChevronLeft(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRight(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+Calendar.displayName = 'Calendar';
+
+export { Calendar }; 
