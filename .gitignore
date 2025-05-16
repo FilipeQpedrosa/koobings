@@ -49,3 +49,4 @@ next-env.d.ts
 
 # Prisma generated
 /src/generated/
+next.config.ts
