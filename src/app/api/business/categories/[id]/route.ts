@@ -1,20 +1,19 @@
-import { createClient } from '@/lib/supabase'
-import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 // GET: Get a specific category
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   try {
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+
     const category = await prisma.serviceCategory.findUnique({
       where: { id: params.id },
       include: {
@@ -37,8 +36,8 @@ export async function GET(
 
     return NextResponse.json(category)
   } catch (error) {
-    console.error('Error fetching category:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    console.error('Error:', error)
+    return new NextResponse('Internal Error', { status: 500 })
   }
 }
 
@@ -47,8 +46,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getServerSession(authOptions)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -92,8 +90,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await getServerSession(authOptions)
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
