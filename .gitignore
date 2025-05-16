@@ -27,6 +27,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.test
 
 # vercel
 .vercel
@@ -45,3 +46,7 @@ next-env.d.ts
 
 # Supabase
 .supabase/
+
+# Prisma generated
+/src/generated/
+next.config.ts

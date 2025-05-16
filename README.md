@@ -1,5 +1,7 @@
 # Service Scheduler
 
+[![Vercel Deployment](https://img.shields.io/badge/vercel-deployed-success)](https://service-scheduler-filipeqpedrosa.vercel.app)
+
 A modern service management application for businesses like hair salons and medical practices. Built with Next.js, TypeScript, Tailwind CSS, Prisma, and Supabase.
 
 ## Features
