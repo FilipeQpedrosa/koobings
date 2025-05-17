@@ -1,129 +1,72 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calendar } from '@/components/ui/calendar';
-import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { useEffect, useState } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
 
 interface StaffCalendarProps {
   staffId: string;
 }
 
-interface Availability {
+interface Appointment {
   id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
+  title: string;
+  start: string;
+  end: string;
+  status: string;
 }
 
-export default function StaffCalendar({ staffId }: StaffCalendarProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [availability, setAvailability] = useState<Availability[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+const StaffCalendar = ({ staffId }: StaffCalendarProps) => {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
 
   useEffect(() => {
-    if (selectedDate) {
-      fetchAvailability();
-    }
-  }, [selectedDate]);
+    const fetchAppointments = async () => {
+      try {
+        const response = await fetch(`/api/staff/${staffId}/appointments`);
+        if (!response.ok) throw new Error('Failed to fetch appointments');
+        const data = await response.json();
+        
+        // Transform appointments into FullCalendar events
+        const events = data.map((apt: any) => ({
+          id: apt.id,
+          title: `${apt.service.name} - ${apt.patient.name}`,
+          start: apt.startTime,
+          end: apt.endTime,
+          status: apt.status,
+          backgroundColor: apt.status === 'COMPLETED' ? '#10B981' : '#3B82F6',
+        }));
+        
+        setAppointments(events);
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+      }
+    };
 
-  const fetchAvailability = async () => {
-    if (!selectedDate) return;
-
-    setIsLoading(true);
-    try {
-      const startDate = format(selectedDate, 'yyyy-MM-dd');
-      const response = await fetch(
-        `/api/staff/schedule?staffId=${staffId}&startDate=${startDate}`
-      );
-      if (!response.ok) throw new Error('Failed to fetch availability');
-      const data = await response.json();
-      setAvailability(data);
-    } catch (error) {
-      console.error('Error fetching availability:', error);
-      toast.error('Failed to load schedule');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updateAvailability = async (isAvailable: boolean) => {
-    if (!selectedDate) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/staff/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          staffId,
-          date: format(selectedDate, 'yyyy-MM-dd'),
-          startTime: '09:00',
-          endTime: '17:00',
-          isAvailable,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update availability');
-      await fetchAvailability();
-      toast.success('Schedule updated successfully');
-    } catch (error) {
-      console.error('Error updating availability:', error);
-      toast.error('Failed to update schedule');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const isDateAvailable = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return availability.some(
-      (a) => a.date === dateStr && a.isAvailable
-    );
-  };
+    fetchAppointments();
+  }, [staffId]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex space-x-4">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={setSelectedDate}
-          className="rounded-md border"
-          modifiers={{
-            available: (date) => isDateAvailable(date),
-          }}
-          modifiersClassNames={{
-            available: 'bg-green-50 font-bold',
-          }}
-        />
-        <div className="space-y-4">
-          <div className="rounded-lg border bg-white p-4">
-            <h3 className="text-lg font-medium">
-              {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a date'}
-            </h3>
-            <div className="mt-4 space-y-2">
-              <Button
-                onClick={() => updateAvailability(true)}
-                disabled={isLoading}
-                className="w-full"
-              >
-                Set as Available
-              </Button>
-              <Button
-                onClick={() => updateAvailability(false)}
-                disabled={isLoading}
-                variant="outline"
-                className="w-full"
-              >
-                Set as Unavailable
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="h-full bg-white p-4 shadow sm:rounded-lg">
+      <FullCalendar
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        initialView="timeGridWeek"
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay',
+        }}
+        editable={false}
+        selectable={true}
+        selectMirror={true}
+        dayMaxEvents={true}
+        weekends={true}
+        events={appointments}
+        height="100%"
+      />
     </div>
   );
-} 
+};
+
+export default StaffCalendar; 

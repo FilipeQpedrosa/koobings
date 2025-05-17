@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { CustomUser } from '@/lib/auth';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { sendAppointmentConfirmation, type AppointmentWithRelations } from '@/lib/email';
+import { z } from 'zod';
 
 // Schema for appointment creation
 const appointmentSchema = yup.object({
@@ -27,6 +28,31 @@ const statusUpdateSchema = yup.object({
 
 type AppointmentInput = yup.InferType<typeof appointmentSchema>;
 type StatusUpdateInput = yup.InferType<typeof statusUpdateSchema>;
+
+const appointmentService = new AppointmentService();
+
+// Validation schema for creating appointments
+const createAppointmentSchema = z.object({
+  startTime: z.string().transform((str) => new Date(str)),
+  patientId: z.string(),
+  serviceId: z.string(),
+  staffId: z.string(),
+  businessId: z.string(),
+  notes: z.string().optional(),
+  recurringPattern: z.object({
+    frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']),
+    interval: z.number().min(1),
+    daysOfWeek: z.array(z.number().min(0).max(6)).optional(),
+    endDate: z.string().transform((str) => new Date(str)).optional()
+  }).optional()
+});
+
+// Validation schema for updating appointments
+const updateAppointmentSchema = z.object({
+  startTime: z.string().transform((str) => new Date(str)).optional(),
+  notes: z.string().optional(),
+  status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED']).optional()
+});
 
 // GET handler
 export async function GET(request: Request) {
@@ -119,47 +145,18 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { startTime, serviceId, staffId, notes, patientId } = body;
+    const validatedData = createAppointmentSchema.parse(body);
 
-    // Validate required fields
-    if (!startTime || !serviceId || !staffId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    const businessId = session.user.role === 'business' ? session.user.id : session.user.businessId || '';
-
-    // Create the appointment using the service
-    const appointment = await AppointmentService.createAppointment({
-      serviceId,
-      staffId,
-      businessId,
-      patientId: patientId || session.user.id,
-      startTime,
-      notes,
-      createdBy: session.user.id,
-    });
-
-    // Send confirmation email
-    if (appointment) {
-      await sendAppointmentConfirmation({
-        appointment: appointment as AppointmentWithRelations,
-      });
-    }
-
+    const appointment = await appointmentService.create(validatedData);
     return NextResponse.json(appointment);
   } catch (error) {
-    console.error('Error creating appointment:', error);
-    if (error instanceof ApiError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode }
-      );
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 });
     }
+    
+    console.error('Failed to create appointment:', error);
     return NextResponse.json(
-      { error: 'Failed to create appointment' },
+      { error: error instanceof Error ? error.message : 'Failed to create appointment' },
       { status: 500 }
     );
   }
@@ -173,34 +170,52 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { appointmentId, status, reason } = body;
-
-    if (!appointmentId || !status) {
-      return NextResponse.json(
-        { error: 'Appointment ID and status are required' },
-        { status: 400 }
-      );
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Appointment ID is required' }, { status: 400 });
     }
 
-    const appointment = await AppointmentService.updateAppointmentStatus(
-      appointmentId,
-      status as AppointmentStatus,
-      session.user.id,
-      reason
-    );
+    const body = await request.json();
+    const validatedData = updateAppointmentSchema.parse(body);
 
+    const appointment = await appointmentService.update(id, validatedData);
     return NextResponse.json(appointment);
   } catch (error) {
-    console.error('Error updating appointment:', error);
-    if (error instanceof ApiError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode }
-      );
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 });
     }
+    
+    console.error('Failed to update appointment:', error);
     return NextResponse.json(
-      { error: 'Failed to update appointment' },
+      { error: error instanceof Error ? error.message : 'Failed to update appointment' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const reason = searchParams.get('reason') || 'No reason provided';
+    
+    if (!id) {
+      return NextResponse.json({ error: 'Appointment ID is required' }, { status: 400 });
+    }
+
+    await appointmentService.cancel(id, reason, session.user?.email || 'SYSTEM');
+    return NextResponse.json({ message: 'Appointment cancelled successfully' });
+  } catch (error) {
+    console.error('Failed to cancel appointment:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to cancel appointment' },
       { status: 500 }
     );
   }

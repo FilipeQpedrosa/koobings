@@ -12,216 +12,116 @@ type BusinessSettings = {
   defaultAppointmentDuration?: number;
 }
 
+async function cleanup() {
+  // Delete all records in the correct order to handle foreign key constraints
+  await prisma.staffAvailability.deleteMany();
+  await prisma.service.deleteMany();
+  await prisma.serviceCategory.deleteMany();
+  await prisma.businessHours.deleteMany();
+  await prisma.staff.deleteMany();
+  await prisma.securitySettings.deleteMany();
+  await prisma.featureOption.deleteMany();
+  await prisma.feature.deleteMany();
+  await prisma.featureConfiguration.deleteMany();
+  await prisma.businessVerification.deleteMany();
+  await prisma.business.deleteMany();
+}
+
 async function main() {
   // Clean up existing data
-  await prisma.$transaction([
-    prisma.payment.deleteMany(),
-    prisma.appointmentReminder.deleteMany(),
-    prisma.appointmentCancellation.deleteMany(),
-    prisma.appointment.deleteMany(),
-    prisma.review.deleteMany(),
-    prisma.dataAccessLog.deleteMany(),
-    prisma.staffPermission.deleteMany(),
-    prisma.patientDataRule.deleteMany(),
-    prisma.schedule.deleteMany(),
-    prisma.businessHours.deleteMany(),
-    prisma.service.deleteMany(),
-    prisma.serviceCategory.deleteMany(),
-    prisma.patientSensitiveInfo.deleteMany(),
-    prisma.relationshipNote.deleteMany(),
-    prisma.patientRelationship.deleteMany(),
-    prisma.patientPreference.deleteMany(),
-    prisma.staff.deleteMany(),
-    prisma.patient.deleteMany(),
-    prisma.securitySettings.deleteMany(),
-    prisma.business.deleteMany(),
-  ])
+  await cleanup();
 
   try {
-    // Create initial business
-    const businessSettings: BusinessSettings = {
-      timezone: 'America/New_York',
-      currency: 'USD',
-      language: 'en',
-      notificationsEnabled: true,
-      defaultAppointmentDuration: 60
-    }
-
-    const businessPassword = await hash('admin123', 12)
-    const businessData: Prisma.BusinessCreateInput = {
-      name: 'Wellness Center',
-      type: BusinessType.PSYCHOLOGY,
-      email: 'admin@wellnesscenter.com',
-      password: businessPassword,
-      status: BusinessStatus.ACTIVE,
-      phone: '+1234567890',
-      address: '123 Healing Street, New York, NY 10001',
-      settings: businessSettings,
-      securitySettings: {
-        create: {
-          requireMFA: true,
-          sensitiveDataAccessExpiry: 60,
-          autoRevokeInactiveAccess: true,
-          inactivityThreshold: 30,
-          requireAccessReason: true,
-          enableAccessLogs: true
-        }
-      }
-    }
-
-    const business = await prisma.business.create({
-      data: businessData
-    })
-
-    // Create staff members
-    const staffMembers = [
-      {
-        name: 'Dr. Sarah Johnson',
-        email: 'sarah.johnson@wellnesscenter.com',
-        role: StaffRole.ADMIN
+    // Create a test business
+    const business = await prisma.business.upsert({
+      where: { email: 'test@business.com' },
+      update: {},
+      create: {
+        name: 'Test Salon & Spa',
+        type: BusinessType.HAIR_SALON,
+        email: 'test@business.com',
+        phone: '123-456-7890',
+        passwordHash: 'test-password-hash', // In production, this should be properly hashed
+        status: 'ACTIVE',
+        address: '123 Test Street, Test City',
+        businessHours: {
+          createMany: {
+            data: [
+              { dayOfWeek: 0, startTime: '09:00', endTime: '17:00' }, // Sunday
+              { dayOfWeek: 1, startTime: '09:00', endTime: '18:00' }, // Monday
+              { dayOfWeek: 2, startTime: '09:00', endTime: '18:00' }, // Tuesday
+              { dayOfWeek: 3, startTime: '09:00', endTime: '18:00' }, // Wednesday
+              { dayOfWeek: 4, startTime: '09:00', endTime: '18:00' }, // Thursday
+              { dayOfWeek: 5, startTime: '09:00', endTime: '18:00' }, // Friday
+              { dayOfWeek: 6, startTime: '09:00', endTime: '17:00' }, // Saturday
+            ],
+          },
+        },
       },
-      {
-        name: 'Dr. Michael Chen',
-        email: 'michael.chen@wellnesscenter.com',
-        role: StaffRole.PROVIDER
-      }
-    ]
-
-    const createdStaff = await Promise.all(
-      staffMembers.map(async (staff) => {
-        const staffPassword = await hash('staff123', 12)
-        return prisma.staff.create({
-          data: {
-            name: staff.name,
-            email: staff.email,
-            password: staffPassword,
-            role: staff.role,
-            businessId: business.id
-          }
-        })
-      })
-    )
+    });
 
     // Create service categories
-    const categories = [
-      {
-        name: 'Therapy Sessions',
-        description: 'Individual and group therapy sessions',
-        color: '#4CAF50'
+    const hairCategory = await prisma.serviceCategory.create({
+      data: {
+        name: 'Hair Services',
+        description: 'Professional hair care services',
+        businessId: business.id,
+        color: '#FF9999',
       },
-      {
-        name: 'Assessments',
-        description: 'Psychological assessments and evaluations',
-        color: '#2196F3'
-      }
-    ]
+    });
 
-    const createdCategories = await Promise.all(
-      categories.map((category) =>
-        prisma.serviceCategory.create({
-          data: {
-            ...category,
-            businessId: business.id
-          }
-        })
-      )
-    )
+    const spaCategory = await prisma.serviceCategory.create({
+      data: {
+        name: 'Spa Services',
+        description: 'Relaxing spa treatments',
+        businessId: business.id,
+        color: '#99FF99',
+      },
+    });
 
     // Create services
-    const services = [
-      {
-        name: 'Individual Therapy',
-        description: 'One-on-one therapy session',
-        duration: 60,
-        price: 150.00,
-        categoryId: createdCategories[0].id
-      },
-      {
-        name: 'Group Therapy',
-        description: 'Group therapy session',
-        duration: 90,
-        price: 80.00,
-        categoryId: createdCategories[0].id
-      },
-      {
-        name: 'Psychological Assessment',
-        description: 'Comprehensive psychological evaluation',
-        duration: 120,
-        price: 250.00,
-        categoryId: createdCategories[1].id
-      }
-    ]
-
-    await Promise.all(
-      services.map((service) =>
-        prisma.service.create({
-          data: {
-            ...service,
-            businessId: business.id,
-            providers: {
-              connect: createdStaff.map(staff => ({ id: staff.id }))
-            }
-          }
-        })
-      )
-    )
-
-    // Create business hours for weekdays
-    const weekdays = [1, 2, 3, 4, 5] // Monday to Friday
-    
-    await Promise.all(
-      weekdays.map((dayOfWeek) =>
-        prisma.businessHours.create({
-          data: {
-            businessId: business.id,
-            dayOfWeek,
-            startTime: '09:00',
-            endTime: '17:00'
-          }
-        })
-      )
-    )
-
-    // Create staff availability
-    await Promise.all(
-      createdStaff.flatMap((staff) =>
-        [...Array(7)].map((_, i) =>
-          prisma.staffAvailability.create({
-            data: {
-              staffId: staff.id,
-              date: new Date(Date.now() + (i * 24 * 60 * 60 * 1000)), // Next 7 days
-              startTime: '09:00',
-              endTime: '17:00'
-            }
-          })
-        )
-      )
-    )
-
-    // Create demo patient
-    const patient = await prisma.patient.create({
-      data: {
-        name: 'Jane Smith',
-        email: 'jane.smith@example.com',
-        phone: '+1987654321',
-        dateOfBirth: new Date('1990-01-15'),
-        gender: 'Female',
-        address: '456 Patient Lane, New York, NY 10002',
-        status: PatientStatus.ACTIVE,
-        businesses: {
-          connect: { id: business.id }
+    await prisma.service.createMany({
+      data: [
+        {
+          name: 'Haircut & Style',
+          description: 'Professional haircut and styling',
+          duration: 60, // minutes
+          price: 50.00,
+          categoryId: hairCategory.id,
+          businessId: business.id,
+          isActive: true,
         },
-        sensitiveInfo: {
-          create: {
-            email: 'jane.smith@example.com',
-            medicalInfo: 'No known allergies',
-            notes: 'Regular therapy sessions for anxiety management'
-          }
-        }
-      }
-    })
+        {
+          name: 'Color & Highlights',
+          description: 'Full color or highlight treatment',
+          duration: 120,
+          price: 120.00,
+          categoryId: hairCategory.id,
+          businessId: business.id,
+          isActive: true,
+        },
+        {
+          name: 'Swedish Massage',
+          description: '60-minute relaxing massage',
+          duration: 60,
+          price: 80.00,
+          categoryId: spaCategory.id,
+          businessId: business.id,
+          isActive: true,
+        },
+        {
+          name: 'Facial Treatment',
+          description: 'Deep cleansing facial with massage',
+          duration: 90,
+          price: 95.00,
+          categoryId: spaCategory.id,
+          businessId: business.id,
+          isActive: true,
+        },
+      ],
+    });
 
-    console.log('Seed data created successfully')
+    console.log('Database has been seeded. 🌱');
   } catch (error) {
     console.error('Error creating seed data:', error)
     throw error

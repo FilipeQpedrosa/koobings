@@ -3,14 +3,14 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import StaffSidebar from '@/components/staff/StaffSidebar';
 
-export default async function StaffLayout({
+export default async function StaffPortalLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user || session.user.role !== 'staff') {
+  if (!session?.user || session.user.role !== 'STAFF') {
     redirect('/auth/signin');
   }
 
