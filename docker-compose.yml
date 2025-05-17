@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    command: postgres -c listen_addresses='*' -c password_encryption=md5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: service_scheduler
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ./scripts/migrate.sh
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/service_scheduler
+      NODE_ENV: development
+      MIGRATION_TIMEOUT: "300"  # 5 minutes timeout for migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./prisma:/app/prisma
+      - ./scripts:/app/scripts
+    restart: on-failure:3
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "crond -f -d 8 && echo '0 0 * * * /app/scripts/backup.sh' | crontab -"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/service_scheduler
+      PGPASSWORD: postgres
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-changeme}  # Should be changed in production
+    volumes:
+      - ./scripts:/app/scripts
+      - backup_data:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/service_scheduler
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  backup_data: 

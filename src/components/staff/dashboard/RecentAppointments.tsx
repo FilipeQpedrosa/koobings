@@ -1,50 +1,95 @@
-import { format } from 'date-fns';
-import { Appointment, Service, Patient } from '@prisma/client';
+'use client';
 
-interface AppointmentWithDetails extends Appointment {
-  service: Service;
-  patient: Patient;
+import { formatDate } from '@/lib/utils';
+
+interface Appointment {
+  id: string;
+  startTime: Date;
+  status: string;
+  service: {
+    name: string;
+  };
+  patient: {
+    name: string;
+  };
 }
 
 interface RecentAppointmentsProps {
-  appointments: AppointmentWithDetails[];
+  appointments: Appointment[];
 }
 
-export default function RecentAppointments({ appointments }: RecentAppointmentsProps) {
-  if (appointments.length === 0) {
-    return (
-      <div className="text-center py-6">
-        <p className="text-gray-500">No upcoming appointments</p>
-      </div>
-    );
-  }
-
+const RecentAppointments = ({ appointments }: RecentAppointmentsProps) => {
   return (
-    <div className="mt-6 overflow-hidden">
-      <div className="flow-root">
-        <ul role="list" className="-my-5 divide-y divide-gray-200">
-          {appointments.map((appointment) => (
-            <li key={appointment.id} className="py-5">
-              <div className="relative focus-within:ring-2 focus-within:ring-indigo-500">
-                <h3 className="text-sm font-semibold text-gray-800">
-                  <span className="absolute inset-0" aria-hidden="true" />
-                  {appointment.service.name}
-                </h3>
-                <p className="mt-1 text-sm text-gray-600 line-clamp-2">
-                  {format(new Date(appointment.startTime), 'PPP')} at{' '}
-                  {format(new Date(appointment.startTime), 'p')}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  Patient: {appointment.patient.name}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  Status: <span className="capitalize">{appointment.status.toLowerCase()}</span>
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+    <div className="bg-white shadow sm:rounded-lg">
+      <div className="px-4 py-5 sm:p-6">
+        <h3 className="text-base font-semibold leading-6 text-gray-900">
+          Recent Appointments
+        </h3>
+        <div className="mt-6 flow-root">
+          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead>
+                  <tr>
+                    <th
+                      scope="col"
+                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
+                    >
+                      Client
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Service
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Date
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {appointments.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-4 text-center text-sm text-gray-500">
+                        No recent appointments
+                      </td>
+                    </tr>
+                  ) : (
+                    appointments.map((appointment) => (
+                      <tr key={appointment.id}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                          {appointment.patient.name}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {appointment.service.name}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {formatDate(new Date(appointment.startTime))}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <span className="capitalize">{appointment.status.toLowerCase()}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
-} 
+};
+
+export default RecentAppointments; 
