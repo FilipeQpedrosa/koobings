@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-module.exports = {
+const nextConfig = {
   // Remove environment variables that might conflict with Vercel
   swcMinify: true,
   reactStrictMode: true,
@@ -7,6 +7,17 @@ module.exports = {
     ignoreBuildErrors: false
   },
   output: 'standalone',
+  images: {
+    domains: [
+      'localhost',
+      'railway.app',
+      'images.unsplash.com',
+      'avatars.githubusercontent.com',
+    ],
+  },
+  experimental: {
+    serverActions: true,
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -19,4 +30,6 @@ module.exports = {
     }
     return config;
   }
-} 
+};
+
+module.exports = nextConfig; 

@@ -1,39 +1,67 @@
 'use client';
 
-import { signOut } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Bell, Settings, User, LogOut } from 'lucide-react';
 
-interface AdminUser {
-  id: string;
-  name: string;
-  email: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'SUPPORT';
-}
+export default function AdminNavbar() {
+  const { data: session } = useSession();
 
-interface AdminNavbarProps {
-  admin: AdminUser;
-}
-
-export default function AdminNavbar({ admin }: AdminNavbarProps) {
   return (
     <nav className="bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 justify-between">
           <div className="flex">
-            <div className="flex-shrink-0 flex items-center">
-              <Link href="/admin/dashboard" className="text-xl font-bold text-gray-800">
-                Admin Portal
+            <div className="flex flex-shrink-0 items-center">
+              <Link href="/admin" className="text-xl font-bold text-gray-800">
+                Service Scheduler Admin
               </Link>
             </div>
           </div>
-          <div className="flex items-center">
-            <span className="text-gray-600 mr-4">{admin.name}</span>
-            <button
-              onClick={() => signOut()}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              Sign out
-            </button>
+          
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <Link href="/admin/settings" className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href="/admin/profile" className="flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => signOut()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">
+                {session?.user?.name}
+              </span>
+            </div>
           </div>
         </div>
       </div>

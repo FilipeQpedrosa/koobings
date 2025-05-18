@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Base model with common fields
 model BaseModel {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -23,12 +19,12 @@ model BaseModel {
 model SystemSettings {
   id                  String      @id @default(cuid())
   key                 String      @unique
-  value              Json
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-  lastModifiedBy     String
+  value               Json
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  lastModifiedBy      String
+  isDeleted           Boolean     @default(false)
   lastModifiedByAdmin SystemAdmin @relation(fields: [lastModifiedBy], references: [id])
-  isDeleted          Boolean     @default(false)
 
   @@index([key])
   @@map("system_settings")
@@ -42,27 +38,27 @@ model SystemAdmin {
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
   isDeleted     Boolean                @default(false)
-  businesses    Business[]             @relation("SystemAdminToBusinesses")
-  verifications BusinessVerification[]
   activities    AdminActivity[]
+  verifications BusinessVerification[]
   settings      SystemSettings[]
+  businesses    Business[]             @relation("SystemAdminToBusinesses")
 
   @@index([email])
   @@map("system_admins")
 }
 
 model BusinessVerification {
-  id            String             @id @default(cuid())
-  businessId    String             @unique
-  status        VerificationStatus
-  submittedAt   DateTime          @default(now())
-  verifiedAt    DateTime?
-  verifiedBy    String?
-  documents     Json?             // Business verification documents
-  notes         String?
-  business      Business          @relation(fields: [businessId], references: [id])
-  systemAdmin   SystemAdmin?      @relation(fields: [verifiedBy], references: [id])
-  isDeleted     Boolean           @default(false)
+  id          String             @id @default(cuid())
+  businessId  String             @unique
+  status      VerificationStatus
+  submittedAt DateTime           @default(now())
+  verifiedAt  DateTime?
+  verifiedBy  String?
+  documents   Json?
+  notes       String?
+  isDeleted   Boolean            @default(false)
+  business    Business           @relation(fields: [businessId], references: [id])
+  systemAdmin SystemAdmin?       @relation(fields: [verifiedBy], references: [id])
 
   @@index([businessId])
   @@index([status])
@@ -70,147 +66,143 @@ model BusinessVerification {
 }
 
 model Business {
-  id                  String               @id @default(cuid())
-  name                String
-  type                BusinessType
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  isDeleted           Boolean              @default(false)
-  createdBy           String?
-  lastModifiedBy      String?
-  address             String?
-  phone               String?
-  email               String               @unique
-  passwordHash        String               // Hashed password for authentication
-  settings            Json?
-  status              BusinessStatus       @default(PENDING)
-  verification        BusinessVerification?
-  securitySettings    SecuritySettings?
-  appointments        Appointment[]
-  businessHours       BusinessHours[]
-  patientRelationships PatientRelationship[]
-  patients            Patient[]
-  categories          ServiceCategory[]
-  services            Service[]
-  staff               Staff[]
-  staffPermissions    StaffPermission[]
-  dataAccessLogs      DataAccessLog[]
-  patientDataRules    PatientDataRule[]
+  id                   String                @id @default(cuid())
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  name                 String
+  email                String                @unique
+  phone                String?
+  address              String?
+  website              String?
+  description          String?
+  logo                 String?
+  settings             Json?
+  type                 BusinessType          @default(HAIR_SALON)
+  passwordHash         String
+  appointments         Appointment[]
+  clients              Client[]
+  services             Service[]
+  staff                Staff[]
+  verification         BusinessVerification?
+  dataAccessLogs       DataAccessLog[]
   featureConfiguration FeatureConfiguration?
-  systemAdmins        SystemAdmin[]        @relation("SystemAdminToBusinesses")
+  patientDataRules     PatientDataRule[]
+  patientRelationships PatientRelationship[]
+  securitySettings     SecuritySettings?
+  serviceCategories    ServiceCategory[]
+  staffPermissions     StaffPermission[]
+  patients             Patient[]             @relation("BusinessToPatient")
+  systemAdmins         SystemAdmin[]         @relation("SystemAdminToBusinesses")
 
   @@index([email])
-  @@index([type])
-  @@index([status])
-  @@index([isDeleted])
-  @@index([createdBy])
-  @@index([lastModifiedBy])
-  @@map("businesses")
 }
 
 model SecuritySettings {
-  id                            String    @id @default(cuid())
-  businessId                    String    @unique
-  requireMFA                    Boolean   @default(false)
-  sensitiveDataAccessExpiry     Int?      // Minutes until access token expires
-  autoRevokeInactiveAccess     Boolean   @default(true)
-  inactivityThreshold          Int       @default(30) // Days
-  enforceIPRestriction         Boolean   @default(false)
-  allowedIPs                   String[]
-  requireAccessReason          Boolean   @default(true)
-  enableAccessLogs             Boolean   @default(true)
-  defaultDataRetentionDays     Int       @default(365)
-  createdAt                    DateTime  @default(now())
-  updatedAt                    DateTime  @updatedAt
-  isDeleted                    Boolean   @default(false)
-  business                     Business  @relation(fields: [businessId], references: [id])
+  id                        String   @id @default(cuid())
+  businessId                String   @unique
+  requireMFA                Boolean  @default(false)
+  sensitiveDataAccessExpiry Int?
+  autoRevokeInactiveAccess  Boolean  @default(true)
+  inactivityThreshold       Int      @default(30)
+  enforceIPRestriction      Boolean  @default(false)
+  allowedIPs                String[]
+  requireAccessReason       Boolean  @default(true)
+  enableAccessLogs          Boolean  @default(true)
+  defaultDataRetentionDays  Int      @default(365)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  isDeleted                 Boolean  @default(false)
+  business                  Business @relation(fields: [businessId], references: [id])
 
   @@index([businessId])
   @@map("security_settings")
 }
 
 model Staff {
-  id                 String               @id @default(cuid())
-  email              String               @unique
-  name               String
-  role               StaffRole
-  password           String               // Hashed password for authentication
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  isDeleted          Boolean              @default(false)
-  createdBy          String?
-  lastModifiedBy     String?
-  businessId         String
-  lastActive         DateTime?
-  mfaEnabled         Boolean              @default(false)
-  appointments       Appointment[]
-  relationshipNotes  RelationshipNote[]
-  schedules          Schedule[]
-  business           Business             @relation(fields: [businessId], references: [id])
-  preferredByPatients PatientRelationship[] @relation("PatientRelationshipToStaff")
-  services           Service[]            @relation("ServiceToStaff")
-  permissions        StaffPermission[]
-  accessLogs         DataAccessLog[]
-  patientDataRules   PatientDataRule[]
-  availability       StaffAvailability[]
+  id                         String                       @id @default(cuid())
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  name                       String
+  email                      String                       @unique
+  phone                      String?
+  password                   String
+  role                       StaffRole                    @default(STANDARD)
+  businessId                 String
+  appointments               Appointment[]
+  business                   Business                     @relation(fields: [businessId], references: [id])
+  availability               StaffAvailability?
+  PatientRelationshipToStaff PatientRelationshipToStaff[]
+  dataAccessLogs             DataAccessLog[]
+  patientDataRules           PatientDataRule[]
+  relationshipNotes          RelationshipNote[]
+  permissions                StaffPermission[]
+  services                   Service[]                    @relation("StaffServices")
 
-  @@index([email])
   @@index([businessId])
-  @@index([role])
-  @@index([isDeleted])
-  @@index([createdBy])
-  @@index([lastModifiedBy])
-  @@index([businessId, role])
-  @@map("staff")
+  @@index([email])
 }
 
-model ServiceCategory {
-  id          String    @id @default(cuid())
-  name        String
-  description String?
-  color       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  isDeleted   Boolean   @default(false)
-  createdBy   String?
-  lastModifiedBy String?
-  businessId  String
-  business    Business  @relation(fields: [businessId], references: [id])
-  services    Service[]
+model Service {
+  id           String           @id @default(cuid())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  name         String
+  description  String?
+  duration     Int
+  price        Float
+  businessId   String
+  categoryId   String?
+  appointments Appointment[]
+  business     Business         @relation(fields: [businessId], references: [id])
+  category     ServiceCategory? @relation(fields: [categoryId], references: [id])
+  staff        Staff[]          @relation("StaffServices")
 
   @@index([businessId])
-  @@index([isDeleted])
-  @@index([createdBy])
-  @@index([lastModifiedBy])
-  @@map("service_categories")
+  @@index([categoryId])
+}
+
+model Client {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  name         String
+  email        String        @unique
+  phone        String?
+  businessId   String
+  preferences  Json?
+  appointments Appointment[]
+  business     Business      @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([email])
 }
 
 model Patient {
-  id                String              @id @default(cuid())
+  id                String                @id @default(cuid())
   name              String
-  email             String              @unique
+  email             String                @unique
   phone             String?
   dateOfBirth       DateTime?
   gender            String?
   address           String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  isDeleted         Boolean             @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  isDeleted         Boolean               @default(false)
   createdBy         String?
   lastModifiedBy    String?
-  status            PatientStatus       @default(ACTIVE)
+  status            PatientStatus         @default(ACTIVE)
   notes             String?
   flags             PatientFlag[]
   appointments      Appointment[]
-  reviews           Review[]
-  preferences       PatientPreference?
-  paymentMethods    PaymentMethod[]
-  dataRules         PatientDataRule[]
-  businesses        Business[]
-  relationships     PatientRelationship[]
-  providers         Provider[]
-  sensitiveInfo     PatientSensitiveInfo?
+  PatientToProvider PatientToProvider[]
   accessLogs        DataAccessLog[]
+  dataRules         PatientDataRule[]
+  preferences       PatientPreference?
+  relationships     PatientRelationship?
+  sensitiveInfo     PatientSensitiveInfo?
+  paymentMethods    PaymentMethod[]
+  reviews           Review[]
+  businesses        Business[]            @relation("BusinessToPatient")
 
   @@index([email])
   @@index([status])
@@ -240,325 +232,193 @@ model PatientSensitiveInfo {
   @@map("patient_sensitive_info")
 }
 
-model Service {
-  id           String           @id @default(cuid())
-  name         String
-  description  String?
-  duration     Int
-  price        Decimal
-  recurring    Boolean          @default(false)
-  isActive     Boolean          @default(true)
-  isDeleted    Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  createdBy    String?
+model ServiceCategory {
+  id             String    @id @default(cuid())
+  name           String
+  description    String?
+  color          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  isDeleted      Boolean   @default(false)
+  createdBy      String?
   lastModifiedBy String?
-  businessId   String
-  categoryId   String?
-  appointments Appointment[]
-  business     Business         @relation(fields: [businessId], references: [id])
-  category     ServiceCategory? @relation(fields: [categoryId], references: [id])
-  providers    Staff[]          @relation("ServiceToStaff")
+  businessId     String
+  services       Service[]
+  business       Business  @relation(fields: [businessId], references: [id])
 
   @@index([businessId])
-  @@index([categoryId])
-  @@index([isActive])
   @@index([isDeleted])
   @@index([createdBy])
   @@index([lastModifiedBy])
-  @@index([businessId, categoryId])
-  @@map("services")
-}
-
-model Appointment {
-  id                String                @id @default(cuid())
-  startTime         DateTime
-  endTime           DateTime
-  status            AppointmentStatus
-  notes             String?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  isDeleted         Boolean               @default(false)
-  createdBy         String?
-  lastModifiedBy    String?
-  businessId        String
-  patientId         String
-  serviceId         String
-  staffId           String
-  recurringId       String?               // For recurring appointments
-  bufferTimeBefore  Int                   @default(0)  // Buffer time in minutes before appointment
-  bufferTimeAfter   Int                   @default(0)  // Buffer time in minutes after appointment
-  business          Business              @relation(fields: [businessId], references: [id])
-  patient           Patient               @relation(fields: [patientId], references: [id])
-  service           Service               @relation(fields: [serviceId], references: [id])
-  staff             Staff                 @relation(fields: [staffId], references: [id])
-  recurringPattern  RecurringAppointment? @relation(fields: [recurringId], references: [id])
-  payment           Payment?
-  review            Review?
-  reminders         AppointmentReminder[]
-  cancellation      AppointmentCancellation?
-
-  @@index([businessId])
-  @@index([patientId])
-  @@index([serviceId])
-  @@index([staffId])
-  @@index([status])
-  @@index([startTime])
-  @@index([isDeleted])
-  @@index([createdBy])
-  @@index([lastModifiedBy])
-  @@index([businessId, startTime])
-  @@index([staffId, startTime])
-  @@index([patientId, startTime])
-  @@map("appointments")
-}
-
-model AppointmentReminder {
-  id            String      @id @default(cuid())
-  appointmentId String
-  type          String      // EMAIL, SMS, etc.
-  sentAt        DateTime    @default(now())
-  status        String      // SENT, FAILED, etc.
-  isDeleted     Boolean     @default(false)
-  appointment   Appointment @relation(fields: [appointmentId], references: [id])
-
-  @@index([appointmentId])
-  @@index([status])
-  @@index([isDeleted])
-  @@map("appointment_reminders")
-}
-
-model AppointmentCancellation {
-  id            String      @id @default(cuid())
-  appointmentId String      @unique
-  reason        String?
-  cancelledBy   String      // PATIENT, PROVIDER, SYSTEM
-  isDeleted     Boolean     @default(false)
-  appointment   Appointment @relation(fields: [appointmentId], references: [id])
-
-  @@index([appointmentId])
-  @@index([isDeleted])
-  @@map("appointment_cancellations")
-}
-
-model Payment {
-  id            String         @id @default(cuid())
-  appointmentId String         @unique
-  amount        Decimal
-  status        PaymentStatus
-  method        PaymentMethodType
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  isDeleted     Boolean        @default(false)
-  appointment   Appointment    @relation(fields: [appointmentId], references: [id])
-
-  @@index([appointmentId])
-  @@index([status])
-  @@index([isDeleted])
-  @@map("payments")
-}
-
-model Schedule {
-  id        String   @id @default(cuid())
-  staffId   String
-  date      DateTime
-  startTime String
-  endTime   String
-  isDeleted Boolean  @default(false)
-  staff     Staff    @relation(fields: [staffId], references: [id])
-
-  @@index([staffId])
-  @@index([date])
-  @@index([isDeleted])
-  @@map("schedules")
-}
-
-model BusinessHours {
-  id         String   @id @default(cuid())
-  businessId String
-  dayOfWeek  Int      // 0-6, where 0 is Sunday
-  startTime  String
-  endTime    String
-  isOpen     Boolean  @default(true)
-  isDeleted  Boolean  @default(false)
-  business   Business @relation(fields: [businessId], references: [id])
-
-  @@index([businessId])
-  @@index([dayOfWeek])
-  @@index([isDeleted])
-  @@map("business_hours")
+  @@map("service_categories")
 }
 
 model PatientRelationship {
-  id            String    @id @default(cuid())
-  patientId     String    @unique
-  businessId    String
-  staffId       String?   // Preferred staff member
-  status        PatientStatus      @default(ACTIVE)
-  relationshipStartDate DateTime           @default(now())
-  lastVisit             DateTime?
-  visitFrequency        Int?
-  lifetimeValue         Decimal?
-  preferences           Json?
-  internalNotes         String?
-  flags                 PatientFlag[]
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  business              Business           @relation(fields: [businessId], references: [id])
-  patient               Patient            @relation(fields: [patientId], references: [id])
-  noteHistory           RelationshipNote[]
-  visitHistory          VisitHistory[]
-  preferredStaff        Staff[]            @relation("PatientRelationshipToStaff")
+  id                         String                       @id @default(cuid())
+  patientId                  String                       @unique
+  businessId                 String
+  staffId                    String?
+  status                     PatientStatus                @default(ACTIVE)
+  relationshipStartDate      DateTime                     @default(now())
+  lastVisit                  DateTime?
+  visitFrequency             Int?
+  lifetimeValue              Decimal?
+  preferences                Json?
+  internalNotes              String?
+  flags                      PatientFlag[]
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  PatientRelationshipToStaff PatientRelationshipToStaff[]
+  business                   Business                     @relation(fields: [businessId], references: [id])
+  patient                    Patient                      @relation(fields: [patientId], references: [id])
+  noteHistory                RelationshipNote[]
+  visitHistory               VisitHistory[]
 
   @@map("patient_relationships")
 }
 
 model VisitHistory {
-  id                 String             @id @default(cuid())
-  relationshipId     String
-  visitDate          DateTime
-  serviceType        String
-  staffNotes         String?
-  patientFeedback    String?
-  followUpRequired   Boolean            @default(false)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                  String              @id @default(cuid())
+  relationshipId      String
+  visitDate           DateTime
+  serviceType         String
+  staffNotes          String?
+  patientFeedback     String?
+  followUpRequired    Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   patientRelationship PatientRelationship @relation(fields: [relationshipId], references: [id])
 
   @@map("visit_history")
 }
 
 model RelationshipNote {
-  id                 String             @id @default(cuid())
-  relationshipId     String
-  noteType           NoteType
-  content            String
-  createdById        String
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  createdBy          Staff              @relation(fields: [createdById], references: [id])
+  id                  String              @id @default(cuid())
+  relationshipId      String
+  noteType            NoteType
+  content             String
+  createdById         String
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  createdBy           Staff               @relation(fields: [createdById], references: [id])
   patientRelationship PatientRelationship @relation(fields: [relationshipId], references: [id])
 
   @@map("relationship_notes")
 }
 
 model StaffPermission {
-  id          String        @id @default(cuid())
+  id          String      @id @default(cuid())
   staffId     String
   businessId  String
-  resource    String        // e.g., "patient_sensitive_info", "medical_records"
+  resource    String
   accessLevel AccessLevel
-  conditions  Json?         // Additional access conditions
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  conditions  Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   expiresAt   DateTime?
-  staff       Staff        @relation(fields: [staffId], references: [id])
-  business    Business     @relation(fields: [businessId], references: [id])
+  business    Business    @relation(fields: [businessId], references: [id])
+  staff       Staff       @relation(fields: [staffId], references: [id])
 
   @@unique([staffId, resource])
   @@map("staff_permissions")
 }
 
 model DataAccessLog {
-  id          String        @id @default(cuid())
-  businessId  String
-  staffId     String
-  patientId   String
-  accessType  DataAccessType
-  resource    String
-  reason      String
-  ipAddress   String?
-  userAgent   String?
-  successful  Boolean
-  timestamp   DateTime      @default(now())
-  business    Business      @relation(fields: [businessId], references: [id])
-  staff       Staff         @relation(fields: [staffId], references: [id])
-  patient     Patient       @relation(fields: [patientId], references: [id])
+  id         String         @id @default(cuid())
+  businessId String
+  staffId    String
+  patientId  String
+  accessType DataAccessType
+  resource   String
+  reason     String
+  ipAddress  String?
+  userAgent  String?
+  successful Boolean
+  timestamp  DateTime       @default(now())
+  business   Business       @relation(fields: [businessId], references: [id])
+  patient    Patient        @relation(fields: [patientId], references: [id])
+  staff      Staff          @relation(fields: [staffId], references: [id])
 
   @@map("data_access_logs")
 }
 
 model PatientDataRule {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   businessId  String
   patientId   String
-  staffId     String?    // If null, applies to all staff
+  staffId     String?
   resource    String
   accessLevel AccessLevel
-  startDate   DateTime   @default(now())
+  startDate   DateTime    @default(now())
   endDate     DateTime?
   reason      String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  business    Business   @relation(fields: [businessId], references: [id])
-  patient     Patient    @relation(fields: [patientId], references: [id])
-  staff       Staff?     @relation(fields: [staffId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  business    Business    @relation(fields: [businessId], references: [id])
+  patient     Patient     @relation(fields: [patientId], references: [id])
+  staff       Staff?      @relation(fields: [staffId], references: [id])
 
   @@map("patient_data_rules")
 }
 
 model Provider {
-  id      String   @id @default(cuid())
-  name    String
-  email   String   @unique
-  patients Patient[]
+  id                String              @id @default(cuid())
+  name              String
+  email             String              @unique
+  PatientToProvider PatientToProvider[]
 }
 
 model FeatureConfiguration {
-  id          String        @id @default(cuid())
-  businessId  String        @unique
-  business    Business      @relation(fields: [businessId], references: [id])
-  features    Feature[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id         String    @id @default(cuid())
+  businessId String    @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  business   Business  @relation(fields: [businessId], references: [id])
+  features   Feature[]
 
   @@map("feature_configurations")
 }
 
 model Feature {
-  id                    String              @id @default(cuid())
-  key                   String              // e.g., 'appointments', 'messaging'
-  name                  String
-  description          String?
-  enabled              Boolean              @default(true)
-  requiresApproval     Boolean              @default(false)
-  configurationId      String
-  configuration        FeatureConfiguration @relation(fields: [configurationId], references: [id])
-  options              FeatureOption[]
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  id               String               @id @default(cuid())
+  key              String
+  name             String
+  description      String?
+  enabled          Boolean              @default(true)
+  requiresApproval Boolean              @default(false)
+  configurationId  String
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  options          FeatureOption[]
+  configuration    FeatureConfiguration @relation(fields: [configurationId], references: [id])
 
   @@unique([configurationId, key])
   @@map("features")
 }
 
 model FeatureOption {
-  id          String    @id @default(cuid())
-  key         String    // e.g., 'self_scheduling', 'direct_messaging'
-  name        String
-  enabled     Boolean   @default(true)
-  featureId   String
-  feature     Feature   @relation(fields: [featureId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  key       String
+  name      String
+  enabled   Boolean  @default(true)
+  featureId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  feature   Feature  @relation(fields: [featureId], references: [id])
 
   @@unique([featureId, key])
   @@map("feature_options")
 }
 
 model StaffAvailability {
-  id            String    @id @default(cuid())
-  staffId       String
-  date          DateTime
-  startTime     String
-  endTime       String
-  isAvailable   Boolean   @default(true)
-  reason        String?   // For unavailability (vacation, sick leave, etc.)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  staff         Staff     @relation(fields: [staffId], references: [id])
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  staffId   String   @unique
+  schedule  Json     @default("{}")
+  staff     Staff    @relation(fields: [staffId], references: [id])
 
-  @@map("staff_availability")
+  @@index([staffId])
 }
 
 model Review {
@@ -569,22 +429,22 @@ model Review {
   updatedAt     DateTime    @updatedAt
   patientId     String
   appointmentId String      @unique
-  patient       Patient     @relation(fields: [patientId], references: [id])
   appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  patient       Patient     @relation(fields: [patientId], references: [id])
 
   @@map("reviews")
 }
 
 model PatientPreference {
-  id                    String   @id @default(cuid())
-  patientId             String   @unique
-  emailNotifications    Boolean  @default(true)
-  smsNotifications      Boolean  @default(false)
-  reminderTime          Int      @default(24) // Hours before appointment
-  marketingEmails       Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  patient               Patient  @relation(fields: [patientId], references: [id])
+  id                 String   @id @default(cuid())
+  patientId          String   @unique
+  emailNotifications Boolean  @default(true)
+  smsNotifications   Boolean  @default(false)
+  reminderTime       Int      @default(24)
+  marketingEmails    Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  patient            Patient  @relation(fields: [patientId], references: [id])
 
   @@map("patient_preferences")
 }
@@ -604,57 +464,159 @@ model Notification {
 }
 
 model PaymentMethod {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   patientId String
   type      String
   details   Json
-  isDefault Boolean   @default(false)
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  patient   Patient   @relation(fields: [patientId], references: [id])
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  patient   Patient  @relation(fields: [patientId], references: [id])
 
   @@map("payment_methods")
 }
 
 model AdminActivity {
-  id          String      @id @default(cuid())
-  adminId     String
-  action      String
-  details     Json?
-  createdAt   DateTime    @default(now())
-  admin       SystemAdmin @relation(fields: [adminId], references: [id])
+  id        String      @id @default(cuid())
+  adminId   String
+  action    String
+  details   Json?
+  createdAt DateTime    @default(now())
+  admin     SystemAdmin @relation(fields: [adminId], references: [id])
 
   @@map("admin_activities")
 }
 
 model RecurringAppointment {
-  id            String        @id @default(cuid())
-  frequency     RecurringFrequency
-  interval      Int          // e.g., every 2 weeks
-  daysOfWeek    Int[]        // Array of days (0-6, where 0 is Sunday)
-  startDate     DateTime
-  endDate       DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  appointments  Appointment[]
+  id           String             @id @default(cuid())
+  frequency    RecurringFrequency
+  interval     Int
+  daysOfWeek   Int[]
+  startDate    DateTime
+  endDate      DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  appointments Appointment[]
 
   @@map("recurring_appointments")
 }
 
 model BackupStatus {
   id        String   @id @default(cuid())
-  status    String   // IN_PROGRESS, SUCCESS, FAILED
+  status    String
   timestamp DateTime @default(now())
   details   String?
   filename  String
   checksum  String?
   size      BigInt?
-  duration  Int?     // Duration in seconds
+  duration  Int?
 
   @@index([status])
   @@index([timestamp])
   @@map("backup_status")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Appointment {
+  id                     String                @id @default(cuid())
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  scheduledFor           DateTime
+  duration               Int
+  status                 AppointmentStatus     @default(PENDING)
+  notes                  String?
+  staffId                String
+  clientId               String
+  serviceId              String
+  businessId             String
+  patientId              String
+  recurringAppointmentId String?
+  business               Business              @relation(fields: [businessId], references: [id])
+  client                 Client                @relation(fields: [clientId], references: [id])
+  patient                Patient               @relation(fields: [patientId], references: [id])
+  recurringAppointment   RecurringAppointment? @relation(fields: [recurringAppointmentId], references: [id])
+  service                Service               @relation(fields: [serviceId], references: [id])
+  staff                  Staff                 @relation(fields: [staffId], references: [id])
+  review                 Review?
+
+  @@index([staffId])
+  @@index([clientId])
+  @@index([serviceId])
+  @@index([businessId])
+  @@index([patientId])
+  @@index([recurringAppointmentId])
+}
+
+model PatientRelationshipToStaff {
+  A                     String
+  B                     String
+  patient_relationships PatientRelationship @relation(fields: [A], references: [id], onDelete: Cascade)
+  Staff                 Staff               @relation(fields: [B], references: [id], onDelete: Cascade)
+
+  @@unique([A, B], map: "_PatientRelationshipToStaff_AB_unique")
+  @@index([B], map: "_PatientRelationshipToStaff_B_index")
+  @@map("_PatientRelationshipToStaff")
+}
+
+model PatientToProvider {
+  A        String
+  B        String
+  patients Patient  @relation(fields: [A], references: [id], onDelete: Cascade)
+  Provider Provider @relation(fields: [B], references: [id], onDelete: Cascade)
+
+  @@unique([A, B], map: "_PatientToProvider_AB_unique")
+  @@index([B], map: "_PatientToProvider_B_index")
+  @@map("_PatientToProvider")
 }
 
 enum BusinessType {
@@ -667,20 +629,17 @@ enum BusinessType {
 }
 
 enum StaffRole {
-  OWNER
   ADMIN
-  PROVIDER
-  RECEPTIONIST
-  ASSISTANT
+  MANAGER
+  STANDARD
 }
 
 enum AppointmentStatus {
   PENDING
   CONFIRMED
-  CANCELLED
   COMPLETED
+  CANCELLED
   NO_SHOW
-  RESCHEDULED
 }
 
 enum PaymentStatus {
@@ -763,56 +722,4 @@ enum RecurringFrequency {
   WEEKLY
   MONTHLY
   YEARLY
-}
-
-// Add these models for NextAuth
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@map("accounts")
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
-}
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-
-  @@map("users")
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-  @@map("verification_tokens")
 }

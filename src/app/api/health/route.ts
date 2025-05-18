@@ -46,46 +46,19 @@ async function checkMemory() {
 }
 
 export async function GET() {
-  const startTime = Date.now()
-  
   try {
-    const [dbHealth, redisHealth, memoryHealth] = await Promise.all([
-      checkDatabase(),
-      checkRedis(),
-      checkMemory()
-    ])
-
-    const isHealthy = [dbHealth, redisHealth, memoryHealth]
-      .every(check => check.status === 'healthy')
-
-    const response = {
-      status: isHealthy ? 'healthy' : 'unhealthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      checks: {
-        database: dbHealth,
-        redis: redisHealth,
-        memory: memoryHealth
-      },
-      responseTime: Date.now() - startTime + 'ms'
-    }
-
-    logger.info('Health check completed', response)
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
 
     return NextResponse.json(
-      response,
-      { status: isHealthy ? 200 : 503 }
-    )
+      { status: 'healthy', message: 'Service is running' },
+      { status: 200 }
+    );
   } catch (error) {
-    logger.error('Health check failed', error as Error)
-    
+    console.error('Health check failed:', error);
     return NextResponse.json(
-      {
-        status: 'unhealthy',
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 503 }
-    )
+      { status: 'unhealthy', message: 'Service is not healthy' },
+      { status: 500 }
+    );
   }
 } 
