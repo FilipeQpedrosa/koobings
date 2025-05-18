@@ -1,35 +1,87 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove environment variables that might conflict with Vercel
-  swcMinify: true,
-  reactStrictMode: true,
-  typescript: {
-    ignoreBuildErrors: false
-  },
+  // Enable static optimization where possible
   output: 'standalone',
+  
+  // Disable image optimization in development
   images: {
+    unoptimized: process.env.NODE_ENV === 'development',
     domains: [
       'localhost',
-      'railway.app',
-      'images.unsplash.com',
-      'avatars.githubusercontent.com',
+      'your-production-domain.com'
     ],
   },
-  experimental: {
-    serverActions: true,
+
+  // Enable strict mode for better development experience
+  reactStrictMode: true,
+
+  // Configure headers for security
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains'
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin'
+          },
+        ],
+      },
+    ]
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: false,
-      };
+
+  // Configure redirects
+  async redirects() {
+    return [
+      {
+        source: '/home',
+        destination: '/',
+        permanent: true,
+      },
+    ]
+  },
+
+  // Configure rewrites for API endpoints
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Add API rewrite rules here if needed
+      ],
+      afterFiles: [
+        {
+          source: '/api/health',
+          destination: '/api/health/route',
+        },
+      ],
     }
-    return config;
-  }
+  },
+
+  // Webpack configuration
+  webpack: (config, { dev, isServer }) => {
+    // Add custom webpack configuration here if needed
+    return config
+  },
+
+  // Environment variables that should be available to the browser
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  },
 };
 
 module.exports = nextConfig; 

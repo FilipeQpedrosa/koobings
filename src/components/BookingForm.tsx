@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { formatPrice, formatDuration } from '@/lib/utils/formatting'
+import { parsePrice } from '@/lib/utils/validation';
 
 interface TimeSlot {
   startTime: string;
@@ -160,7 +162,7 @@ export function BookingForm({
             <option value="">Select a service</option>
             {selectedProvider.services.map((service) => (
               <option key={service.id} value={service.id}>
-                {service.name} ({service.duration} min) - ${service.price}
+                {service.name} ({formatDuration(service.duration)}) - {formatPrice(Number(service.price))}
               </option>
             ))}
           </select>
@@ -210,7 +212,7 @@ export function BookingForm({
             <div className="flex justify-between py-1">
               <dt>Service:</dt>
               <dd>
-                {selectedService.name} - ${selectedService.price}
+                {selectedService.name} - {formatPrice(parsePrice(selectedService.price))}
               </dd>
             </div>
           </dl>

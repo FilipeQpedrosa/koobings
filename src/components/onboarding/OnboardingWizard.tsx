@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PriceInput } from '@/components/ui/price-input';
 
 interface OnboardingData {
   businessHours: {
@@ -227,18 +228,18 @@ export default function OnboardingWizard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Preço</label>
-                    <input
-                      type="number"
+                    <PriceInput
                       value={service.price}
-                      onChange={(e) => {
+                      onChange={(value) => {
                         const newServices = [...data.services];
                         newServices[index] = {
                           ...service,
-                          price: parseFloat(e.target.value),
+                          price: value,
                         };
                         setData({ ...data, services: newServices });
                       }}
-                      className="mt-1 block w-full border rounded-md p-2"
+                      required
+                      className="mt-1"
                     />
                   </div>
                 </div>

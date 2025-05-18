@@ -1,19 +1,24 @@
 /** @type {import('jest').Config} */
-const config = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
+module.exports = {
+  testEnvironment: 'jest-environment-jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@/components/(.*)$': '<rootDir>/src/components/$1',
+    '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
   },
-  testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  testPathIgnorePatterns: ['/node_modules/', '/.next/'],
   transform: {
-    '^.+\\.(t|j)sx?$': ['ts-jest']
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
-  verbose: true,
-  roots: ['<rootDir>/src']
+  transformIgnorePatterns: [
+    '/node_modules/(?!(@auth/prisma-adapter|@prisma/client)/)',
+  ],
+  globals: {
+    'process.env': {
+      DATABASE_URL: 'postgresql://test:test@localhost:5432/test_db',
+      NEXTAUTH_URL: 'http://localhost:3000',
+      NEXTAUTH_SECRET: 'test_secret',
+    },
+  },
 };
-
-module.exports = config;

@@ -7,8 +7,8 @@ import { Clock, User, Calendar, CheckCircle, XCircle } from 'lucide-react';
 
 interface Appointment {
   id: string;
-  patientName: string;
-  patientEmail: string;
+  clientName: string;
+  clientEmail: string;
   date: string;
   time: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
@@ -85,14 +85,14 @@ export default function AppointmentDetailsModal({
         </DialogHeader>
         
         <div className="mt-4 space-y-6">
-          {/* Patient Information */}
+          {/* Client Information */}
           <div>
-            <h4 className="text-sm font-medium text-gray-500">Patient Information</h4>
+            <h4 className="text-sm font-medium text-gray-500">Client Information</h4>
             <div className="mt-2 flex items-center">
               <User className="h-5 w-5 text-gray-400" />
               <div className="ml-2">
-                <p className="text-sm font-medium text-gray-900">{appointment.patientName}</p>
-                <p className="text-sm text-gray-500">{appointment.patientEmail}</p>
+                <p className="text-sm font-medium text-gray-900">{appointment.clientName}</p>
+                <p className="text-sm text-gray-500">{appointment.clientEmail}</p>
               </div>
             </div>
           </div>

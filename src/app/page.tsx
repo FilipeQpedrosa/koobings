@@ -5,11 +5,18 @@ import { authOptions } from '@/lib/auth';
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
 
-  // If user is staff/admin, redirect to business portal
-  if (session?.user?.role && ['STAFF', 'ADMIN'].includes(session.user.role)) {
-    redirect('/business/dashboard');
+  if (!session) {
+    redirect('/auth/signin');
   }
 
-  // Default to customer portal
-  redirect('/services');
+  switch (session.user.role) {
+    case 'ADMIN':
+      redirect('/admin/businesses');
+    case 'BUSINESS':
+      redirect('/business/portal/dashboard');
+    case 'STAFF':
+      redirect('/staff/portal/dashboard');
+    default:
+      redirect('/services');
+  }
 } 

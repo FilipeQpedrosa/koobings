@@ -1,64 +1,105 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { redis } from '@/lib/redis'
-import { log } from '@/lib/logger'
+import { RedisClient } from '@/lib/redis'
+import { getMetrics } from '@/middleware/monitoring'
+import { logger } from '@/lib/logger'
 
-const logger = log.child({ service: 'health-check' })
-
-async function checkDatabase() {
-  try {
-    await prisma.$queryRaw`SELECT 1`
-    return { status: 'healthy', message: 'Connected' }
-  } catch (error) {
-    logger.error('Database health check failed', error as Error)
-    return { status: 'unhealthy', message: 'Connection failed' }
-  }
-}
-
-async function checkRedis() {
-  try {
-    await redis.ping()
-    return { status: 'healthy', message: 'Connected' }
-  } catch (error) {
-    logger.error('Redis health check failed', error as Error)
-    return { status: 'unhealthy', message: 'Connection failed' }
-  }
-}
-
-async function checkMemory() {
-  const used = process.memoryUsage()
-  const maxHeap = 1024 * 1024 * 1024 // 1GB
-  
-  if (used.heapUsed > maxHeap) {
-    logger.warn('High memory usage detected', { used: used.heapUsed, max: maxHeap })
-    return { status: 'warning', message: 'High memory usage' }
-  }
-  
-  return {
-    status: 'healthy',
-    message: 'Normal',
-    details: {
-      heapUsed: Math.round(used.heapUsed / 1024 / 1024) + 'MB',
-      heapTotal: Math.round(used.heapTotal / 1024 / 1024) + 'MB',
-      rss: Math.round(used.rss / 1024 / 1024) + 'MB'
+interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy'
+  timestamp: string
+  version: string
+  services: {
+    database: {
+      status: 'up' | 'down'
+      latency: number
     }
+    redis: {
+      status: 'up' | 'down'
+      latency: number
+    }
+  }
+  metrics?: {
+    requestCount: number
+    errorCount: number
+    averageResponseTime: number
+    statusCodes: Record<number, number>
   }
 }
 
 export async function GET() {
-  try {
-    // Test database connection
-    await prisma.$queryRaw`SELECT 1`;
-
-    return NextResponse.json(
-      { status: 'healthy', message: 'Service is running' },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error('Health check failed:', error);
-    return NextResponse.json(
-      { status: 'unhealthy', message: 'Service is not healthy' },
-      { status: 500 }
-    );
+  const startTime = Date.now()
+  const healthStatus: HealthStatus = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: process.env.NEXT_PUBLIC_VERSION || '1.0.0',
+    services: {
+      database: {
+        status: 'down',
+        latency: 0
+      },
+      redis: {
+        status: 'down',
+        latency: 0
+      }
+    }
   }
+
+  try {
+    // Check database
+    const dbStartTime = Date.now()
+    await prisma.$queryRaw`SELECT 1`
+    healthStatus.services.database = {
+      status: 'up',
+      latency: Date.now() - dbStartTime
+    }
+  } catch (error) {
+    logger.error('Database health check failed', { error })
+    healthStatus.status = 'degraded'
+  }
+
+  try {
+    // Check Redis
+    const redisStartTime = Date.now()
+    const client = await RedisClient.getInstance()
+    await client.ping()
+    healthStatus.services.redis = {
+      status: 'up',
+      latency: Date.now() - redisStartTime
+    }
+  } catch (error) {
+    logger.error('Redis health check failed', { error })
+    healthStatus.status = 'degraded'
+  }
+
+  try {
+    // Get metrics
+    const metrics = await getMetrics()
+    if (metrics) {
+      healthStatus.metrics = {
+        requestCount: metrics.requestCount,
+        errorCount: metrics.errorCount,
+        averageResponseTime: Math.round(metrics.averageResponseTime),
+        statusCodes: metrics.statusCodes
+      }
+    }
+  } catch (error) {
+    logger.error('Metrics retrieval failed', { error })
+  }
+
+  // If all services are down, mark as unhealthy
+  if (
+    healthStatus.services.database.status === 'down' &&
+    healthStatus.services.redis.status === 'down'
+  ) {
+    healthStatus.status = 'unhealthy'
+  }
+
+  // Add response time header
+  const headers = new Headers()
+  headers.set('X-Response-Time', `${Date.now() - startTime}ms`)
+
+  return NextResponse.json(healthStatus, {
+    status: healthStatus.status === 'unhealthy' ? 503 : 200,
+    headers
+  })
 } 

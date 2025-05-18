@@ -1,4 +1,4 @@
-import { PrismaClient, StaffRole, AdminRole } from '@prisma/client';
+import { PrismaClient, StaffRole, AdminRole, DataAccessType } from '@prisma/client';
 import { hash, compare } from 'bcryptjs';
 import { sign, verify } from 'jsonwebtoken';
 
@@ -43,32 +43,27 @@ export class AuthService {
 
   private hasRolePermission(role: StaffRole, action: string, resource: string): boolean {
     const rolePermissions: Record<StaffRole, string[]> = {
-      OWNER: ['*'], // Owners have full access
       ADMIN: [
         'read:*',
         'write:appointments',
         'write:services',
         'write:staff',
-        'write:patients'
+        'write:clients'
       ],
-      PROVIDER: [
+      MANAGER: [
         'read:appointments',
-        'read:patients',
+        'read:clients',
         'write:appointments',
         'write:availability'
       ],
-      RECEPTIONIST: [
+      STANDARD: [
         'read:appointments',
-        'read:patients',
+        'read:clients',
         'write:appointments'
-      ],
-      ASSISTANT: [
-        'read:appointments',
-        'read:patients'
       ]
     };
 
-    const allowedActions = rolePermissions[role];
+    const allowedActions = rolePermissions[role] || [];
     return allowedActions.some(allowed => 
       allowed === '*' || 
       allowed === `${action}:*` || 
@@ -90,8 +85,7 @@ export class AuthService {
   async createAccessLog(
     userId: string,
     businessId: string,
-    patientId: string,
-    accessType: string,
+    accessType: DataAccessType,
     resource: string,
     reason: string,
     successful: boolean
@@ -100,7 +94,6 @@ export class AuthService {
       data: {
         staffId: userId,
         businessId,
-        patientId,
         accessType,
         resource,
         reason,
@@ -113,7 +106,6 @@ export class AuthService {
 
   async validateSensitiveDataAccess(
     userId: string,
-    patientId: string,
     businessId: string
   ): Promise<boolean> {
     const staff = await prisma.staff.findUnique({
@@ -147,7 +139,6 @@ export class AuthService {
       const lastAccess = await prisma.dataAccessLog.findFirst({
         where: {
           staffId: userId,
-          patientId,
           successful: true
         },
         orderBy: {
@@ -162,23 +153,6 @@ export class AuthService {
           return false;
         }
       }
-    }
-
-    // Check patient-specific rules
-    const patientRule = await prisma.patientDataRule.findFirst({
-      where: {
-        patientId,
-        businessId,
-        staffId: userId,
-        OR: [
-          { endDate: null },
-          { endDate: { gt: new Date() } }
-        ]
-      }
-    });
-
-    if (patientRule && patientRule.accessLevel === 'NONE') {
-      return false;
     }
 
     return true;

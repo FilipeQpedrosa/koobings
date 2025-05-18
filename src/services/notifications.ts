@@ -1,8 +1,17 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import twilio from 'twilio';
 
 const prisma = new PrismaClient();
+
+type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
+  include: {
+    client: true;
+    service: true;
+    staff: true;
+    business: true;
+  }
+}>;
 
 // Initialize email transporter
 const emailTransporter = nodemailer.createTransport({
@@ -26,11 +35,7 @@ export class NotificationService {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
-        patient: {
-          include: {
-            preferences: true
-          }
-        },
+        client: true,
         service: true,
         staff: true,
         business: true
@@ -41,32 +46,33 @@ export class NotificationService {
       throw new Error('Appointment not found');
     }
 
-    const { patient, service, staff, business } = appointment;
+    const { client, service, staff, business } = appointment;
+    const preferences = client.preferences as any || {};
 
     // Send email notification
-    if (patient.preferences?.emailNotifications) {
+    if (preferences.emailNotifications !== false) {
       await this.sendEmail({
-        to: patient.email,
+        to: client.email,
         subject: 'Appointment Confirmation',
         html: this.getAppointmentConfirmationTemplate({
-          patientName: patient.name,
+          clientName: client.name,
           serviceName: service.name,
           staffName: staff.name,
           businessName: business.name,
-          startTime: appointment.startTime,
-          endTime: appointment.endTime
+          startTime: appointment.scheduledFor,
+          duration: appointment.duration
         })
       });
     }
 
     // Send SMS notification
-    if (patient.preferences?.smsNotifications && patient.phone) {
+    if (preferences.smsNotifications && client.phone) {
       await this.sendSMS({
-        to: patient.phone,
+        to: client.phone,
         body: this.getAppointmentConfirmationSMS({
           serviceName: service.name,
           businessName: business.name,
-          startTime: appointment.startTime
+          startTime: appointment.scheduledFor
         })
       });
     }
@@ -76,11 +82,7 @@ export class NotificationService {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
-        patient: {
-          include: {
-            preferences: true
-          }
-        },
+        client: true,
         service: true,
         business: true
       }
@@ -90,30 +92,31 @@ export class NotificationService {
       throw new Error('Appointment not found');
     }
 
-    const { patient, service, business } = appointment;
+    const { client, service, business } = appointment;
+    const preferences = client.preferences as any || {};
 
     // Send email reminder
-    if (patient.preferences?.emailNotifications) {
+    if (preferences.emailNotifications !== false) {
       await this.sendEmail({
-        to: patient.email,
+        to: client.email,
         subject: 'Appointment Reminder',
         html: this.getAppointmentReminderTemplate({
-          patientName: patient.name,
+          clientName: client.name,
           serviceName: service.name,
           businessName: business.name,
-          startTime: appointment.startTime
+          startTime: appointment.scheduledFor
         })
       });
     }
 
     // Send SMS reminder
-    if (patient.preferences?.smsNotifications && patient.phone) {
+    if (preferences.smsNotifications && client.phone) {
       await this.sendSMS({
-        to: patient.phone,
+        to: client.phone,
         body: this.getAppointmentReminderSMS({
           serviceName: service.name,
           businessName: business.name,
-          startTime: appointment.startTime
+          startTime: appointment.scheduledFor
         })
       });
     }
@@ -159,23 +162,24 @@ export class NotificationService {
   }
 
   private getAppointmentConfirmationTemplate({
-    patientName,
+    clientName,
     serviceName,
     staffName,
     businessName,
     startTime,
-    endTime
+    duration
   }: {
-    patientName: string;
+    clientName: string;
     serviceName: string;
     staffName: string;
     businessName: string;
     startTime: Date;
-    endTime: Date;
+    duration: number;
   }) {
+    const endTime = new Date(startTime.getTime() + duration * 60000);
     return `
       <h2>Appointment Confirmation</h2>
-      <p>Dear ${patientName},</p>
+      <p>Dear ${clientName},</p>
       <p>Your appointment has been confirmed:</p>
       <ul>
         <li>Service: ${serviceName}</li>
@@ -201,19 +205,19 @@ export class NotificationService {
   }
 
   private getAppointmentReminderTemplate({
-    patientName,
+    clientName,
     serviceName,
     businessName,
     startTime
   }: {
-    patientName: string;
+    clientName: string;
     serviceName: string;
     businessName: string;
     startTime: Date;
   }) {
     return `
       <h2>Appointment Reminder</h2>
-      <p>Dear ${patientName},</p>
+      <p>Dear ${clientName},</p>
       <p>This is a reminder for your upcoming appointment:</p>
       <ul>
         <li>Service: ${serviceName}</li>
@@ -234,6 +238,6 @@ export class NotificationService {
     businessName: string;
     startTime: Date;
   }) {
-    return `Reminder: Your ${serviceName} appointment at ${businessName} is tomorrow at ${startTime.toLocaleTimeString()}. See you then!`;
+    return `Reminder: Your ${serviceName} appointment at ${businessName} is scheduled for ${startTime.toLocaleString()}.`;
   }
 } 

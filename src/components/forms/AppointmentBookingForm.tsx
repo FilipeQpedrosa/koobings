@@ -17,7 +17,7 @@ interface TimeSlot {
 interface AppointmentBookingFormProps {
   services: Service[];
   staff: Staff[];
-  patientId: string;
+  clientId: string;
 }
 
 const bookingSchema = z.object({
@@ -36,7 +36,7 @@ type BookingFormData = z.infer<typeof bookingSchema>;
 export function AppointmentBookingForm({
   services,
   staff,
-  patientId,
+  clientId,
 }: AppointmentBookingFormProps) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -118,7 +118,7 @@ export function AppointmentBookingForm({
         },
         body: JSON.stringify({
           ...data,
-          patientId,
+          clientId,
         }),
       });
 

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { PriceInput } from '@/components/ui/price-input'
+import { parsePrice } from '@/lib/utils/validation'
 
 export default function CreateServiceButton() {
   const [isOpen, setIsOpen] = useState(false)
@@ -86,13 +88,18 @@ function CreateServiceDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Price</label>
-              <input
-                type="number"
-                name="price"
-                step="0.01"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              <PriceInput
+                value={0}
+                onChange={(value) => {
+                  const input = document.querySelector('input[name="price"]') as HTMLInputElement;
+                  if (input) {
+                    input.value = value.toString();
+                  }
+                }}
                 required
+                className="mt-1"
               />
+              <input type="hidden" name="price" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Duration (minutes)</label>

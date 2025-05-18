@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2 } from 'lucide-react';
+import { PriceInput } from '@/components/ui/price-input';
 
 interface Service {
   name: string;
@@ -129,13 +130,10 @@ export default function ServiceSetupForm() {
 
               <div>
                 <Label htmlFor={`price-${index}`}>Price</Label>
-                <Input
-                  id={`price-${index}`}
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <PriceInput
                   value={service.price}
-                  onChange={(e) => handleServiceChange(index, 'price', parseFloat(e.target.value))}
+                  onChange={(value) => handleServiceChange(index, 'price', value)}
+                  required
                 />
               </div>
 
