@@ -10,6 +10,7 @@ const businessRegistrationSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(2, 'Business name must be at least 2 characters'),
   type: z.nativeEnum(BusinessType).default(BusinessType.OTHER),
+  url: z.string().url('Invalid URL').optional(),
 });
 
 export async function POST(request: Request) {
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     
     // Validate input
     const validatedData = businessRegistrationSchema.parse(body);
-    const { email, password, name, type } = validatedData;
+    const { email, password, name, type, url } = validatedData;
 
     // Check if business already exists
     const existingBusiness = await prisma.business.findUnique({
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
         email,
         passwordHash: hashedPassword,
         type,
+        url,
         status: BusinessStatus.PENDING,
         settings: {
           timezone: 'UTC',

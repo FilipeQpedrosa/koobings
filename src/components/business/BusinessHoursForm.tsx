@@ -1,35 +1,19 @@
+'use client';
+
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { toast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
-import { Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
-const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+interface BusinessHour {
+  dayOfWeek: number;
+  isOpen: boolean;
+  startTime: string;
+  endTime: string;
+}
 
-const businessHoursSchema = z.object({
-  hours: z.array(z.object({
-    day: z.number(),
-    isOpen: z.boolean(),
-    start: z.string().regex(timeRegex, 'Invalid time format'),
-    end: z.string().regex(timeRegex, 'Invalid time format')
-  })).refine((hours) => {
-    return hours.every(hour => {
-      if (!hour.isOpen) return true;
-      const start = new Date(`1970-01-01T${hour.start}`);
-      const end = new Date(`1970-01-01T${hour.end}`);
-      return end > start;
-    });
-  }, 'End time must be after start time')
-});
-
-type BusinessHoursFormData = z.infer<typeof businessHoursSchema>;
-
-const dayNames = [
+const DAYS_OF_WEEK = [
   'Sunday',
   'Monday',
   'Tuesday',
@@ -39,40 +23,27 @@ const dayNames = [
   'Saturday',
 ];
 
-export default function BusinessHoursForm({ initialData }: { initialData?: BusinessHoursFormData }) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const defaultValues = {
-    hours: initialData?.hours || [
-      { day: 0, isOpen: false, start: '09:00', end: '17:00' },
-      { day: 1, isOpen: true, start: '09:00', end: '17:00' },
-      { day: 2, isOpen: true, start: '09:00', end: '17:00' },
-      { day: 3, isOpen: true, start: '09:00', end: '17:00' },
-      { day: 4, isOpen: true, start: '09:00', end: '17:00' },
-      { day: 5, isOpen: true, start: '09:00', end: '17:00' },
-      { day: 6, isOpen: false, start: '09:00', end: '17:00' },
-    ]
-  };
+const DEFAULT_HOURS: BusinessHour[] = DAYS_OF_WEEK.map((_, index) => ({
+  dayOfWeek: index,
+  isOpen: index > 0 && index < 6, // Monday to Friday open by default
+  startTime: '09:00',
+  endTime: '17:00',
+}));
 
-  const {
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors }
-  } = useForm<BusinessHoursFormData>({
-    resolver: zodResolver(businessHoursSchema),
-    defaultValues
-  });
+export default function BusinessHoursForm() {
+  const { toast } = useToast();
+  const [hours, setHours] = useState<BusinessHour[]>(DEFAULT_HOURS);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const hours = watch('hours');
-
-  const onSubmit = async (data: BusinessHoursFormData) => {
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
-      setIsSubmitting(true);
       const response = await fetch('/api/business/hours', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ hours }),
       });
 
       if (!response.ok) {
@@ -81,99 +52,73 @@ export default function BusinessHoursForm({ initialData }: { initialData?: Busin
 
       toast({
         title: 'Success',
-        description: 'Business hours have been updated successfully.',
+        description: 'Business hours saved successfully',
       });
     } catch (error) {
-      console.error('Error saving business hours:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save business hours. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to save business hours',
         variant: 'destructive',
       });
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   };
 
-  const handleHoursChange = (
-    day: number,
-    field: keyof (typeof hours)[0],
-    value: string | boolean
-  ) => {
+  const handleToggleDay = (index: number) => {
     const newHours = [...hours];
-    const index = newHours.findIndex(h => h.day === day);
-    if (index !== -1) {
-      newHours[index] = { ...newHours[index], [field]: value };
-      setValue('hours', newHours);
-    }
+    newHours[index] = {
+      ...newHours[index],
+      isOpen: !newHours[index].isOpen,
+    };
+    setHours(newHours);
+  };
+
+  const handleTimeChange = (index: number, field: 'startTime' | 'endTime', value: string) => {
+    const newHours = [...hours];
+    newHours[index] = {
+      ...newHours[index],
+      [field]: value,
+    };
+    setHours(newHours);
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="space-y-6">
+      <div className="text-sm text-gray-500">
+        Set your regular business hours. You can always adjust these later.
+      </div>
+
       <div className="space-y-4">
-        {hours.map((hour) => (
-          <div
-            key={hour.day}
-            className="grid grid-cols-12 gap-4 items-center p-4 rounded-lg bg-gray-50"
-          >
-            <div className="col-span-3">
-              <Label>{dayNames[hour.day]}</Label>
+        {hours.map((hour, index) => (
+          <div key={index} className="flex items-center space-x-4">
+            <div className="w-32">
+              <Label>{DAYS_OF_WEEK[index]}</Label>
             </div>
-            
-            <div className="col-span-2">
-              <Switch
-                checked={hour.isOpen}
-                onCheckedChange={(checked) =>
-                  handleHoursChange(hour.day, 'isOpen', checked)
-                }
-              />
-            </div>
-
-            <div className="col-span-3">
+            <Switch
+              checked={hour.isOpen}
+              onCheckedChange={() => handleToggleDay(index)}
+            />
+            <div className="flex items-center space-x-2 flex-1">
               <Input
                 type="time"
-                value={hour.start}
-                onChange={(e) =>
-                  handleHoursChange(hour.day, 'start', e.target.value)
-                }
+                value={hour.startTime}
+                onChange={(e) => handleTimeChange(index, 'startTime', e.target.value)}
                 disabled={!hour.isOpen}
+                className="w-32"
               />
-            </div>
-
-            <div className="col-span-3">
+              <span>to</span>
               <Input
                 type="time"
-                value={hour.end}
-                onChange={(e) =>
-                  handleHoursChange(hour.day, 'end', e.target.value)
-                }
+                value={hour.endTime}
+                onChange={(e) => handleTimeChange(index, 'endTime', e.target.value)}
                 disabled={!hour.isOpen}
+                className="w-32"
               />
             </div>
           </div>
         ))}
       </div>
-
-      {errors.hours && (
-        <p className="text-sm text-red-500 mt-2">
-          {errors.hours.message}
-        </p>
-      )}
-
-      <Button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full sm:w-auto"
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Saving...
-          </>
-        ) : (
-          'Save Business Hours'
-        )}
-      </Button>
-    </form>
+    </div>
   );
 } 

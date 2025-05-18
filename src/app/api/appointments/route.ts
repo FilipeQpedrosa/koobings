@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/auth';
 import { AppointmentService } from '@/lib/services/appointment';
 import { createApiHandler, ApiError } from '@/lib/api-handler';
 import * as yup from 'yup';
@@ -55,74 +55,97 @@ const updateAppointmentSchema = z.object({
 });
 
 // GET handler
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-    const status = searchParams.get('status');
-    const date = searchParams.get('date');
-    const serviceId = searchParams.get('serviceId');
-    const staffId = searchParams.get('staffId');
-
-    if (date && serviceId && staffId && (businessId || session.user.businessId)) {
-      // Get available time slots for a specific service and staff
-      const slots = await AppointmentService.getAvailableTimeSlots(
-        serviceId,
-        staffId,
-        date,
-        businessId || session.user.businessId || ''
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
-      return NextResponse.json(slots);
     }
 
-    const where: any = {};
+    const searchParams = request.nextUrl.searchParams;
+    const date = searchParams.get('date');
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
 
-    if (businessId) {
-      where.businessId = businessId;
-    }
+    // Base query
+    const where: any = {
+      isDeleted: false,
+    };
 
-    if (startDate) {
-      where.startTime = {
-        gte: new Date(startDate),
-      };
-    }
-
-    if (endDate) {
-      where.endTime = {
-        lte: new Date(endDate),
-      };
-    }
-
-    if (status) {
-      where.status = status as AppointmentStatus;
-    }
-
-    // Filter based on user role
-    if (session.user.role.toUpperCase() === 'PATIENT') {
-      where.patientId = session.user.id;
-    } else if (session.user.role.toUpperCase() === 'PROVIDER') {
+    // Add filters based on role
+    if (session.user.role === 'STAFF') {
       where.staffId = session.user.id;
+    } else if (session.user.role === 'BUSINESS_OWNER') {
+      where.business = {
+        id: session.user.businessId,
+      };
+    }
+
+    // Add date filter
+    if (date) {
+      where.date = new Date(date);
+    }
+
+    // Add status filter
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    // Add search filter
+    if (search) {
+      where.OR = [
+        {
+          customer: {
+            name: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          service: {
+            name: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
+      ];
     }
 
     const appointments = await prisma.appointment.findMany({
       where,
       include: {
-        service: true,
-        staff: true,
-        patient: true,
-        business: true,
-        reminders: true,
-        cancellation: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            name: true,
+            duration: true,
+            price: true,
+          },
+        },
+        staff: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
       },
       orderBy: {
-        startTime: 'asc',
+        date: 'desc',
       },
     });
 
@@ -137,59 +160,121 @@ export async function GET(request: Request) {
 }
 
 // POST handler
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const body = await request.json();
-    const validatedData = createAppointmentSchema.parse(body);
+    const data = await request.json();
 
-    const appointment = await appointmentService.create(validatedData);
+    // Validate required fields
+    if (!data.customerId || !data.serviceId || !data.date || !data.time) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Create appointment
+    const appointment = await prisma.appointment.create({
+      data: {
+        customerId: data.customerId,
+        serviceId: data.serviceId,
+        staffId: data.staffId || session.user.id,
+        businessId: session.user.businessId,
+        date: new Date(data.date),
+        time: data.time,
+        status: 'SCHEDULED',
+        notes: data.notes,
+      },
+      include: {
+        customer: true,
+        service: true,
+        staff: true,
+      },
+    });
+
     return NextResponse.json(appointment);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 });
-    }
-    
-    console.error('Failed to create appointment:', error);
+    console.error('Error creating appointment:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create appointment' },
+      { error: 'Failed to create appointment' },
       { status: 500 }
     );
   }
 }
 
-// PUT handler
-export async function PUT(request: Request) {
+// PATCH handler
+export async function PATCH(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    
+    const data = await request.json();
+    const { id, ...updateData } = data;
+
     if (!id) {
-      return NextResponse.json({ error: 'Appointment ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Appointment ID is required' },
+        { status: 400 }
+      );
     }
 
-    const body = await request.json();
-    const validatedData = updateAppointmentSchema.parse(body);
+    // Verify appointment access
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      select: {
+        staffId: true,
+        businessId: true,
+      },
+    });
 
-    const appointment = await appointmentService.update(id, validatedData);
-    return NextResponse.json(appointment);
+    if (!appointment) {
+      return NextResponse.json(
+        { error: 'Appointment not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has permission to update
+    if (
+      session.user.role === 'STAFF' &&
+      appointment.staffId !== session.user.id
+    ) {
+      return NextResponse.json(
+        { error: 'Unauthorized to update this appointment' },
+        { status: 403 }
+      );
+    }
+
+    // Update appointment
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id },
+      data: updateData,
+      include: {
+        customer: true,
+        service: true,
+        staff: true,
+      },
+    });
+
+    return NextResponse.json(updatedAppointment);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 });
-    }
-    
-    console.error('Failed to update appointment:', error);
+    console.error('Error updating appointment:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update appointment' },
+      { error: 'Failed to update appointment' },
       { status: 500 }
     );
   }

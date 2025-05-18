@@ -1,23 +1,13 @@
-import { PrismaClient, BusinessType, StaffRole, BusinessStatus, PatientStatus, AppointmentStatus, Prisma } from '@prisma/client'
+import { PrismaClient, BusinessType, StaffRole } from '@prisma/client'
 import { hash } from 'bcryptjs'
 
 const prisma = new PrismaClient()
-
-type BusinessSettings = {
-  [key: string]: string | number | boolean | undefined;
-  timezone: string;
-  currency: string;
-  language: string;
-  notificationsEnabled?: boolean;
-  defaultAppointmentDuration?: number;
-}
 
 async function cleanup() {
   // Delete all records in the correct order to handle foreign key constraints
   await prisma.staffAvailability.deleteMany();
   await prisma.service.deleteMany();
   await prisma.serviceCategory.deleteMany();
-  await prisma.businessHours.deleteMany();
   await prisma.staff.deleteMany();
   await prisma.securitySettings.deleteMany();
   await prisma.featureOption.deleteMany();
@@ -33,30 +23,21 @@ async function main() {
 
   try {
     // Create a test business
-    const business = await prisma.business.upsert({
-      where: { email: 'test@business.com' },
-      update: {},
-      create: {
+    const business = await prisma.business.create({
+      data: {
         name: 'Test Salon & Spa',
-        type: BusinessType.HAIR_SALON,
         email: 'test@business.com',
         phone: '123-456-7890',
-        passwordHash: 'test-password-hash', // In production, this should be properly hashed
-        status: 'ACTIVE',
         address: '123 Test Street, Test City',
-        businessHours: {
-          createMany: {
-            data: [
-              { dayOfWeek: 0, startTime: '09:00', endTime: '17:00' }, // Sunday
-              { dayOfWeek: 1, startTime: '09:00', endTime: '18:00' }, // Monday
-              { dayOfWeek: 2, startTime: '09:00', endTime: '18:00' }, // Tuesday
-              { dayOfWeek: 3, startTime: '09:00', endTime: '18:00' }, // Wednesday
-              { dayOfWeek: 4, startTime: '09:00', endTime: '18:00' }, // Thursday
-              { dayOfWeek: 5, startTime: '09:00', endTime: '18:00' }, // Friday
-              { dayOfWeek: 6, startTime: '09:00', endTime: '17:00' }, // Saturday
-            ],
-          },
-        },
+        type: BusinessType.HAIR_SALON,
+        passwordHash: await hash('test123', 10),
+        settings: {
+          timezone: 'UTC',
+          currency: 'USD',
+          language: 'en',
+          notificationsEnabled: true,
+          defaultAppointmentDuration: 60
+        }
       },
     });
 
@@ -85,11 +66,10 @@ async function main() {
         {
           name: 'Haircut & Style',
           description: 'Professional haircut and styling',
-          duration: 60, // minutes
+          duration: 60,
           price: 50.00,
           categoryId: hairCategory.id,
           businessId: business.id,
-          isActive: true,
         },
         {
           name: 'Color & Highlights',
@@ -98,7 +78,6 @@ async function main() {
           price: 120.00,
           categoryId: hairCategory.id,
           businessId: business.id,
-          isActive: true,
         },
         {
           name: 'Swedish Massage',
@@ -107,7 +86,6 @@ async function main() {
           price: 80.00,
           categoryId: spaCategory.id,
           businessId: business.id,
-          isActive: true,
         },
         {
           name: 'Facial Treatment',
@@ -116,9 +94,33 @@ async function main() {
           price: 95.00,
           categoryId: spaCategory.id,
           businessId: business.id,
-          isActive: true,
         },
       ],
+    });
+
+    // Create a test staff member
+    const staffMember = await prisma.staff.create({
+      data: {
+        name: 'John Doe',
+        email: 'john@test.com',
+        password: await hash('staff123', 10),
+        role: StaffRole.STANDARD,
+        businessId: business.id,
+      },
+    });
+
+    // Create staff availability
+    await prisma.staffAvailability.create({
+      data: {
+        staffId: staffMember.id,
+        schedule: {
+          monday: { start: '09:00', end: '17:00' },
+          tuesday: { start: '09:00', end: '17:00' },
+          wednesday: { start: '09:00', end: '17:00' },
+          thursday: { start: '09:00', end: '17:00' },
+          friday: { start: '09:00', end: '17:00' }
+        }
+      }
     });
 
     console.log('Database has been seeded. 🌱');
