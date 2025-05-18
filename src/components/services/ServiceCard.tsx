@@ -5,6 +5,8 @@ import { Service, ServiceCategory, Staff } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 import EditServiceDialog from './EditServiceDialog'
 import { useToast } from '@/components/ui/use-toast'
+import { formatPrice, formatDuration } from '@/lib/utils/formatting'
+import { parsePrice } from '@/lib/utils/validation'
 
 type ServiceWithRelations = Service & {
   category: ServiceCategory | null
@@ -64,13 +66,14 @@ export default function ServiceCard({ service, categories, providers }: ServiceC
           </div>
           <div className="flex items-start space-x-2">
             <div className="text-right">
-              <p className="text-xl font-bold">${service.price.toString()}</p>
-              <p className="text-sm text-gray-500">{service.duration} min</p>
+              <p className="text-xl font-bold">{formatPrice(parsePrice(service.price))}</p>
+              <p className="text-sm text-gray-500">{formatDuration(service.duration)}</p>
             </div>
             <div className="flex space-x-1">
               <button
                 onClick={() => setIsEditing(true)}
                 className="text-gray-600 hover:text-blue-600 p-1"
+                aria-label="Edit service"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -80,6 +83,7 @@ export default function ServiceCard({ service, categories, providers }: ServiceC
                 onClick={handleDelete}
                 disabled={isDeleting}
                 className="text-gray-600 hover:text-red-600 p-1 disabled:opacity-50"
+                aria-label="Delete service"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

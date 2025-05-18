@@ -86,7 +86,7 @@ export function CustomerHeader() {
                 </Button>
               </div>
             ) : (
-              <Link href="/auth/patient/signin">
+              <Link href="/auth/client/signin">
                 <Button variant="outline" size="sm" className="whitespace-nowrap">
                   Sign In / Sign Up
                 </Button>

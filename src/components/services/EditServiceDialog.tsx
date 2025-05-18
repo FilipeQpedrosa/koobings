@@ -13,11 +13,18 @@ import { useToast } from '@/components/ui/use-toast'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
+import { PriceInput } from '@/components/ui/price-input'
+import { validatePrice } from '@/lib/utils/validation'
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
-  price: z.number().min(0, 'Price must be positive'),
+  price: z.number()
+    .min(0, 'Price must be positive')
+    .refine(
+      (val) => validatePrice(val).isValid,
+      (val) => ({ message: validatePrice(val).error || 'Invalid price' })
+    ),
   duration: z.number().min(1, 'Duration must be at least 1 minute'),
   categoryId: z.string().min(1, 'Category is required'),
   providerIds: z.array(z.string()).min(1, 'At least one provider is required')
@@ -124,11 +131,10 @@ export default function EditServiceDialog({ service, categories, providers, onCl
                 <FormItem>
                   <FormLabel>Price</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      {...field}
-                      onChange={e => field.onChange(parseFloat(e.target.value))}
+                    <PriceInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      required
                     />
                   </FormControl>
                   <FormMessage />

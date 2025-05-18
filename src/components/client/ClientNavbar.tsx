@@ -4,7 +4,7 @@ import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { Bell, User, MessageSquare } from 'lucide-react';
 
-interface Patient {
+interface Client {
   id: string;
   name: string;
   email: string;
@@ -15,50 +15,50 @@ interface Patient {
   unreadNotifications?: number;
 }
 
-interface PatientNavbarProps {
-  patient: Patient;
+interface ClientNavbarProps {
+  client: Client;
 }
 
-export default function PatientNavbar({ patient }: PatientNavbarProps) {
+export default function ClientNavbar({ client }: ClientNavbarProps) {
   return (
     <nav className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/patient/dashboard" className="text-xl font-bold text-gray-800">
-                {patient.business.name}
+              <Link href="/client/dashboard" className="text-xl font-bold text-gray-800">
+                {client.business.name}
               </Link>
             </div>
           </div>
           <div className="flex items-center space-x-4">
             <Link
-              href="/patient/messages"
+              href="/client/messages"
               className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none"
             >
               <span className="sr-only">Messages</span>
               <MessageSquare className="h-6 w-6" />
-              {patient.unreadMessages && patient.unreadMessages > 0 && (
+              {client.unreadMessages && client.unreadMessages > 0 && (
                 <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
               )}
             </Link>
             <Link
-              href="/patient/notifications"
+              href="/client/notifications"
               className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none"
             >
               <span className="sr-only">Notifications</span>
               <Bell className="h-6 w-6" />
-              {patient.unreadNotifications && patient.unreadNotifications > 0 && (
+              {client.unreadNotifications && client.unreadNotifications > 0 && (
                 <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
               )}
             </Link>
             <div className="flex items-center space-x-3">
               <Link
-                href="/patient/profile"
+                href="/client/profile"
                 className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-800"
               >
                 <User className="h-6 w-6" />
-                <span>{patient.name}</span>
+                <span>{client.name}</span>
               </Link>
               <button
                 onClick={() => signOut()}

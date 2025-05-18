@@ -3,13 +3,27 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
-import DashboardStats from '@/components/Staff/dashboard/DashboardStats';
-import RecentAppointments from '@/components/Staff/dashboard/RecentAppointments';
+import DashboardStats from '@/components/staff/dashboard/DashboardStats';
+import RecentAppointments from '@/components/staff/dashboard/RecentAppointments';
 import { addDays, startOfDay, endOfDay } from 'date-fns';
+import { Appointment, Staff, Client, Service } from '@prisma/client';
 
 export const metadata: Metadata = {
   title: 'Staff Dashboard',
   description: 'View your appointments and manage your schedule',
+};
+
+type AppointmentWithRelations = Appointment & {
+  client: Client;
+  service: Service;
+};
+
+type StaffWithRelations = Staff & {
+  appointments: AppointmentWithRelations[];
+  _count: {
+    appointments: number;
+    clients: number;
+  };
 };
 
 async function getStaffDashboardData(email: string) {
@@ -21,7 +35,7 @@ async function getStaffDashboardData(email: string) {
     include: {
       appointments: {
         where: {
-          dateTime: {
+          scheduledFor: {
             gte: startOfDay(now),
             lte: endOfDay(weekFromNow),
           },
@@ -31,7 +45,7 @@ async function getStaffDashboardData(email: string) {
           service: true,
         },
         orderBy: {
-          dateTime: 'asc',
+          scheduledFor: 'asc',
         },
       },
       _count: {
@@ -45,7 +59,7 @@ async function getStaffDashboardData(email: string) {
         },
       },
     },
-  });
+  }) as StaffWithRelations | null;
 
   if (!staff) {
     return null;
@@ -55,7 +69,7 @@ async function getStaffDashboardData(email: string) {
     id: apt.id,
     clientName: apt.client.name,
     serviceName: apt.service.name,
-    dateTime: apt.dateTime,
+    dateTime: apt.scheduledFor,
     status: apt.status,
     duration: apt.duration,
   }));
@@ -70,7 +84,7 @@ async function getStaffDashboardData(email: string) {
     where: {
       staffId: staff.id,
       status: 'COMPLETED',
-      dateTime: {
+      scheduledFor: {
         gte: addDays(now, -30),
       },
     },

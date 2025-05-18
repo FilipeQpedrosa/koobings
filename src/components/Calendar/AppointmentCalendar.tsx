@@ -17,7 +17,7 @@ interface Appointment {
   startTime: string;
   endTime: string;
   status: AppointmentStatus;
-  patient: {
+  client: {
     name: string;
   };
   service: {
@@ -140,7 +140,7 @@ export function AppointmentCalendar({
                   >
                     <div className="font-medium truncate">
                       {format(parseISO(appointment.startTime), 'HH:mm')} -{' '}
-                      {appointment.patient.name}
+                      {appointment.client.name}
                     </div>
                     <div className="truncate text-gray-600">
                       {appointment.service.name}

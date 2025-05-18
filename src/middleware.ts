@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { withAuth } from 'next-auth/middleware'
-import { NextRequestWithAuth } from 'next-auth/middleware'
 import type { NextRequest } from 'next/server'
 import { env } from './lib/env'
-import { AuthService } from '@/services/auth'
-
-const authService = new AuthService()
 
 // Rate limiting maps
 const ipMap = new Map<string, number[]>()
@@ -29,171 +24,113 @@ function isRateLimited(ip: string): boolean {
   return recentRequests.length > limit
 }
 
-export default withAuth(
-  async function middleware(request: NextRequestWithAuth) {
-    const token = await getToken({ req: request })
-    const isAuth = !!token
-    const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
-    const isApiRoute = request.nextUrl.pathname.startsWith('/api')
-    
-    // Handle public routes
-    const publicRoutes = ['/']
-    if (publicRoutes.includes(request.nextUrl.pathname)) {
-      return NextResponse.next()
-    }
+// Define protected routes patterns
+const protectedRoutes = {
+  business: /^\/portals\/business\/.*/,
+  staff: /^\/portals\/staff\/.*/,
+  admin: /^\/portals\/admin\/.*/,
+  api: /^\/api\/v1\/.*/,
+}
 
-    // Handle auth pages
-    if (isAuthPage) {
-      if (isAuth) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
-      }
-      return NextResponse.next()
-    }
+// Define public routes that don't need authentication
+const publicRoutes = [
+  '/auth/signin',
+  '/auth/signup',
+  '/api/auth',
+  '/api/health',
+  '/',
+]
 
-    // Protect API routes
-    if (isApiRoute) {
-      if (!isAuth) {
-        return new NextResponse('Unauthorized', { status: 401 })
-      }
+// Configure role-based path access
+const roleBasedPaths = {
+  ADMIN: ['/portals/admin'],
+  BUSINESS: ['/portals/business'],
+  STAFF: ['/portals/staff'],
+} as const;
 
-      // Business-only routes
-      const businessOnlyRoutes = [
-        '/api/business',
-        '/api/staff',
-        '/api/categories',
-        '/api/services'
-      ]
-      
-      if (businessOnlyRoutes.some(route => request.nextUrl.pathname.startsWith(route)) && 
-          token.role !== 'business') {
-        return new NextResponse('Forbidden', { status: 403 })
-      }
+type UserRole = keyof typeof roleBasedPaths;
 
-      // Staff-only routes
-      const staffOnlyRoutes = [
-        '/api/appointments/staff',
-        '/api/availability/staff'
-      ]
-      
-      if (staffOnlyRoutes.some(route => request.nextUrl.pathname.startsWith(route)) && 
-          token.role !== 'staff') {
-        return new NextResponse('Forbidden', { status: 403 })
-      }
+function isPublicPath(path: string): boolean {
+  return publicRoutes.some(route => path.startsWith(route)) ||
+         path.startsWith('/_next') ||
+         path.includes('favicon.ico');
+}
 
-      return NextResponse.next()
-    }
-
-    // Protect dashboard routes
-    if (request.nextUrl.pathname.startsWith('/dashboard')) {
-      if (!isAuth) {
-        return NextResponse.redirect(new URL('/auth/signin', request.url))
-      }
-      return NextResponse.next()
-    }
-
-    return NextResponse.next()
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token
-    }
-  }
-)
+function hasPathAccess(role: UserRole, path: string): boolean {
+  const allowedPaths = roleBasedPaths[role] || [];
+  return allowedPaths.some(prefix => path.startsWith(prefix));
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes
-  const publicRoutes = [
-    '/auth/login',
-    '/auth/register',
-    '/auth/forgot-password',
-    '/api/health',
-  ]
-  if (publicRoutes.some(route => pathname.startsWith(route))) {
+  // Skip middleware for public routes and static files
+  if (isPublicPath(pathname)) {
     return NextResponse.next()
   }
 
-  // Get token from header
-  const token = request.headers.get('authorization')?.replace('Bearer ', '')
+  // Apply rate limiting
+  const ip = request.ip || 'unknown'
+  if (isRateLimited(ip)) {
+    return new NextResponse('Too Many Requests', { status: 429 })
+  }
+
+  // Get the token and check authentication
+  const token = await getToken({ req: request })
+
+  // If no token and trying to access protected route, redirect to signin
   if (!token) {
-    return new NextResponse(
-      JSON.stringify({ error: 'Authentication required' }),
-      { status: 401, headers: { 'content-type': 'application/json' } }
-    )
+    if (Object.values(protectedRoutes).some(pattern => pattern.test(pathname))) {
+      const signInUrl = new URL('/auth/signin', request.url)
+      signInUrl.searchParams.set('callbackUrl', pathname)
+      return NextResponse.redirect(signInUrl)
+    }
+    return NextResponse.next()
   }
 
-  try {
-    // Verify token and get user
-    const user = await authService.verifyToken(token)
-
-    // Check role-based access
-    const roleRoutes: Record<string, string[]> = {
-      '/api/admin': ['SUPER_ADMIN', 'ADMIN'],
-      '/api/staff': ['OWNER', 'ADMIN'],
-      '/api/reports': ['OWNER', 'ADMIN', 'PROVIDER'],
+  // Check role-based access
+  const userRole = token.role as UserRole
+  if (!hasPathAccess(userRole, pathname)) {
+    // Redirect to appropriate dashboard based on role
+    switch (userRole) {
+      case 'ADMIN':
+        return NextResponse.redirect(new URL('/portals/admin/dashboard', request.url))
+      case 'BUSINESS':
+        return NextResponse.redirect(new URL('/portals/business/dashboard', request.url))
+      case 'STAFF':
+        return NextResponse.redirect(new URL('/portals/staff/dashboard', request.url))
+      default:
+        return NextResponse.redirect(new URL('/', request.url))
     }
-    for (const [route, roles] of Object.entries(roleRoutes)) {
-      if (pathname.startsWith(route) && !roles.includes(user.role)) {
-        return new NextResponse(
-          JSON.stringify({ error: 'Insufficient permissions' }),
-          { status: 403, headers: { 'content-type': 'application/json' } }
-        )
-      }
-    }
-
-    // For API routes that access sensitive data
-    if (pathname.includes('/api/patients/') && pathname.includes('/sensitive')) {
-      const patientId = pathname.split('/')[3] // Extract patient ID from URL
-      const hasAccess = await authService.validateSensitiveDataAccess(
-        user.id,
-        patientId,
-        user.businessId!
-      )
-
-      if (!hasAccess) {
-        return new NextResponse(
-          JSON.stringify({ error: 'Access to sensitive data denied' }),
-          { status: 403, headers: { 'content-type': 'application/json' } }
-        )
-      }
-
-      // Log access attempt
-      await authService.createAccessLog(
-        user.id,
-        user.businessId!,
-        patientId,
-        'VIEW',
-        'patient_sensitive_info',
-        request.headers.get('x-access-reason') || 'No reason provided',
-        true
-      )
-    }
-
-    // Add user info to request headers
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', user.id)
-    requestHeaders.set('x-user-role', user.role)
-    if (user.businessId) {
-      requestHeaders.set('x-business-id', user.businessId)
-    }
-
-    // Continue with modified request
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
-  } catch (error) {
-    return new NextResponse(
-      JSON.stringify({ error: 'Invalid or expired token' }),
-      { status: 401, headers: { 'content-type': 'application/json' } }
-    )
   }
+
+  // Add security headers and user info
+  const headers = new Headers(request.headers)
+  headers.set('X-Frame-Options', 'DENY')
+  headers.set('X-Content-Type-Options', 'nosniff')
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  headers.set(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+  )
+
+  // Add user info for API routes
+  if (pathname.startsWith('/api/')) {
+    headers.set('x-user-id', token.sub as string)
+    headers.set('x-user-role', token.role as string)
+  }
+
+  // Continue with added headers
+  return NextResponse.next({
+    request: {
+      headers,
+    },
+  })
 }
 
 export const config = {
   matcher: [
+    '/portals/:path*',
     '/api/:path*',
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],

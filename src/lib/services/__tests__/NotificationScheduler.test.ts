@@ -1,115 +1,111 @@
 import { NotificationScheduler } from '../NotificationScheduler';
 import { NotificationService } from '../NotificationService';
-import { PrismaClient, AppointmentStatus } from '@prisma/client';
-import { addDays } from 'date-fns';
+import { PrismaClient } from '@prisma/client';
 
-// Mock PrismaClient
-jest.mock('@prisma/client', () => {
-  const originalModule = jest.requireActual('@prisma/client');
-  return {
-    PrismaClient: jest.fn().mockImplementation(() => ({
-      patient: {
-        create: jest.fn().mockResolvedValue({
-          id: '1',
-          name: 'Test Patient',
-          email: 'test@example.com'
-        }),
-        findUnique: jest.fn().mockResolvedValue({
-          email: 'test@example.com'
-        })
-      },
-      appointment: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: '1',
-            patientId: '1',
-            startTime: addDays(new Date(), 1),
-            status: originalModule.AppointmentStatus.CONFIRMED
-          }
-        ])
-      },
-      patientPreference: {
-        findUnique: jest.fn().mockResolvedValue({
-          emailNotifications: true
-        })
-      },
-      $disconnect: jest.fn()
-    })),
-    AppointmentStatus: originalModule.AppointmentStatus
-  };
-});
+jest.mock('../NotificationService');
+jest.mock('@prisma/client');
 
 describe('NotificationScheduler', () => {
   let scheduler: NotificationScheduler;
-  let notificationService: NotificationService;
-  const prisma = new PrismaClient();
+  let mockNotificationService: jest.Mocked<NotificationService>;
+  let mockPrisma: jest.Mocked<PrismaClient>;
 
   beforeEach(() => {
-    notificationService = new NotificationService({ enabled: true, provider: 'mock' });
-    scheduler = new NotificationScheduler(notificationService);
+    mockNotificationService = new NotificationService() as jest.Mocked<NotificationService>;
+    mockPrisma = new PrismaClient() as jest.Mocked<PrismaClient>;
+    scheduler = new NotificationScheduler(mockNotificationService, mockPrisma);
   });
 
-  afterEach(async () => {
-    await scheduler.stop();
-    await prisma.$disconnect();
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  it('should process upcoming appointments and send reminders', async () => {
-    // Create test data
-    const tomorrow = addDays(new Date(), 1);
-    await prisma.patient.create({
-      data: {
-        name: 'Test Patient',
-        email: 'test@example.com',
-      },
-    });
+  it('should send reminders for upcoming appointments', async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Start scheduler and wait for processing
-    await scheduler.start();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Verify reminder was sent
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        startTime: {
-          gte: tomorrow,
+    const mockAppointments = [
+      {
+        id: '1',
+        clientId: '1',
+        startTime: tomorrow,
+        status: 'CONFIRMED',
+        client: {
+          email: 'test@example.com',
+          name: 'Test Client',
         },
-        status: AppointmentStatus.CONFIRMED,
       },
-    });
+    ];
 
-    expect(appointments.length).toBeGreaterThan(0);
+    mockPrisma.appointment.findMany.mockResolvedValue(mockAppointments);
+
+    await scheduler.sendReminders();
+
+    expect(mockNotificationService.sendAppointmentReminder).toHaveBeenCalledWith(
+      mockAppointments[0]
+    );
   });
 
-  it('should not send reminders for appointments without email notifications enabled', async () => {
-    // Mock patientPreference to return emailNotifications: false
-    (prisma.patientPreference.findUnique as jest.Mock).mockResolvedValueOnce({
-      emailNotifications: false
-    });
+  it('should not send reminders for past appointments', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    // Create test data with email notifications disabled
-    const tomorrow = addDays(new Date(), 1);
-    await prisma.patient.create({
-      data: {
-        name: 'Test Patient',
-        email: 'test@example.com',
-      },
-    });
-
-    // Start scheduler and wait for processing
-    await scheduler.start();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Verify no reminders were sent
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        startTime: {
-          gte: tomorrow,
+    const mockAppointments = [
+      {
+        id: '1',
+        clientId: '1',
+        startTime: yesterday,
+        status: 'CONFIRMED',
+        client: {
+          email: 'test@example.com',
+          name: 'Test Client',
         },
-        status: AppointmentStatus.CONFIRMED,
       },
-    });
+    ];
 
-    expect(appointments.length).toBe(1);
+    mockPrisma.appointment.findMany.mockResolvedValue(mockAppointments);
+
+    await scheduler.sendReminders();
+
+    expect(mockNotificationService.sendAppointmentReminder).not.toHaveBeenCalled();
+  });
+
+  it('should not send reminders for cancelled appointments', async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const mockAppointments = [
+      {
+        id: '1',
+        clientId: '1',
+        startTime: tomorrow,
+        status: 'CANCELLED',
+        client: {
+          email: 'test@example.com',
+          name: 'Test Client',
+        },
+      },
+    ];
+
+    mockPrisma.appointment.findMany.mockResolvedValue(mockAppointments);
+
+    await scheduler.sendReminders();
+
+    expect(mockNotificationService.sendAppointmentReminder).not.toHaveBeenCalled();
+  });
+
+  it('should handle errors gracefully', async () => {
+    mockPrisma.appointment.findMany.mockRejectedValue(new Error('Database error'));
+
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    await scheduler.sendReminders();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error sending appointment reminders:',
+      expect.any(Error)
+    );
+
+    consoleSpy.mockRestore();
   });
 }); 

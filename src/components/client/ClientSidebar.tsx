@@ -14,17 +14,17 @@ import {
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/patient/dashboard', icon: LayoutDashboard },
-  { name: 'Appointments', href: '/patient/appointments', icon: CalendarDays },
-  { name: 'Messages', href: '/patient/messages', icon: MessageSquare },
-  { name: 'Documents', href: '/patient/documents', icon: FileText },
-  { name: 'Profile', href: '/patient/profile', icon: User },
-  { name: 'Notifications', href: '/patient/notifications', icon: Bell },
-  { name: 'Billing', href: '/patient/billing', icon: CreditCard },
-  { name: 'History', href: '/patient/history', icon: History },
+  { name: 'Dashboard', href: '/client/dashboard', icon: LayoutDashboard },
+  { name: 'Appointments', href: '/client/appointments', icon: CalendarDays },
+  { name: 'Messages', href: '/client/messages', icon: MessageSquare },
+  { name: 'Documents', href: '/client/documents', icon: FileText },
+  { name: 'Profile', href: '/client/profile', icon: User },
+  { name: 'Notifications', href: '/client/notifications', icon: Bell },
+  { name: 'Billing', href: '/client/billing', icon: CreditCard },
+  { name: 'History', href: '/client/history', icon: History },
 ];
 
-export default function PatientSidebar() {
+export default function ClientSidebar() {
   const pathname = usePathname();
 
   return (

@@ -1,61 +1,40 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ServiceCard from '@/components/services/ServiceCard'
-import { Service, ServiceCategory, Staff } from '@prisma/client'
+import { Service, ServiceCategory, Staff, StaffRole } from '@prisma/client'
+import { act } from 'react'
 
+// Mock fetch
+global.fetch = jest.fn()
+
+// Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    refresh: jest.fn()
+    refresh: jest.fn(),
+    push: jest.fn()
+  })
+}))
+
+// Mock toast
+const mockToast = jest.fn()
+jest.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({
+    toast: mockToast
   })
 }))
 
 describe('ServiceCard', () => {
-  const mockService: Service & {
-    category: ServiceCategory | null
-    providers: Staff[]
-  } = {
-    id: '1',
-    name: 'Test Service',
-    description: 'Test Description',
-    duration: 60,
-    price: '100' as any, // Mock Decimal as string for testing
-    businessId: '1',
-    categoryId: '1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    category: {
-      id: '1',
-      name: 'Test Category',
-      description: null,
-      color: null,
-      businessId: '1',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    },
-    providers: [
-      {
-        id: '1',
-        name: 'Test Provider',
-        email: 'test@example.com',
-        role: 'PROVIDER',
-        password: 'hashed',
-        businessId: '1',
-        lastActive: null,
-        mfaEnabled: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ]
-  }
-
   const mockCategories: ServiceCategory[] = [
     {
       id: '1',
       name: 'Test Category',
       description: null,
       color: null,
-      businessId: '1',
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      isDeleted: false,
+      createdBy: null,
+      lastModifiedBy: null,
+      businessId: '1'
     }
   ]
 
@@ -63,16 +42,35 @@ describe('ServiceCard', () => {
     {
       id: '1',
       name: 'Test Provider',
-      email: 'test@example.com',
-      role: 'PROVIDER',
-      password: 'hashed',
+      email: 'provider@test.com',
+      phone: null,
+      password: 'hashed_password',
+      role: StaffRole.STANDARD,
       businessId: '1',
-      lastActive: null,
-      mfaEnabled: false,
       createdAt: new Date(),
       updatedAt: new Date()
     }
   ]
+
+  const mockService: Service & { category: ServiceCategory | null, providers: Staff[] } = {
+    id: '1',
+    name: 'Test Service',
+    description: 'Test Description',
+    duration: 60,
+    price: 100.0,
+    businessId: '1',
+    categoryId: '1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    category: mockCategories[0],
+    providers: [mockProviders[0]]
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (global.fetch as jest.Mock).mockReset()
+    mockToast.mockReset()
+  })
 
   it('renders service information correctly', () => {
     render(
@@ -91,7 +89,7 @@ describe('ServiceCard', () => {
     expect(screen.getByText('Test Provider')).toBeInTheDocument()
   })
 
-  it('opens edit dialog when edit button is clicked', () => {
+  it('opens edit dialog when edit button is clicked', async () => {
     render(
       <ServiceCard
         service={mockService}
@@ -100,15 +98,19 @@ describe('ServiceCard', () => {
       />
     )
 
-    const editButton = screen.getByRole('button', { name: /edit/i })
-    fireEvent.click(editButton)
+    const editButton = screen.getByLabelText('Edit service')
+    await act(async () => {
+      fireEvent.click(editButton)
+    })
 
     expect(screen.getByText('Edit Service')).toBeInTheDocument()
   })
 
-  it('shows delete confirmation when delete button is clicked', () => {
-    const confirmSpy = jest.spyOn(window, 'confirm')
-    confirmSpy.mockImplementation(() => true)
+  it('shows delete confirmation and deletes service when confirmed', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
+    (global.fetch as jest.Mock).mockImplementationOnce(() => 
+      Promise.resolve({ ok: true })
+    )
 
     render(
       <ServiceCard
@@ -118,10 +120,66 @@ describe('ServiceCard', () => {
       />
     )
 
-    const deleteButton = screen.getByRole('button', { name: /delete/i })
-    fireEvent.click(deleteButton)
+    const deleteButton = screen.getByLabelText('Delete service')
+    await act(async () => {
+      fireEvent.click(deleteButton)
+    })
 
     expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete this service?')
+    expect(global.fetch).toHaveBeenCalledWith(
+      `/api/business/services/${mockService.id}`,
+      expect.objectContaining({ method: 'DELETE' })
+    )
+
+    confirmSpy.mockRestore()
+  })
+
+  it('does not delete when confirmation is cancelled', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => false)
+
+    render(
+      <ServiceCard
+        service={mockService}
+        categories={mockCategories}
+        providers={mockProviders}
+      />
+    )
+
+    const deleteButton = screen.getByLabelText('Delete service')
+    await act(async () => {
+      fireEvent.click(deleteButton)
+    })
+
+    expect(global.fetch).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('handles delete error gracefully', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
+    (global.fetch as jest.Mock).mockImplementationOnce(() => 
+      Promise.reject(new Error('Network error'))
+    )
+
+    render(
+      <ServiceCard
+        service={mockService}
+        categories={mockCategories}
+        providers={mockProviders}
+      />
+    )
+
+    const deleteButton = screen.getByLabelText('Delete service')
+    await act(async () => {
+      fireEvent.click(deleteButton)
+    })
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: 'Error',
+        description: 'Failed to delete service. Please try again.',
+        variant: 'destructive'
+      })
+    })
     confirmSpy.mockRestore()
   })
 
