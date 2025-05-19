@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server'
 import { PrismaClient, BackupStatus } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { log } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 
 const prisma = new PrismaClient()
-const logger = log.child({ service: 'backup-status-api' })
 
 export async function GET(request: Request) {
   try {

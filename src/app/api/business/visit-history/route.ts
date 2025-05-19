@@ -1,11 +1,10 @@
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { ApiError, handleApiError } from '@/lib/utils/api/error'
 
 // GET: List visit history for a client relationship
 export async function GET(request: Request) {
-  const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
@@ -20,8 +19,8 @@ export async function GET(request: Request) {
       throw new ApiError(400, 'relationshipId is required')
     }
 
-    // Verify ownership of the relationship
-    const relationship = await prisma.clientRelationship.findFirst({
+    // Verify ownership of the client
+    const client = await prisma.client.findFirst({
       where: {
         id: relationshipId,
         business: {
@@ -30,26 +29,22 @@ export async function GET(request: Request) {
       }
     })
 
-    if (!relationship) {
+    if (!client) {
       throw new ApiError(404, 'Client relationship not found')
     }
 
     const visitHistory = await prisma.visitHistory.findMany({
       where: {
-        relationshipId
+        clientId: relationshipId
       },
       orderBy: {
         visitDate: 'desc'
       },
       include: {
-        clientRelationship: {
-          include: {
-            client: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
+        client: {
+          select: {
+            id: true,
+            name: true
           }
         }
       }
@@ -63,7 +58,6 @@ export async function GET(request: Request) {
 
 // POST: Create a new visit history entry
 export async function POST(request: Request) {
-  const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
@@ -77,12 +71,12 @@ export async function POST(request: Request) {
       visitDate,
       serviceType,
       staffNotes,
-      clientFeedback,
+      patientFeedback,
       followUpRequired
     } = json
 
-    // Verify ownership of the relationship
-    const relationship = await prisma.clientRelationship.findFirst({
+    // Verify ownership of the client
+    const client = await prisma.client.findFirst({
       where: {
         id: relationshipId,
         business: {
@@ -91,35 +85,31 @@ export async function POST(request: Request) {
       }
     })
 
-    if (!relationship) {
+    if (!client) {
       throw new ApiError(404, 'Client relationship not found')
     }
 
     const visitHistoryEntry = await prisma.visitHistory.create({
       data: {
-        clientRelationship: { connect: { id: relationshipId } },
+        client: { connect: { id: relationshipId } },
         visitDate: new Date(visitDate),
         serviceType,
         staffNotes,
-        clientFeedback,
+        patientFeedback,
         followUpRequired: followUpRequired || false
       },
       include: {
-        clientRelationship: {
-          include: {
-            client: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
+        client: {
+          select: {
+            id: true,
+            name: true
           }
         }
       }
     })
 
-    // Update lastVisit in the relationship
-    await prisma.clientRelationship.update({
+    // Update lastVisit in the client
+    await prisma.client.update({
       where: { id: relationshipId },
       data: { lastVisit: new Date(visitDate) }
     })

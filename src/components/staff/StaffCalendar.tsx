@@ -1,72 +1,107 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
-
-interface StaffCalendarProps {
-  staffId: string;
-}
+import React from 'react';
+import { Calendar } from '@/components/ui/Calendar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { addDays, format, isSameDay } from 'date-fns';
+import { AppointmentStatus } from '@prisma/client';
 
 interface Appointment {
   id: string;
-  title: string;
-  start: string;
-  end: string;
-  status: string;
+  dateTime: Date;
+  clientName: string;
+  serviceName: string;
+  status: AppointmentStatus;
 }
 
-const StaffCalendar = ({ staffId }: StaffCalendarProps) => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+interface StaffCalendarProps {
+  appointments: Appointment[];
+  selectedDate?: Date;
+  onDateSelect: (date: Date | undefined) => void;
+}
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const response = await fetch(`/api/staff/${staffId}/appointments`);
-        if (!response.ok) throw new Error('Failed to fetch appointments');
-        const data = await response.json();
-        
-        // Transform appointments into FullCalendar events
-        const events = data.map((apt: any) => ({
-          id: apt.id,
-          title: `${apt.service.name} - ${apt.patient.name}`,
-          start: apt.startTime,
-          end: apt.endTime,
-          status: apt.status,
-          backgroundColor: apt.status === 'COMPLETED' ? '#10B981' : '#3B82F6',
-        }));
-        
-        setAppointments(events);
-      } catch (error) {
-        console.error('Error fetching appointments:', error);
-      }
-    };
+export default function StaffCalendar({
+  appointments,
+  selectedDate,
+  onDateSelect,
+}: StaffCalendarProps) {
+  // Function to get appointments for a specific date
+  const getAppointmentsForDate = (date: Date) => {
+    return appointments.filter((appointment) =>
+      isSameDay(new Date(appointment.dateTime), date)
+    );
+  };
 
-    fetchAppointments();
-  }, [staffId]);
+  // Function to determine if a date has appointments
+  const hasAppointments = (date: Date) => {
+    return getAppointmentsForDate(date).length > 0;
+  };
+
+  // Custom day render to show appointment indicators
+  const renderDay = (day: Date) => {
+    const dayAppointments = getAppointmentsForDate(day);
+    const hasAppointment = dayAppointments.length > 0;
+
+    return (
+      <div className="relative w-full h-full">
+        <div className={`w-full h-full p-2 ${
+          hasAppointment ? 'font-bold' : ''
+        }`}>
+          {format(day, 'd')}
+          {hasAppointment && (
+            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+              <div className="h-1 w-1 rounded-full bg-primary" />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="h-full bg-white p-4 shadow sm:rounded-lg">
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="timeGridWeek"
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay',
-        }}
-        editable={false}
-        selectable={true}
-        selectMirror={true}
-        dayMaxEvents={true}
-        weekends={true}
-        events={appointments}
-        height="100%"
-      />
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Schedule</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={onDateSelect}
+          className="rounded-md border"
+          components={{
+            Day: ({ date }) => renderDay(date),
+          }}
+          disabled={{ before: new Date() }}
+          initialFocus
+        />
+        {selectedDate && (
+          <div className="mt-4">
+            <h3 className="font-medium mb-2">
+              Appointments for {format(selectedDate, 'MMMM d, yyyy')}
+            </h3>
+            <div className="space-y-2">
+              {getAppointmentsForDate(selectedDate).map((appointment) => (
+                <div
+                  key={appointment.id}
+                  className="p-2 border rounded-md flex justify-between items-center"
+                >
+                  <div>
+                    <p className="font-medium">{appointment.clientName}</p>
+                    <p className="text-sm text-gray-500">{appointment.serviceName}</p>
+                  </div>
+                  <div className="text-sm">
+                    {format(new Date(appointment.dateTime), 'h:mm a')}
+                  </div>
+                </div>
+              ))}
+              {getAppointmentsForDate(selectedDate).length === 0 && (
+                <p className="text-sm text-gray-500">No appointments scheduled</p>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
-};
-
-export default StaffCalendar; 
+} 
