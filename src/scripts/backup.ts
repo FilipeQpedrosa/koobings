@@ -5,19 +5,19 @@ import { createReadStream, createWriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
 import path from 'path'
 import { env } from '@/lib/env'
-import { log } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import { PrismaClient } from '@prisma/client'
 import { statSync } from 'fs'
 
 const execAsync = promisify(exec)
-const logger = log.child({ service: 'backup' })
+const loggerInstance = logger.child({ service: 'backup' })
 const prisma = new PrismaClient()
 
 const s3Client = new S3Client({
   region: env.AWS_REGION,
   credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY || '',
   },
 })
 
@@ -35,37 +35,33 @@ async function createDatabaseBackup(options: BackupOptions) {
   // Create backup status record
   const backupStatus = await prisma.backupStatus.create({
     data: {
-      type: options.type,
       status: 'running',
-      metadata: {
-        retention: options.retention,
-        filename,
-      }
+      filename,
+      details: JSON.stringify({ type: options.type, retention: options.retention }),
     }
   })
 
   try {
     // Create backup using pg_dump
-    logger.info('Starting database backup', { type: options.type, backupId: backupStatus.id })
+    loggerInstance.info('Starting database backup', { type: options.type, backupId: backupStatus.id })
     await execAsync(`pg_dump ${env.DATABASE_URL} > ${filePath}`)
 
     // Get file size
     const stats = statSync(filePath)
     await prisma.backupStatus.update({
       where: { id: backupStatus.id },
-      data: { sizeBytes: stats.size }
+      data: { size: BigInt(stats.size) }
     })
 
     // Compress the backup
-    logger.info('Compressing backup', { backupId: backupStatus.id })
+    loggerInstance.info('Compressing backup', { backupId: backupStatus.id })
     await execAsync(`gzip ${filePath}`)
     const compressedPath = `${filePath}.gz`
 
     // Upload to S3
-    logger.info('Uploading to S3', { backupId: backupStatus.id })
+    loggerInstance.info('Uploading to S3', { backupId: backupStatus.id })
     const fileStream = createReadStream(compressedPath)
     const s3Path = `backups/${options.type}/${filename}.gz`
-    
     await s3Client.send(
       new PutObjectCommand({
         Bucket: env.AWS_BACKUP_BUCKET,
@@ -81,32 +77,33 @@ async function createDatabaseBackup(options: BackupOptions) {
       })
     )
 
-    // Update status before verification
+    // Store S3 path and verification info in details
     await prisma.backupStatus.update({
       where: { id: backupStatus.id },
       data: {
-        s3Path,
-        verificationStatus: 'pending'
+        details: JSON.stringify({
+          ...JSON.parse(backupStatus.details || '{}'),
+          s3Path,
+          verification: 'pending',
+        })
       }
     })
 
-    // Verify backup
-    await verifyBackup(compressedPath, backupStatus.id)
-
-    // Cleanup old backups
-    await cleanupOldBackups(options.retention)
-
-    // Update final status
+    // Verify backup (store result in details)
+    const verificationResult = await verifyBackup(compressedPath, backupStatus.id)
     await prisma.backupStatus.update({
       where: { id: backupStatus.id },
       data: {
         status: 'completed',
-        completedAt: new Date(),
-        verificationStatus: 'success'
+        details: JSON.stringify({
+          ...JSON.parse(backupStatus.details || '{}'),
+          s3Path,
+          verification: verificationResult,
+        })
       }
     })
 
-    logger.info('Backup completed successfully', {
+    loggerInstance.info('Backup completed successfully', {
       type: options.type,
       path: s3Path,
       backupId: backupStatus.id
@@ -119,25 +116,23 @@ async function createDatabaseBackup(options: BackupOptions) {
       backupId: backupStatus.id
     }
   } catch (error) {
-    logger.error('Backup failed', error as Error)
-    
-    // Update error status
+    loggerInstance.error('Backup failed', error as Error)
     await prisma.backupStatus.update({
       where: { id: backupStatus.id },
       data: {
         status: 'failed',
-        completedAt: new Date(),
-        error: error instanceof Error ? error.message : 'Unknown error',
-        verificationStatus: 'failed'
+        details: JSON.stringify({
+          ...JSON.parse(backupStatus.details || '{}'),
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })
       }
     })
-
     throw error
   }
 }
 
 async function verifyBackup(backupPath: string, backupId: string) {
-  logger.info('Verifying backup', { path: backupPath, backupId })
+  loggerInstance.info('Verifying backup', { path: backupPath, backupId })
   
   try {
     // Create a temporary database for verification
@@ -180,9 +175,9 @@ async function verifyBackup(backupPath: string, backupId: string) {
     await prisma.backupStatus.update({
       where: { id: backupId },
       data: {
-        metadata: {
+        details: JSON.stringify({
           verification: verificationResults
-        }
+        })
       }
     })
 
@@ -197,10 +192,10 @@ async function verifyBackup(backupPath: string, backupId: string) {
     // Cleanup
     await execAsync(`dropdb ${verifyDbName}`)
 
-    logger.info('Backup verification successful', { backupId })
+    loggerInstance.info('Backup verification successful', { backupId })
     return true
   } catch (error) {
-    logger.error('Backup verification failed', error as Error)
+    loggerInstance.error('Backup verification failed', error as Error)
     throw error
   }
 }
@@ -209,7 +204,7 @@ async function cleanupOldBackups(retentionDays: number) {
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
 
-  logger.info('Cleaning up old backups', { retentionDays, cutoffDate })
+  loggerInstance.info('Cleaning up old backups', { retentionDays, cutoffDate })
 
   try {
     // List old backups from S3
@@ -244,7 +239,7 @@ async function cleanupOldBackups(retentionDays: number) {
           Bucket: env.AWS_BACKUP_BUCKET,
           Delete: { Objects: batch }
         }))
-        logger.info('Deleted batch of old backups from S3', { count: batch.length })
+        loggerInstance.info('Deleted batch of old backups from S3', { count: batch.length })
       }
     } while (continuationToken)
 
@@ -254,18 +249,18 @@ async function cleanupOldBackups(retentionDays: number) {
         Bucket: env.AWS_BACKUP_BUCKET,
         Delete: { Objects: objectsToDelete }
       }))
-      logger.info('Deleted remaining old backups from S3', { count: objectsToDelete.length })
+      loggerInstance.info('Deleted remaining old backups from S3', { count: objectsToDelete.length })
     }
 
     // Clean up local backup files
     await execAsync(`find backups/ -type f -mtime +${retentionDays} -delete`)
     
-    logger.info('Backup cleanup completed', {
+    loggerInstance.info('Backup cleanup completed', {
       retentionDays,
       totalDeleted: objectsToDelete.length
     })
   } catch (error) {
-    logger.error('Cleanup failed', error as Error)
+    loggerInstance.error('Cleanup failed', error as Error)
     throw error
   }
 }

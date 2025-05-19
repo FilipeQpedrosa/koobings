@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { ApiError, handleApiError } from '@/lib/utils/api/error'
@@ -8,7 +8,6 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
@@ -16,42 +15,23 @@ export async function GET(
   }
 
   try {
+    // Step 1: Fetch the record for ownership check
+    const record = await prisma.visitHistory.findUnique({
+      where: { id: params.id }
+    }) as { businessId: string } | null;
+    if (!record) throw new ApiError(404, 'Visit history entry not found')
+    const business = await prisma.business.findFirst({
+      where: { id: record.businessId, email: session.user.email }
+    })
+    if (!business) throw new ApiError(401, 'Unauthorized')
+
+    // Step 2: Fetch the full record with relations for response
     const visitHistory = await prisma.visitHistory.findUnique({
       where: { id: params.id },
       include: {
-        clientRelationship: {
-          include: {
-            client: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        }
+        client: { select: { id: true, name: true } }
       }
     })
-
-    if (!visitHistory) {
-      throw new ApiError(404, 'Visit history entry not found')
-    }
-
-    // Verify ownership through the relationship
-    const business = await prisma.business.findFirst({
-      where: { 
-        email: session.user.email,
-        clientRelationships: {
-          some: {
-            id: visitHistory.relationshipId
-          }
-        }
-      }
-    })
-
-    if (!business) {
-      throw new ApiError(401, 'Unauthorized')
-    }
-
     return NextResponse.json(visitHistory)
   } catch (error) {
     return handleApiError(error)
@@ -63,7 +43,6 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
@@ -76,49 +55,34 @@ export async function PATCH(
       visitDate,
       serviceType,
       staffNotes,
-      clientFeedback,
+      patientFeedback,
       followUpRequired
     } = json
 
-    // Verify ownership through the relationship
-    const existingVisit = await prisma.visitHistory.findFirst({
-      where: {
-        id: params.id,
-        clientRelationship: {
-          business: {
-            email: session.user.email
-          }
-        }
-      }
+    // Step 1: Fetch the record for ownership check
+    const record = await prisma.visitHistory.findUnique({
+      where: { id: params.id }
+    }) as { businessId: string } | null;
+    if (!record) throw new ApiError(404, 'Visit history entry not found')
+    const business = await prisma.business.findFirst({
+      where: { id: record.businessId, email: session.user.email }
     })
+    if (!business) throw new ApiError(401, 'Unauthorized')
 
-    if (!existingVisit) {
-      throw new ApiError(404, 'Visit history entry not found')
-    }
-
+    // Step 2: Update and return the full record with relations
     const visitHistory = await prisma.visitHistory.update({
       where: { id: params.id },
       data: {
         visitDate: visitDate ? new Date(visitDate) : undefined,
         serviceType,
         staffNotes,
-        clientFeedback,
+        patientFeedback,
         followUpRequired
       },
       include: {
-        clientRelationship: {
-          include: {
-            client: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        }
+        client: { select: { id: true, name: true } }
       }
     })
-
     return NextResponse.json(visitHistory)
   } catch (error) {
     return handleApiError(error)
@@ -130,7 +94,6 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
@@ -138,26 +101,20 @@ export async function DELETE(
   }
 
   try {
-    // Verify ownership through the relationship
-    const existingVisit = await prisma.visitHistory.findFirst({
-      where: {
-        id: params.id,
-        clientRelationship: {
-          business: {
-            email: session.user.email
-          }
-        }
-      }
+    // Step 1: Fetch the record for ownership check
+    const record = await prisma.visitHistory.findUnique({
+      where: { id: params.id }
+    }) as { businessId: string } | null;
+    if (!record) throw new ApiError(404, 'Visit history entry not found')
+    const business = await prisma.business.findFirst({
+      where: { id: record.businessId, email: session.user.email }
     })
+    if (!business) throw new ApiError(401, 'Unauthorized')
 
-    if (!existingVisit) {
-      throw new ApiError(404, 'Visit history entry not found')
-    }
-
+    // Step 2: Delete the record
     await prisma.visitHistory.delete({
       where: { id: params.id }
     })
-
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     return handleApiError(error)

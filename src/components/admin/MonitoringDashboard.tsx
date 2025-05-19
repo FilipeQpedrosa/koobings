@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { LineChart } from '@/components/ui/charts'
-import { log } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 
 interface HealthStatus {
   status: string
@@ -58,7 +58,7 @@ export function MonitoringDashboard() {
         }))
       } catch (err) {
         const error = err as Error
-        log.error('Failed to fetch health status', error)
+        logger.error('Failed to fetch health status', error)
         setError(error.message)
       }
     }
