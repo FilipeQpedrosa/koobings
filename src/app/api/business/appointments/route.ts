@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { PrismaClient } from '@prisma/client';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, parseISO, addMinutes } from 'date-fns';
-
-const prisma = new PrismaClient();
 
 export async function GET(request: Request) {
   try {
@@ -26,25 +24,34 @@ export async function GET(request: Request) {
     // Get date from query params
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
-    
-    if (!dateParam) {
-      return new NextResponse('Date parameter is required', { status: 400 });
-    }
+    const staffId = searchParams.get('staffId');
 
-    const date = parseISO(dateParam);
+    let where: any = {
+      businessId: staff.businessId,
+      ...(staffId && staffId !== 'all' ? { staffId } : {}),
+    };
 
-    // Fetch appointments for the business on the specified date
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        businessId: staff.businessId,
-        startTime: {
+    if (dateParam) {
+      let date;
+      try {
+        date = parseISO(dateParam);
+        if (isNaN(date.getTime())) throw new Error('Invalid date');
+        where.scheduledFor = {
           gte: startOfDay(date),
           lte: endOfDay(date),
-        },
-      },
+        };
+      } catch (err) {
+        return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD.' }, { status: 400 });
+      }
+    }
+
+    // Fetch appointments for the business (optionally filtered by date and/or staff)
+    const appointments = await prisma.appointment.findMany({
+      where,
       include: {
-        patient: {
+        client: {
           select: {
+            id: true,
             name: true,
             email: true,
           },
@@ -58,33 +65,38 @@ export async function GET(request: Request) {
         service: true,
       },
       orderBy: {
-        startTime: 'asc',
+        scheduledFor: 'asc',
       },
     });
 
     // Transform the data to match the frontend interface
     const formattedAppointments = appointments.map(apt => ({
       id: apt.id,
-      patientName: apt.patient.name,
-      patientEmail: apt.patient.email,
-      date: apt.startTime.toISOString(),
-      time: apt.startTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      client: {
+        id: apt.client?.id,
+        name: apt.client?.name,
+        email: apt.client?.email,
+      },
+      scheduledFor: apt.scheduledFor.toISOString(),
       status: apt.status,
       notes: apt.notes || undefined,
-      provider: {
+      staff: apt.staff ? {
         id: apt.staff.id,
         name: apt.staff.name,
-      },
-      service: {
+      } : undefined,
+      services: apt.service ? [{
         id: apt.service.id,
         name: apt.service.name,
         duration: apt.service.duration,
-      },
+      }] : [],
     }));
 
     return NextResponse.json(formattedAppointments);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching appointments:', error);
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.json({ error: 'Internal Server Error', details: error.message, stack: error.stack }, { status: 500 });
+    }
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
@@ -105,8 +117,17 @@ export async function POST(request: Request) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const body = await request.json();
-    const { patientId, serviceId, startTime, notes } = body;
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    const { clientId, serviceId, startTime, notes, staffId: staffIdFromPayload } = body;
+
+    if (!clientId || !serviceId || !startTime) {
+      return NextResponse.json({ error: 'Missing required fields: clientId, serviceId, startTime' }, { status: 400 });
+    }
 
     // Get service to calculate endTime
     const service = await prisma.service.findUnique({
@@ -114,23 +135,32 @@ export async function POST(request: Request) {
     });
 
     if (!service) {
-      return new NextResponse('Service not found', { status: 404 });
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    }
+
+    let start;
+    try {
+      start = new Date(startTime);
+      if (isNaN(start.getTime())) throw new Error('Invalid startTime');
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid startTime format' }, { status: 400 });
     }
 
     const appointment = await prisma.appointment.create({
       data: {
         businessId: staff.businessId,
-        patientId,
+        clientId: clientId,
         serviceId,
-        staffId: staff.id,
-        startTime: new Date(startTime),
-        endTime: addMinutes(new Date(startTime), service.duration),
+        staffId: staffIdFromPayload || staff.id,
+        scheduledFor: start,
+        duration: service.duration,
         notes,
         status: 'PENDING',
       },
       include: {
-        patient: {
+        client: {
           select: {
+            id: true,
             name: true,
             email: true,
           },
@@ -147,26 +177,89 @@ export async function POST(request: Request) {
 
     const formattedAppointment = {
       id: appointment.id,
-      patientName: appointment.patient.name,
-      patientEmail: appointment.patient.email,
-      date: appointment.startTime.toISOString(),
-      time: appointment.startTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      client: {
+        id: appointment.client?.id,
+        name: appointment.client?.name,
+        email: appointment.client?.email,
+      },
+      scheduledFor: appointment.scheduledFor.toISOString(),
       status: appointment.status,
       notes: appointment.notes || undefined,
-      provider: {
+      staff: appointment.staff ? {
         id: appointment.staff.id,
         name: appointment.staff.name,
-      },
-      service: {
+      } : undefined,
+      services: appointment.service ? [{
         id: appointment.service.id,
         name: appointment.service.name,
         duration: appointment.service.duration,
-      },
+      }] : [],
     };
 
     return NextResponse.json(formattedAppointment);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating appointment:', error);
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.json({ error: 'Internal Server Error', details: error.message, stack: error.stack }, { status: 500 });
+    }
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+// New endpoint: /api/business/appointments/check-availability
+export async function PUT(request: Request) {
+  // This is a convention for a custom endpoint, since Next.js API routes don't support subroutes easily
+  // The frontend should call this with method PUT and the correct payload
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    const staff = await prisma.staff.findUnique({
+      where: { email: session.user?.email },
+      include: { business: true }
+    });
+
+    if (!staff) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    const { staffId, date, startTime, duration } = body;
+    if (!staffId || !date || !startTime || !duration) {
+      return NextResponse.json({ error: 'Missing required fields: staffId, date, startTime, duration' }, { status: 400 });
+    }
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + duration * 60000);
+    // Find overlapping appointments for this staff
+    const overlapping = await prisma.appointment.findFirst({
+      where: {
+        staffId,
+        scheduledFor: {
+          lt: end,
+          gte: new Date(date + 'T00:00:00'),
+        },
+        // End time of existing appointment must be after start
+        // (scheduledFor + duration) > start
+      },
+    });
+    let isAvailable = true;
+    if (overlapping) {
+      // Calculate end time of existing appointment
+      const existingEnd = new Date(overlapping.scheduledFor.getTime() + overlapping.duration * 60000);
+      if (existingEnd > start) {
+        isAvailable = false;
+      }
+    }
+    return NextResponse.json({ available: isAvailable });
+  } catch (error) {
+    console.error('Error checking staff availability:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 } 

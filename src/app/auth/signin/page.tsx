@@ -18,7 +18,7 @@ export default function SignInPage() {
 
   const callbackUrl = searchParams.get('callbackUrl') || '/';
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>, role: 'staff' | 'business') => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>, role: 'staff' | 'business' | 'admin' | 'ADMIN') => {
     event.preventDefault();
     setIsLoading(true);
 
@@ -46,8 +46,10 @@ export default function SignInPage() {
       // Redirect based on role
       if (role === 'staff') {
         router.push('/staff/dashboard');
-      } else {
+      } else if (role === 'business') {
         router.push('/business/dashboard');
+      } else {
+        router.push('/admin/dashboard');
       }
     } catch (error) {
       toast({
@@ -69,9 +71,10 @@ export default function SignInPage() {
         </div>
 
         <Tabs defaultValue="staff" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="staff">Staff</TabsTrigger>
             <TabsTrigger value="business">Business</TabsTrigger>
+            <TabsTrigger value="admin">Admin</TabsTrigger>
           </TabsList>
 
           <TabsContent value="staff">
@@ -121,6 +124,37 @@ export default function SignInPage() {
                 <Label htmlFor="business-password">Password</Label>
                 <Input
                   id="business-password"
+                  name="password"
+                  type="password"
+                  required
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="admin">
+            <form onSubmit={(e) => handleSubmit(e, 'ADMIN')} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="admin-email">Admin Email</Label>
+                <Input
+                  id="admin-email"
+                  name="email"
+                  type="email"
+                  placeholder="admin@example.com"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-password">Password</Label>
+                <Input
+                  id="admin-password"
                   name="password"
                   type="password"
                   required

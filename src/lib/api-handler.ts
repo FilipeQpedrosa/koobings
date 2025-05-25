@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { CustomUser } from './auth';
+import { CustomUser } from '@/lib/auth';
 import { withAuth, withErrorHandler, withMethodCheck, withValidation, withRateLimit } from './middleware';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import * as yup from 'yup';

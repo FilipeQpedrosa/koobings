@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   try {
     // Delete existing data
-    await prisma.patientRelationship.deleteMany();
+    await prisma.clientRelationship.deleteMany();
     await prisma.staffAvailability.deleteMany();
     await prisma.schedule.deleteMany();
     await prisma.appointment.deleteMany();

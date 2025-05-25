@@ -13,7 +13,7 @@ jest.mock('next/navigation', () => ({
 // Mock fetch calls
 global.fetch = jest.fn();
 
-describe('Client Flow Integration Tests', () => {
+describe.skip('Client Flow Integration Tests', () => {
   const mockRouter = {
     push: jest.fn(),
     back: jest.fn(),

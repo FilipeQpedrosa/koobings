@@ -3,8 +3,6 @@ import React, { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Staff, Schedule, StaffAvailability } from '@prisma/client';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 
 interface StaffWithRelations extends Staff {
   schedules: Schedule[];
@@ -14,21 +12,6 @@ interface StaffWithRelations extends Staff {
 interface StaffAvailabilityManagerProps {
   staff: StaffWithRelations[];
 }
-
-const scheduleSchema = z.object({
-  dayOfWeek: z.number().min(0).max(6),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
-});
-
-const availabilitySchema = z.object({
-  date: z.date(),
-  isAvailable: z.boolean(),
-  reason: z.string().optional(),
-});
-
-type ScheduleInput = z.infer<typeof scheduleSchema>;
-type AvailabilityInput = z.infer<typeof availabilitySchema>;
 
 export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProps) {
   const [selectedStaff, setSelectedStaff] = useState<StaffWithRelations | null>(
@@ -42,20 +25,16 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
     handleSubmit: handleScheduleSubmit,
     formState: { errors: scheduleErrors },
     reset: resetScheduleForm,
-  } = useForm<ScheduleInput>({
-    resolver: zodResolver(scheduleSchema),
-  });
+  } = useForm();
 
   const {
     register: availabilityRegister,
     handleSubmit: handleAvailabilitySubmit,
     formState: { errors: availabilityErrors },
     reset: resetAvailabilityForm,
-  } = useForm<AvailabilityInput>({
-    resolver: zodResolver(availabilitySchema),
-  });
+  } = useForm();
 
-  const handleScheduleSave = async (data: ScheduleInput) => {
+  const handleScheduleSave = async (data: any) => {
     if (!selectedStaff) return;
 
     try {
@@ -76,7 +55,7 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
     }
   };
 
-  const handleAvailabilitySave = async (data: AvailabilityInput) => {
+  const handleAvailabilitySave = async (data: any) => {
     if (!selectedStaff) return;
 
     try {

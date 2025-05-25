@@ -18,7 +18,7 @@ async function main() {
     const client = await prisma.client.findFirst({
       where: { businessId: business.id },
       include: {
-        sensitiveInfo: true,
+        // sensitiveInfo: true,
       },
     });
     if (!client) {
@@ -42,13 +42,13 @@ async function main() {
     }
 
     // Create a test appointment
-    const startTime = addHours(new Date(), 24); // Tomorrow
-    const endTime = addHours(startTime, 1); // 1 hour duration
+    const scheduledFor = addHours(new Date(), 24); // Tomorrow
+    const duration = 60; // 1 hour duration
 
     const appointment = await prisma.appointment.create({
       data: {
-        startTime,
-        endTime,
+        scheduledFor,
+        duration,
         status: 'CONFIRMED',
         businessId: business.id,
         clientId: client.id,
@@ -58,7 +58,7 @@ async function main() {
       include: {
         client: {
           include: {
-            sensitiveInfo: true,
+            // sensitiveInfo: true,
           },
         },
         service: true,
@@ -75,7 +75,9 @@ async function main() {
 
     if (result.success) {
       console.log('✅ Test email sent successfully!');
-      console.log('Message ID:', result.messageId);
+      if ('messageId' in result) {
+        console.log('Message ID:', result.messageId);
+      }
     } else {
       console.error('❌ Failed to send test email:', result.error);
     }

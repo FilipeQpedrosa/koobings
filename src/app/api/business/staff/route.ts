@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { hash } from 'bcryptjs';
 
 export async function GET() {
   try {
@@ -22,13 +23,6 @@ export async function GET() {
         businessId
       },
       include: {
-        schedules: {
-          select: {
-            dayOfWeek: true,
-            startTime: true,
-            endTime: true
-          }
-        },
         services: {
           select: {
             id: true,
@@ -63,27 +57,29 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json();
-    const { email, name, role, services = [] } = data;
+    const { email, name, role, password, services = [] } = data;
 
-    if (!email || !name || !role) {
+    if (!email || !name || !role || !password) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
+    const passwordHash = await hash(password, 10);
+
     const staff = await prisma.staff.create({
       data: {
         email,
         name,
         role,
+        password: passwordHash,
         businessId,
         services: {
           connect: services.map((id: string) => ({ id }))
         }
       },
       include: {
-        schedules: true,
         services: {
           select: {
             id: true,
@@ -97,7 +93,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating staff member:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

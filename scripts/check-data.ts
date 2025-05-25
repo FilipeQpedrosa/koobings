@@ -31,18 +31,17 @@ async function check() {
       client: true,
       service: true,
       staff: true,
-      payment: true
+      // payment: true, // Removed: not in schema. Add back if payment relation is added to Appointment in the future.
     }
   })
 
   console.log('\nAppointments:')
   console.log('-------------')
   appointments.forEach(apt => {
-    console.log(`\n${apt.startTime.toLocaleDateString()} at ${apt.startTime.toLocaleTimeString()}`)
+    console.log(`\n${apt.scheduledFor.toLocaleDateString()} at ${apt.scheduledFor.toLocaleTimeString()}`)
     console.log(`Client: ${apt.client.name}`)
     console.log(`Service: ${apt.service.name} with ${apt.staff.name}`)
     console.log(`Status: ${apt.status}`)
-    console.log(`Payment: ${apt.payment?.status} - $${apt.payment?.amount}`)
   })
 
   await prisma.$disconnect()

@@ -13,12 +13,7 @@ import {
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Businesses', href: '/admin/businesses', icon: Building2 },
-  { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Activity', href: '/admin/activity', icon: Activity },
-  { name: 'Security', href: '/admin/security', icon: Shield },
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminSidebar() {

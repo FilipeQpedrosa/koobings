@@ -5,11 +5,13 @@ import { usePathname } from 'next/navigation';
 import { Home, Settings, Users, Calendar, Briefcase } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/business/dashboard', icon: Home },
-  { name: 'Services', href: '/business/services', icon: Briefcase },
-  { name: 'Staff', href: '/business/staff', icon: Users },
-  { name: 'Schedule', href: '/business/schedule', icon: Calendar },
-  { name: 'Settings', href: '/business/settings', icon: Settings },
+  { name: 'Painel', href: '/business/dashboard', icon: Home },
+  { name: 'Serviços', href: '/business/services', icon: Briefcase },
+  { name: 'Categorias', href: '/business/categories', icon: Briefcase },
+  { name: 'Funcionários', href: '/business/staff', icon: Users },
+  { name: 'Marcações', href: '/business/bookings', icon: Calendar },
+  { name: 'Agenda', href: '/business/schedule', icon: Calendar },
+  { name: 'Definições', href: '/business/settings', icon: Settings },
 ];
 
 export default function BusinessSidebar() {
@@ -19,7 +21,7 @@ export default function BusinessSidebar() {
     <div className="flex flex-col w-64 bg-gray-800">
       <div className="flex flex-col flex-1">
         <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900">
-          <h1 className="text-xl font-semibold text-white">Business Portal</h1>
+          <h1 className="text-xl font-semibold text-white">Portal Empresarial</h1>
         </div>
         <nav className="mt-5 flex-1 px-2 space-y-1">
           {navigation.map((item) => {

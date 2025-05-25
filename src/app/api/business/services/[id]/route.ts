@@ -45,12 +45,21 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const { staffIds, ...rest } = body;
     const service = await prisma.service.update({
       where: { id: params.id },
-      data: body,
+      data: {
+        ...rest,
+        ...(staffIds && {
+          staff: {
+            set: staffIds.map((id: string) => ({ id }))
+          }
+        })
+      },
       include: {
         category: true,
-        business: true
+        business: true,
+        staff: true
       }
     })
 

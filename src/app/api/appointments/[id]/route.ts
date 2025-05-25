@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { AppointmentStatus } from '@prisma/client';
 
@@ -18,7 +18,13 @@ export async function GET(
     const appointment = await prisma.appointment.findUnique({
       where: { id: params.id },
       include: {
-        service: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         staff: {
           select: {
             id: true,
@@ -26,15 +32,7 @@ export async function GET(
             email: true,
           },
         },
-        patient: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        reminders: true,
-        cancellation: true,
+        service: true,
       },
     });
 
@@ -47,17 +45,16 @@ export async function GET(
 
     // Check authorization
     if (
-      session.user.role === 'PATIENT' &&
-      appointment.patientId !== session.user.id
+      session.user.role === 'CUSTOMER' && appointment.clientId !== session.user.id
     ) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     if (
-      session.user.role === 'PROVIDER' &&
-      appointment.staffId !== session.user.id
+      session.user.role === 'STAFF' && appointment.staffId !== session.user.id
     ) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      // Optionally, allow staff to view/update only their own appointments
+      // For delete, we allow any staff (see below)
+      // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     return NextResponse.json(appointment);
@@ -78,18 +75,36 @@ export async function PATCH(
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
+      console.error('PATCH /api/appointments/[id]: No session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
     const { status, notes, cancellationReason } = body;
+    console.log('PATCH /api/appointments/[id] payload:', body);
+    console.log('PATCH /api/appointments/[id] session user:', session.user);
 
     const appointment = await prisma.appointment.findUnique({
       where: { id: params.id },
       include: {
-        cancellation: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        staff: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        service: true,
       },
     });
+    console.log('PATCH /api/appointments/[id] found appointment:', appointment);
 
     if (!appointment) {
       return NextResponse.json(
@@ -100,41 +115,33 @@ export async function PATCH(
 
     // Check authorization
     if (
-      session.user.role === 'PATIENT' &&
-      appointment.patientId !== session.user.id
+      session.user.role === 'CUSTOMER' && appointment.clientId !== session.user.id
     ) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     if (
-      session.user.role === 'PROVIDER' &&
-      appointment.staffId !== session.user.id
+      session.user.role === 'STAFF' && appointment.staffId !== session.user.id
     ) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      // Optionally, allow staff to view/update only their own appointments
+      // For delete, we allow any staff (see below)
+      // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Handle cancellation
     if (status === AppointmentStatus.CANCELLED) {
-      if (appointment.cancellation) {
-        return NextResponse.json(
-          { error: 'Appointment is already cancelled' },
-          { status: 400 }
-        );
-      }
-
       const updatedAppointment = await prisma.appointment.update({
         where: { id: params.id },
         data: {
           status: AppointmentStatus.CANCELLED,
-          cancellation: {
-            create: {
-              reason: cancellationReason,
-              cancelledBy: session.user.role,
-            },
-          },
         },
         include: {
-          service: true,
+          client: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
           staff: {
             select: {
               id: true,
@@ -142,14 +149,7 @@ export async function PATCH(
               email: true,
             },
           },
-          patient: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          cancellation: true,
+          service: true,
         },
       });
 
@@ -166,7 +166,13 @@ export async function PATCH(
         notes,
       },
       include: {
-        service: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         staff: {
           select: {
             id: true,
@@ -174,14 +180,7 @@ export async function PATCH(
             email: true,
           },
         },
-        patient: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        cancellation: true,
+        service: true,
       },
     });
 
@@ -219,8 +218,8 @@ export async function DELETE(
       );
     }
 
-    // Only allow deletion by business admin or system admin
-    if (!['BUSINESS_ADMIN', 'SYSTEM_ADMIN'].includes(session.user.role)) {
+    // Allow deletion by staff or business owner
+    if (!['STAFF', 'BUSINESS_OWNER'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

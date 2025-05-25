@@ -1,152 +1,147 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { CustomUser } from '@/lib/auth';
-import { createApiHandler, ApiError, createPaginatedResponse } from '@/lib/api-handler';
+import { authOptions } from '@/lib/auth';
 import * as yup from 'yup';
 
 const categorySchema = yup.object({
   name: yup.string().required(),
   description: yup.string(),
-  color: yup.string()
+  color: yup.string(),
 });
 
 type CategoryInput = yup.InferType<typeof categorySchema>;
 
-async function handleRequest(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  user: CustomUser,
-  validatedData?: CategoryInput
-) {
-  const businessId = user.role === 'business' ? user.id : user.businessId!;
+function getPaginationParams(url: URL) {
+  const page = Number(url.searchParams.get('page')) || 1;
+  const limit = Number(url.searchParams.get('limit')) || 10;
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
 
-  switch (req.method) {
-    case 'GET': {
-      const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 10;
-      const skip = (page - 1) * limit;
+async function getBusinessId(session: any) {
+  if (!session || !session.user) throw new Error('Unauthorized');
+  // Adjust this logic as needed for your user model
+  return session.user.role === 'BUSINESS' ? session.user.id : session.user.businessId;
+}
 
-      const [categories, total] = await Promise.all([
-        prisma.serviceCategory.findMany({
-          where: { 
-            businessId,
-            isDeleted: false 
-          },
-          include: { services: true },
-          skip,
-          take: limit,
-          orderBy: { createdAt: 'desc' }
-        }),
-        prisma.serviceCategory.count({
-          where: { 
-            businessId,
-            isDeleted: false 
-          }
-        })
-      ]);
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const businessId = await getBusinessId(session);
+    const url = new URL(request.url);
+    const { page, limit, skip } = getPaginationParams(url);
 
-      return createPaginatedResponse(categories, page, limit, total);
-    }
+    const [categories, total] = await Promise.all([
+      prisma.serviceCategory.findMany({
+        where: { businessId, isDeleted: false },
+        include: { services: true },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.serviceCategory.count({
+        where: { businessId, isDeleted: false },
+      }),
+    ]);
 
-    case 'POST': {
-      if (!validatedData) {
-        throw new ApiError('VALIDATION_ERROR', 'Invalid category data');
-      }
-
-      const category = await prisma.serviceCategory.create({
-        data: {
-          ...validatedData,
-          businessId,
-          // Audit fields are automatically added by the API handler
-        },
-        include: {
-          services: true
-        }
-      });
-
-      return category;
-    }
-
-    case 'PUT': {
-      if (!validatedData) {
-        throw new ApiError('VALIDATION_ERROR', 'Invalid category data');
-      }
-
-      const categoryId = req.query.id as string;
-      if (!categoryId) {
-        throw new ApiError('VALIDATION_ERROR', 'Category ID is required');
-      }
-
-      // Check if category exists and belongs to the business
-      const existingCategory = await prisma.serviceCategory.findFirst({
-        where: {
-          id: categoryId,
-          businessId,
-          isDeleted: false
-        }
-      });
-
-      if (!existingCategory) {
-        throw new ApiError('NOT_FOUND', 'Category not found', 404);
-      }
-
-      const category = await prisma.serviceCategory.update({
-        where: { id: categoryId },
-        data: {
-          ...validatedData,
-          // Audit fields are automatically added by the API handler
-        },
-        include: {
-          services: true
-        }
-      });
-
-      return category;
-    }
-
-    case 'DELETE': {
-      const categoryId = req.query.id as string;
-      if (!categoryId) {
-        throw new ApiError('VALIDATION_ERROR', 'Category ID is required');
-      }
-
-      // Check if category exists and belongs to the business
-      const existingCategory = await prisma.serviceCategory.findFirst({
-        where: {
-          id: categoryId,
-          businessId,
-          isDeleted: false
-        }
-      });
-
-      if (!existingCategory) {
-        throw new ApiError('NOT_FOUND', 'Category not found', 404);
-      }
-
-      // Soft delete the category
-      await prisma.serviceCategory.update({
-        where: { id: categoryId },
-        data: { 
-          isDeleted: true,
-          lastModifiedBy: user.id // Add audit field for deletion
-        }
-      });
-
-      return { success: true };
-    }
-
-    default:
-      throw new ApiError('METHOD_NOT_ALLOWED', 'Method not allowed', 405);
+    return NextResponse.json({
+      success: true,
+      data: categories,
+      meta: {
+        page,
+        limit,
+        total,
+        hasMore: page * limit < total,
+      },
+    });
+  } catch (error) {
+    console.error('Error in GET /business/categories:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-const handler = createApiHandler(handleRequest, {
-  requiredRole: 'business',
-  requiredPermissions: ['manage_categories'],
-  rateLimit: {
-    limit: 100,
-    windowMs: 60 * 1000 // 1 minute
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const businessId = await getBusinessId(session);
+    const body = await request.json();
+    const validatedData = await categorySchema.validate(body);
+    const category = await prisma.serviceCategory.create({
+      data: {
+        ...validatedData,
+        businessId,
+      },
+      include: { services: true },
+    });
+    return NextResponse.json({ success: true, data: category });
+  } catch (error) {
+    console.error('Error in POST /business/categories:', error);
+    if (error instanceof yup.ValidationError) {
+      return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-}, categorySchema);
+}
 
-export { handler as GET, handler as POST, handler as PUT, handler as DELETE };
+export async function PUT(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const businessId = await getBusinessId(session);
+    const url = new URL(request.url);
+    const categoryId = url.searchParams.get('id');
+    if (!categoryId) {
+      return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
+    }
+    const body = await request.json();
+    const validatedData = await categorySchema.validate(body);
+    const existingCategory = await prisma.serviceCategory.findFirst({
+      where: { id: categoryId, businessId, isDeleted: false },
+    });
+    if (!existingCategory) {
+      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+    }
+    const category = await prisma.serviceCategory.update({
+      where: { id: categoryId },
+      data: { ...validatedData },
+      include: { services: true },
+    });
+    return NextResponse.json({ success: true, data: category });
+  } catch (error) {
+    console.error('Error in PUT /business/categories:', error);
+    if (error instanceof yup.ValidationError) {
+      return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const businessId = await getBusinessId(session);
+    const url = new URL(request.url);
+    const categoryId = url.searchParams.get('id');
+    if (!categoryId) {
+      return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
+    }
+    const existingCategory = await prisma.serviceCategory.findFirst({
+      where: { id: categoryId, businessId, isDeleted: false },
+    });
+    if (!existingCategory) {
+      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+    }
+    await prisma.serviceCategory.update({
+      where: { id: categoryId },
+      data: { isDeleted: true },
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /business/categories:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { PrismaClient } from '@prisma/client';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -14,11 +14,11 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const patientId = searchParams.get('patientId') || session.user.id;
+    const clientId = searchParams.get('clientId') || session.user.id;
 
     const reviews = await prisma.review.findMany({
       where: {
-        patientId,
+        clientId,
       },
       include: {
         appointment: {
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     const appointment = await prisma.appointment.findFirst({
       where: {
         id: appointmentId,
-        patientId: session.user.id,
+        clientId: session.user.id,
         status: 'COMPLETED',
       },
     });
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     // Create the review
     const review = await prisma.review.create({
       data: {
-        patientId: session.user.id,
+        clientId: session.user.id,
         appointmentId,
         rating,
         comment,
@@ -141,7 +141,7 @@ export async function PATCH(request: Request) {
     const existingReview = await prisma.review.findFirst({
       where: {
         id: reviewId,
-        patientId: session.user.id,
+        clientId: session.user.id,
       },
     });
 

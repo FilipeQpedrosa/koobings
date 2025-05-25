@@ -34,14 +34,7 @@ export async function GET(
             price: true
           }
         },
-        schedules: {
-          select: {
-            id: true,
-            dayOfWeek: true,
-            startTime: true,
-            endTime: true
-          }
-        }
+        availability: true,
       }
     });
 
@@ -53,7 +46,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching staff member:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

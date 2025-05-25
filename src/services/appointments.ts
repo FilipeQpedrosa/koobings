@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export interface CreateAppointmentDTO {
   startTime: Date;
-  patientId: string;
+  clientId: string;
   serviceId: string;
   staffId: string;
   businessId: string;
@@ -52,7 +52,7 @@ export class AppointmentService {
         status: 'PENDING',
         notes: data.notes,
         businessId: data.businessId,
-        patientId: data.patientId,
+        clientId: data.clientId,
         serviceId: data.serviceId,
         staffId: data.staffId,
         bufferTimeBefore: 15, // Default 15 minutes buffer
@@ -206,18 +206,14 @@ export class AppointmentService {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
-        patient: {
-          include: {
-            preferences: true
-          }
-        }
+        client: true
       }
     });
 
     if (!appointment) return;
 
     // Create email reminder
-    if (appointment.patient.preferences?.emailNotifications) {
+    if (appointment.client.preferences?.emailNotifications) {
       await prisma.appointmentReminder.create({
         data: {
           appointmentId,
@@ -228,7 +224,7 @@ export class AppointmentService {
     }
 
     // Create SMS reminder
-    if (appointment.patient.preferences?.smsNotifications) {
+    if (appointment.client.preferences?.smsNotifications) {
       await prisma.appointmentReminder.create({
         data: {
           appointmentId,

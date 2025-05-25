@@ -1,59 +1,124 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Home, Users } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  Calendar,
+  Clock,
+  Users,
+  Settings,
+  Home,
+  LogOut,
+} from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
-const StaffSidebar = () => {
+interface NavItem {
+  title: string;
+  href: string;
+  icon: React.ReactNode;
+  adminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
+  {
+    title: 'Dashboard',
+    href: '/staff/dashboard',
+    icon: <Home className="h-5 w-5" />,
+  },
+  {
+    title: 'Schedule',
+    href: '/staff/schedule',
+    icon: <Calendar className="h-5 w-5" />,
+  },
+  {
+    title: 'Availability',
+    href: '/staff/availability',
+    icon: <Clock className="h-5 w-5" />,
+  },
+  {
+    title: 'Staff',
+    href: '/staff/staff',
+    icon: <Users className="h-5 w-5" />,
+    adminOnly: true,
+  },
+  {
+    title: 'Clients',
+    href: '/staff/clients',
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    title: 'Bookings',
+    href: '/staff/bookings',
+    icon: <Calendar className="h-5 w-5" />,
+  },
+  {
+    title: 'Services',
+    href: '/staff/services',
+    icon: <Settings className="h-5 w-5" />,
+    adminOnly: true,
+  },
+  {
+    title: 'Categories',
+    href: '/staff/categories',
+    icon: <Settings className="h-5 w-5" />,
+    adminOnly: true,
+  },
+  {
+    title: 'Settings',
+    href: '/staff/settings',
+    icon: <Settings className="h-5 w-5" />,
+  },
+];
+
+interface StaffSidebarProps {
+  className?: string;
+}
+
+export default function StaffSidebar({ className }: StaffSidebarProps) {
   const pathname = usePathname();
-
-  const navigation = [
-    { name: 'Dashboard', href: '/staff/dashboard', icon: Home },
-    { name: 'Schedule', href: '/staff/schedule', icon: Calendar },
-    { name: 'Clients', href: '/staff/clients', icon: Users },
-  ];
+  const [staffRole, setStaffRole] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setStaffRole(sessionStorage.getItem('staffRole'));
+    }
+  }, []);
 
   return (
-    <div className="flex h-full flex-col gap-y-5 bg-white px-6 py-4">
-      <div className="flex h-16 shrink-0 items-center">
-        <h2 className="text-2xl font-bold">Staff Portal</h2>
+    <div className={cn('pb-12 w-64', className)}>
+      <div className="space-y-4 py-4">
+        <div className="px-3 py-2">
+          <div className="space-y-1">
+            {navItems
+              .filter(item => !item.adminOnly || staffRole === 'ADMIN')
+              .map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
+                    pathname === item.href
+                      ? 'bg-accent text-accent-foreground'
+                      : 'transparent'
+                  )}
+                >
+                  {item.icon}
+                  <span className="ml-3">{item.title}</span>
+                </Link>
+              ))}
+          </div>
+        </div>
       </div>
-      <nav className="flex flex-1 flex-col">
-        <ul role="list" className="flex flex-1 flex-col gap-y-7">
-          <li>
-            <ul role="list" className="-mx-2 space-y-1">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <li key={item.name}>
-                    <Link
-                      href={item.href}
-                      className={`
-                        group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6
-                        ${
-                          isActive
-                            ? 'bg-gray-50 text-primary'
-                            : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
-                        }
-                      `}
-                    >
-                      <item.icon
-                        className={`h-6 w-6 shrink-0 ${
-                          isActive ? 'text-primary' : 'text-gray-400 group-hover:text-primary'
-                        }`}
-                        aria-hidden="true"
-                      />
-                      {item.name}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </li>
-        </ul>
-      </nav>
+      <div className="px-3 py-2">
+        <button
+          onClick={() => signOut()}
+          className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="ml-3">Sign Out</span>
+        </button>
+      </div>
     </div>
   );
-};
-
-export default StaffSidebar; 
+} 

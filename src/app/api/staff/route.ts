@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { StaffRole } from '@prisma/client';
@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.role || session.user.role !== BUSINESS_OWNER) {
+    // Allow staff with staffRole 'ADMIN' to manage staff
+    if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -65,23 +66,46 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    const validatedData = staffSchema.parse(data);
+    const emailLower = data.email.toLowerCase();
 
-    const staff = await prisma.staff.create({
-      data: {
-        ...validatedData,
-        password: '', // This should be handled by a separate password reset flow
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        businessId: true,
-      },
-    });
+    // Case-insensitive check for existing email in staff or business tables
+    const [existingStaff, existingBusiness] = await Promise.all([
+      prisma.staff.findFirst({ where: { email: { equals: emailLower, mode: 'insensitive' } } }),
+      prisma.business.findFirst({ where: { email: { equals: emailLower, mode: 'insensitive' } } }),
+    ]);
+    if (existingStaff || existingBusiness) {
+      return NextResponse.json(
+        { error: 'Email is already in use by another staff member or business.' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(staff);
+    const validatedData = staffSchema.parse({ ...data, email: emailLower, businessId: session.user.businessId });
+
+    try {
+      const staff = await prisma.staff.create({
+        data: {
+          ...validatedData,
+          password: '', // This should be handled by a separate password reset flow
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          businessId: true,
+        },
+      });
+      return NextResponse.json(staff);
+    } catch (error: any) {
+      if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+        return NextResponse.json(
+          { error: 'Email is already in use by another staff member or business.' },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error creating staff:', error);
     return NextResponse.json(
@@ -95,7 +119,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.role || session.user.role !== BUSINESS_OWNER) {
+    if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -161,7 +185,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.role || session.user.role !== BUSINESS_OWNER) {
+    if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

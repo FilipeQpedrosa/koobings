@@ -1,3 +1,4 @@
+"use client";
 import { Metadata } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -7,117 +8,38 @@ import DashboardStats from '@/components/staff/dashboard/DashboardStats';
 import RecentAppointments from '@/components/staff/dashboard/RecentAppointments';
 import { addDays, startOfDay, endOfDay } from 'date-fns';
 import { Appointment, Staff, Client, Service } from '@prisma/client';
+import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Staff Dashboard',
-  description: 'View your appointments and manage your schedule',
-};
+export default function StaffDashboardWrapper() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-type AppointmentWithRelations = Appointment & {
-  client: Client;
-  service: Service;
-};
+  const handleStatusChange = useCallback(() => {
+    setRefreshKey(k => k + 1);
+    router.refresh();
+  }, [router]);
 
-type StaffWithRelations = Staff & {
-  appointments: AppointmentWithRelations[];
-  _count: {
-    appointments: number;
-    clients: number;
-  };
-};
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      const res = await fetch('/api/staff/dashboard');
+      const data = await res.json();
+      setDashboardData(data);
+      setLoading(false);
+    }
+    fetchData();
+  }, [refreshKey]);
 
-async function getStaffDashboardData(email: string) {
-  const now = new Date();
-  const weekFromNow = addDays(now, 7);
+  if (loading) return <div>Loading...</div>;
+  if (!dashboardData) return <div>Staff not found</div>;
 
-  const staff = await prisma.staff.findUnique({
-    where: { email },
-    include: {
-      appointments: {
-        where: {
-          scheduledFor: {
-            gte: startOfDay(now),
-            lte: endOfDay(weekFromNow),
-          },
-        },
-        include: {
-          client: true,
-          service: true,
-        },
-        orderBy: {
-          scheduledFor: 'asc',
-        },
-      },
-      _count: {
-        select: {
-          appointments: {
-            where: {
-              status: 'COMPLETED',
-            },
-          },
-          clients: true,
-        },
-      },
-    },
-  }) as StaffWithRelations | null;
-
-  if (!staff) {
-    return null;
-  }
-
-  const upcomingAppointments = staff.appointments.map(apt => ({
-    id: apt.id,
-    clientName: apt.client.name,
-    serviceName: apt.service.name,
-    dateTime: apt.scheduledFor,
-    status: apt.status,
-    duration: apt.duration,
-  }));
-
-  const totalAppointments = await prisma.appointment.count({
-    where: {
-      staffId: staff.id,
-    },
-  });
-
-  const completedAppointments = await prisma.appointment.count({
-    where: {
-      staffId: staff.id,
-      status: 'COMPLETED',
-      scheduledFor: {
-        gte: addDays(now, -30),
-      },
-    },
-  });
-
-  const completionRate = totalAppointments > 0
-    ? Math.round((completedAppointments / totalAppointments) * 100)
-    : 0;
-
-  return {
-    stats: {
-      totalAppointments,
-      upcomingAppointments: upcomingAppointments.length,
-      totalClients: staff._count.clients,
-      completionRate,
-    },
-    appointments: upcomingAppointments,
-  };
+  return <StaffDashboard dashboardData={dashboardData} onStatusChange={handleStatusChange} />;
 }
 
-export default async function StaffDashboard() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
-    redirect('/auth/signin');
-  }
-
-  const dashboardData = await getStaffDashboardData(session.user.email);
-
-  if (!dashboardData) {
-    return <div>Staff not found</div>;
-  }
-
+function StaffDashboard({ dashboardData, onStatusChange }: { dashboardData: any, onStatusChange: () => void }) {
   return (
     <div className="container mx-auto py-10">
       <div className="flex flex-col gap-8">
@@ -130,7 +52,7 @@ export default async function StaffDashboard() {
 
         <DashboardStats {...dashboardData.stats} />
         
-        <RecentAppointments appointments={dashboardData.appointments} />
+        <RecentAppointments appointments={dashboardData.appointments} onStatusChange={onStatusChange} />
       </div>
     </div>
   );

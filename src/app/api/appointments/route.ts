@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/auth';
+import { authOptions } from '@/lib/auth';
 import { AppointmentService } from '@/lib/services/appointment';
 import { createApiHandler, ApiError } from '@/lib/api-handler';
 import * as yup from 'yup';

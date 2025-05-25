@@ -1,0 +1,57 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const dateParam = searchParams.get('date');
+    if (!dateParam) {
+      return NextResponse.json({ error: 'Missing date parameter' }, { status: 400 });
+    }
+    const date = new Date(dateParam);
+    if (isNaN(date.getTime())) {
+      return NextResponse.json({ error: 'Invalid date parameter' }, { status: 400 });
+    }
+
+    // Calculate start and end of the day
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Filter by business if user is a business owner
+    let where: any = {
+      scheduledFor: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    };
+    if (session.user.role === 'BUSINESS_OWNER') {
+      where.businessId = session.user.businessId;
+    } else if (session.user.role === 'STAFF') {
+      where.staffId = session.user.id;
+    }
+
+    // Count all bookings for today
+    const booked = await prisma.appointment.count({ where });
+    // Count completed bookings for today
+    const completed = await prisma.appointment.count({
+      where: {
+        ...where,
+        status: 'COMPLETED',
+      },
+    });
+
+    return NextResponse.json({ booked, completed });
+  } catch (error) {
+    console.error('Error fetching appointment summary:', error);
+    return NextResponse.json({ error: 'Failed to fetch summary' }, { status: 500 });
+  }
+} 

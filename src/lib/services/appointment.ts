@@ -13,7 +13,7 @@ export interface AppointmentCreationParams {
   serviceId: string;
   staffId: string;
   businessId: string;
-  patientId: string;
+  clientId: string;
   startTime: Date | string;
   notes?: string;
   createdBy: string;
@@ -150,7 +150,7 @@ export class AppointmentService {
       serviceId,
       staffId,
       businessId,
-      patientId,
+      clientId,
       startTime,
       notes,
       createdBy
@@ -198,7 +198,7 @@ export class AppointmentService {
         status: AppointmentStatus.PENDING,
         notes,
         businessId,
-        patientId,
+        clientId,
         serviceId,
         staffId,
         createdBy,
@@ -209,7 +209,7 @@ export class AppointmentService {
       include: {
         service: true,
         staff: true,
-        patient: true,
+        client: true,
         business: true
       }
     });
@@ -254,7 +254,7 @@ export class AppointmentService {
       include: {
         service: true,
         staff: true,
-        patient: true,
+        client: true,
         business: true,
         cancellation: true
       }

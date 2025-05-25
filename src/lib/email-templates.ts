@@ -6,7 +6,7 @@ interface AppointmentTemplateData {
   time: string;
   businessName: string;
   providerName: string;
-  patientName: string;
+  clientName: string;
   cancellationReason?: string;
 }
 
@@ -16,7 +16,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Your appointment is confirmed!</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>Your appointment has been confirmed with the following details:</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>
@@ -36,7 +36,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Appointment Reminder</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>This is a friendly reminder of your upcoming appointment:</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>
@@ -56,7 +56,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #dc2626;">Appointment Cancelled</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>Your appointment has been cancelled successfully.</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>
@@ -76,7 +76,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Appointment Rescheduled</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>Your appointment has been rescheduled to the following time:</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>

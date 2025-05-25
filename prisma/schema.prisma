@@ -35,6 +35,7 @@ model SystemAdmin {
   email         String                 @unique
   name          String
   role          AdminRole
+  passwordHash  String                 // <-- Added for authentication
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
   isDeleted     Boolean                @default(false)
@@ -70,6 +71,7 @@ model Business {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   name                 String
+  ownerName            String?
   email                String                @unique
   phone                String?
   address              String?
@@ -78,6 +80,7 @@ model Business {
   logo                 String?
   settings             Json?
   type                 BusinessType          @default(HAIR_SALON)
+  status               BusinessStatus        @default(PENDING)
   passwordHash         String
   appointments         Appointment[]
   clients              Client[]
@@ -92,6 +95,7 @@ model Business {
   systemAdmins         SystemAdmin[]         @relation("SystemAdminToBusinesses")
   visitHistory         VisitHistory[]
   relationshipNotes    RelationshipNote[]
+  allowStaffToViewAllBookings Boolean @default(false)
 
   @@index([email])
 }

@@ -49,11 +49,7 @@ export class NotificationScheduler {
           },
         },
         include: {
-          client: {
-            include: {
-              sensitiveInfo: true,
-            },
-          },
+          client: true,
           service: true,
           staff: true,
           business: true,

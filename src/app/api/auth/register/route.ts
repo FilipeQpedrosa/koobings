@@ -19,10 +19,11 @@ export async function POST(request: Request) {
     const validatedData = registrationSchema.parse(body);
     const { email, password, name, role } = validatedData;
 
-    // Check if user already exists in either staff or business table
+    // Check if user already exists in either staff or business table (case-insensitive)
+    const emailLower = email.toLowerCase();
     const [existingStaff, existingBusiness] = await Promise.all([
-      prisma.staff.findUnique({ where: { email } }),
-      prisma.business.findUnique({ where: { email } }),
+      prisma.staff.findUnique({ where: { email: emailLower } }),
+      prisma.business.findUnique({ where: { email: emailLower } }),
     ]);
 
     if (existingStaff || existingBusiness) {
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
       const staff = await prisma.staff.create({
         data: {
           name,
-          email,
+          email: emailLower,
           hashedPassword,
           status: 'PENDING', // Staff needs to be approved
           role: 'STANDARD',
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
       const business = await prisma.business.create({
         data: {
           name,
-          email,
+          email: emailLower,
           hashedPassword,
           status: 'ACTIVE',
           settings: {

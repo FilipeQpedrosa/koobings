@@ -73,7 +73,7 @@ interface EmailTemplateData {
   time: string;
   businessName: string;
   providerName: string;
-  patientName: string;
+  clientName: string;
   cancellationReason?: string;
 }
 
@@ -88,7 +88,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Appointment Reminder</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>This is a friendly reminder of your upcoming appointment:</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>
@@ -108,7 +108,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Appointment Confirmed</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>Your appointment has been confirmed:</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>
@@ -128,7 +128,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #dc2626;">Appointment Cancelled</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>Your appointment has been cancelled:</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>
@@ -147,7 +147,7 @@ export const emailTemplates = {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #2563eb;">Appointment Rescheduled</h1>
-        <p>Hello ${data.patientName},</p>
+        <p>Hello ${data.clientName},</p>
         <p>Your appointment has been rescheduled to:</p>
         <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p><strong>Service:</strong> ${data.serviceName}</p>
@@ -170,7 +170,7 @@ export async function sendAppointmentConfirmation(data: AppointmentEmailData) {
     time: format(data.appointment.startTime, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
-    patientName: data.appointment.client.name,
+    clientName: data.appointment.client.name,
   });
 
   if (!data.appointment.client.sensitiveInfo?.email) {
@@ -192,7 +192,7 @@ export async function sendAppointmentReminder(data: AppointmentEmailData) {
     time: format(data.appointment.startTime, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
-    patientName: data.appointment.client.name,
+    clientName: data.appointment.client.name,
   });
 
   if (!data.appointment.client.sensitiveInfo?.email) {
@@ -216,7 +216,7 @@ export async function sendAppointmentCancellation(
     time: format(data.appointment.startTime, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
-    patientName: data.appointment.client.name,
+    clientName: data.appointment.client.name,
     cancellationReason: data.cancellationReason,
   });
 
@@ -239,7 +239,7 @@ export async function sendAppointmentRescheduled(data: AppointmentEmailData) {
     time: format(data.appointment.startTime, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
-    patientName: data.appointment.client.name,
+    clientName: data.appointment.client.name,
   });
 
   if (!data.appointment.client.sensitiveInfo?.email) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+// import * as z from 'zod';
 import { AppointmentStatus } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatTime, generateTimeSlots } from '@/lib/utils';

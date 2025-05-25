@@ -17,7 +17,7 @@ export async function GET(request: Request) {
           contains: search,
           mode: 'insensitive',
         } : undefined,
-        providers: staffId ? {
+        staff: staffId ? {
           some: {
             id: staffId,
           },
@@ -31,12 +31,12 @@ export async function GET(request: Request) {
             description: true,
           },
         },
-        providers: {
+        staff: {
           select: {
             id: true,
             name: true,
             email: true,
-            schedules: true,
+            // schedules: true, // Only include if schedules is a valid field on Staff
           },
         },
       },
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
     // Group services by category
     const groupedServices = services.reduce((acc, service) => {
-      const categoryName = service.category?.name || 'Uncategorized';
+      const categoryName = service.category?.name || service.categoryId || 'Uncategorized';
       if (!acc[categoryName]) {
         acc[categoryName] = [];
       }
@@ -67,32 +67,6 @@ export async function GET(request: Request) {
     console.error('Error fetching services:', error);
     return NextResponse.json(
       { error: 'Failed to fetch services' },
-      { status: 500 }
-    );
-  }
-}
-
-// GET /api/client/services/categories - Get service categories
-export async function categories() {
-  try {
-    const categories = await prisma.serviceCategory.findMany({
-      include: {
-        _count: {
-          select: {
-            services: true,
-          },
-        },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
-
-    return NextResponse.json(categories);
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch categories' },
       { status: 500 }
     );
   }

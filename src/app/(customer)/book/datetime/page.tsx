@@ -17,7 +17,7 @@ interface TimeSlot {
 
 export default function BookingDateTime() {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [error, setError] = useState('');

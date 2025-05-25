@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { PrismaClient } from '@prisma/client';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -45,8 +45,17 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { notificationIds } = body;
+    if (body.preferences) {
+      // Update notification preferences
+      const updatedPreferences = await prisma.notificationPreference.upsert({
+        where: { userId: session.user.id },
+        update: body.preferences,
+        create: { userId: session.user.id, ...body.preferences },
+      });
+      return NextResponse.json(updatedPreferences);
+    }
 
+    const { notificationIds } = body;
     if (!notificationIds || !Array.isArray(notificationIds)) {
       return NextResponse.json(
         { error: 'Notification IDs array is required' },
@@ -57,9 +66,7 @@ export async function PATCH(request: Request) {
     // Verify notifications belong to client
     const notifications = await prisma.notification.findMany({
       where: {
-        id: {
-          in: notificationIds,
-        },
+        id: { in: notificationIds },
         userId: session.user.id,
       },
     });
@@ -74,9 +81,7 @@ export async function PATCH(request: Request) {
     // Mark notifications as read
     await prisma.notification.updateMany({
       where: {
-        id: {
-          in: notificationIds,
-        },
+        id: { in: notificationIds },
         userId: session.user.id,
       },
       data: {
@@ -90,45 +95,6 @@ export async function PATCH(request: Request) {
     console.error('Error updating notifications:', error);
     return NextResponse.json(
       { error: 'Failed to update notifications' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST /api/client/notifications/preferences - Update notification preferences
-export async function preferences(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { preferences } = body;
-
-    if (!preferences) {
-      return NextResponse.json(
-        { error: 'Preferences object is required' },
-        { status: 400 }
-      );
-    }
-
-    const updatedPreferences = await prisma.notificationPreference.upsert({
-      where: {
-        userId: session.user.id,
-      },
-      update: preferences,
-      create: {
-        userId: session.user.id,
-        ...preferences,
-      },
-    });
-
-    return NextResponse.json(updatedPreferences);
-  } catch (error) {
-    console.error('Error updating notification preferences:', error);
-    return NextResponse.json(
-      { error: 'Failed to update notification preferences' },
       { status: 500 }
     );
   }
