@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { MultiSelect } from '@/components/ui/multi-select';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 
 interface StaffMember {
   id: string;
@@ -23,7 +24,14 @@ const STAFF_ROLES = [
   { value: 'STANDARD', label: 'Standard' },
 ];
 
-export default function StaffManagementPage() {
+const settingsTabs = [
+  { label: 'General', href: '/staff/settings' },
+  { label: 'Services', href: '/staff/settings/services' },
+  { label: 'Staff', href: '/staff/settings/staff' },
+  { label: 'Categories', href: '/staff/settings/categories' },
+];
+
+export default function StaffSettingsStaffPage() {
   const { data: session } = useSession();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +43,7 @@ export default function StaffManagementPage() {
   const [showDeleteId, setShowDeleteId] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const pathname = usePathname();
 
   useEffect(() => {
     fetchStaff();
@@ -143,7 +152,15 @@ export default function StaffManagementPage() {
   }
 
   return (
-    <div>
+    <div className="max-w-5xl mx-auto py-8">
+      <h1 className="text-2xl font-bold mb-4">Staff Management</h1>
+      <div className="flex gap-2 mb-6">
+        {settingsTabs.map(tab => (
+          <Link key={tab.href} href={tab.href} legacyBehavior>
+            <a className={`px-4 py-2 rounded ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
+          </Link>
+        ))}
+      </div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Staff Management</h1>
         <Button onClick={openAddModal}>
@@ -216,8 +233,10 @@ export default function StaffManagementPage() {
                   onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                   required
                 >
-                  {STAFF_ROLES.map(role => (
-                    <option key={role.value} value={role.value}>{role.label}</option>
+                  {STAFF_ROLES.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -228,7 +247,6 @@ export default function StaffManagementPage() {
                   className="mt-1 block w-full border border-gray-300 rounded-md p-2"
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  required={!editId}
                 />
               </div>
               <div>
@@ -239,33 +257,12 @@ export default function StaffManagementPage() {
                   onChange={setSelectedServices}
                 />
               </div>
-              {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
-                  Cancel
-                </Button>
+              <div>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : editId ? 'Save Changes' : 'Add Staff'}
+                  {isSubmitting ? 'Saving...' : 'Save'}
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-      {/* Modal for confirming delete */}
-      {showDeleteId && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Confirm Delete</h2>
-            <p>Are you sure you want to remove this staff member?</p>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button type="button" variant="outline" onClick={() => setShowDeleteId(null)}>
-                Cancel
-              </Button>
-              <Button type="button" variant="destructive" onClick={() => handleDeleteStaff(showDeleteId)} disabled={isSubmitting}>
-                {isSubmitting ? 'Removing...' : 'Remove'}
-              </Button>
-            </div>
           </div>
         </div>
       )}

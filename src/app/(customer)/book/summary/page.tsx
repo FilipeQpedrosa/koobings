@@ -89,10 +89,10 @@ export default function BookingSummaryPage() {
           service: serviceData,
           staff: staffData,
           datetime: {
-            date: storedDate,
-            time: storedTime,
+            date: storedDate || '',
+            time: storedTime || '',
           },
-          customer: JSON.parse(storedCustomerDetails),
+          customer: JSON.parse(storedCustomerDetails || '{}'),
         });
       } catch (error) {
         toast({

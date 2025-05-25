@@ -1,22 +1,27 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Staff, Schedule, StaffAvailability } from '@prisma/client';
+import { Staff } from '@prisma/client';
 import { useForm } from 'react-hook-form';
 
-interface StaffWithRelations extends Staff {
-  schedules: Schedule[];
-  availability: StaffAvailability[];
+// Local Schedule type (since @prisma/client does not export it)
+interface Schedule {
+  id: string;
+  staffId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
 }
 
 interface StaffAvailabilityManagerProps {
-  staff: StaffWithRelations[];
+  staff: Staff[];
 }
 
 export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProps) {
-  const [selectedStaff, setSelectedStaff] = useState<StaffWithRelations | null>(
-    staff[0] || null
-  );
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(staff[0] || null);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [availability, setAvailability] = useState<any[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
 
@@ -34,21 +39,34 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
     reset: resetAvailabilityForm,
   } = useForm();
 
+  // Fetch schedules and availability when selectedStaff changes
+  useEffect(() => {
+    if (!selectedStaff) {
+      setSchedules([]);
+      setAvailability([]);
+      return;
+    }
+    // Fetch schedules
+    fetch(`/api/staff/schedule?staffId=${selectedStaff.id}`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setSchedules(Array.isArray(data) ? data : []))
+      .catch(() => setSchedules([]));
+    // Fetch availability
+    fetch(`/api/business/staff/${selectedStaff.id}/availability?week=${format(new Date(), 'yyyy-MM-dd')}`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setAvailability(Array.isArray(data) ? data : []))
+      .catch(() => setAvailability([]));
+  }, [selectedStaff]);
+
   const handleScheduleSave = async (data: any) => {
     if (!selectedStaff) return;
-
     try {
       const response = await fetch(`/api/staff/availability?staffId=${selectedStaff.id}&type=schedule`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-
       if (!response.ok) throw new Error('Failed to save schedule');
-
-      // Refresh the page to show updated data
       window.location.reload();
     } catch (error) {
       console.error('Error saving schedule:', error);
@@ -57,19 +75,13 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
 
   const handleAvailabilitySave = async (data: any) => {
     if (!selectedStaff) return;
-
     try {
       const response = await fetch(`/api/staff/availability?staffId=${selectedStaff.id}&type=availability`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-
       if (!response.ok) throw new Error('Failed to save availability');
-
-      // Refresh the page to show updated data
       window.location.reload();
     } catch (error) {
       console.error('Error saving availability:', error);
@@ -78,18 +90,12 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
 
   const handleDelete = async (type: 'schedule' | 'availability', id: string) => {
     if (!selectedStaff) return;
-
     try {
       const response = await fetch(
         `/api/staff/availability?staffId=${selectedStaff.id}&type=${type}&id=${id}`,
-        {
-          method: 'DELETE',
-        }
+        { method: 'DELETE' }
       );
-
       if (!response.ok) throw new Error(`Failed to delete ${type}`);
-
-      // Refresh the page to show updated data
       window.location.reload();
     } catch (error) {
       console.error(`Error deleting ${type}:`, error);
@@ -148,7 +154,7 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {selectedStaff.schedules.map((schedule) => (
+                  {schedules.map((schedule) => (
                     <tr key={schedule.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {getDayName(schedule.dayOfWeek)}
@@ -201,13 +207,13 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {selectedStaff.availability.map((exception) => (
+                  {availability.map((exception) => (
                     <tr key={exception.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {format(new Date(exception.date), 'PP')}
+                        {exception.date ? format(new Date(exception.date), 'PP') : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {exception.isAvailable ? 'Available' : 'Unavailable'}
+                        {typeof exception.isAvailable === 'boolean' ? (exception.isAvailable ? 'Available' : 'Unavailable') : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {exception.reason || '-'}
@@ -247,9 +253,10 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                     </option>
                   ))}
                 </select>
-                {scheduleErrors.dayOfWeek && (
-                  <p className="mt-1 text-sm text-red-600">{scheduleErrors.dayOfWeek.message}</p>
-                )}
+                {scheduleErrors.dayOfWeek &&
+                  typeof scheduleErrors.dayOfWeek.message === 'string' && (
+                    <p className="mt-1 text-sm text-red-600">{scheduleErrors.dayOfWeek.message}</p>
+                  )}
               </div>
 
               <div>
@@ -259,9 +266,10 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                   {...scheduleRegister('startTime')}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
-                {scheduleErrors.startTime && (
-                  <p className="mt-1 text-sm text-red-600">{scheduleErrors.startTime.message}</p>
-                )}
+                {scheduleErrors.startTime &&
+                  typeof scheduleErrors.startTime.message === 'string' && (
+                    <p className="mt-1 text-sm text-red-600">{scheduleErrors.startTime.message}</p>
+                  )}
               </div>
 
               <div>
@@ -271,9 +279,10 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                   {...scheduleRegister('endTime')}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
-                {scheduleErrors.endTime && (
-                  <p className="mt-1 text-sm text-red-600">{scheduleErrors.endTime.message}</p>
-                )}
+                {scheduleErrors.endTime &&
+                  typeof scheduleErrors.endTime.message === 'string' && (
+                    <p className="mt-1 text-sm text-red-600">{scheduleErrors.endTime.message}</p>
+                  )}
               </div>
 
               <div className="flex justify-end space-x-3">
@@ -313,9 +322,10 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                   min={format(new Date(), 'yyyy-MM-dd')}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
-                {availabilityErrors.date && (
-                  <p className="mt-1 text-sm text-red-600">{availabilityErrors.date.message}</p>
-                )}
+                {availabilityErrors.date &&
+                  typeof availabilityErrors.date.message === 'string' && (
+                    <p className="mt-1 text-sm text-red-600">{availabilityErrors.date.message}</p>
+                  )}
               </div>
 
               <div>
@@ -327,6 +337,10 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                   <option value="true">Available</option>
                   <option value="false">Unavailable</option>
                 </select>
+                {availabilityErrors.isAvailable &&
+                  typeof availabilityErrors.isAvailable.message === 'string' && (
+                    <p className="mt-1 text-sm text-red-600">{availabilityErrors.isAvailable.message}</p>
+                  )}
               </div>
 
               <div>
@@ -337,9 +351,10 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                   rows={3}
                   placeholder="Reason for availability exception..."
                 />
-                {availabilityErrors.reason && (
-                  <p className="mt-1 text-sm text-red-600">{availabilityErrors.reason.message}</p>
-                )}
+                {availabilityErrors.reason &&
+                  typeof availabilityErrors.reason.message === 'string' && (
+                    <p className="mt-1 text-sm text-red-600">{availabilityErrors.reason.message}</p>
+                  )}
               </div>
 
               <div className="flex justify-end space-x-3">

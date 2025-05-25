@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
   },
   {
     title: 'Staff',
-    href: '/staff/staff',
+    href: '/staff/settings/staff',
     icon: <Users className="h-5 w-5" />,
     adminOnly: true,
   },
@@ -52,18 +52,6 @@ const navItems: NavItem[] = [
     title: 'Bookings',
     href: '/staff/bookings',
     icon: <Calendar className="h-5 w-5" />,
-  },
-  {
-    title: 'Services',
-    href: '/staff/services',
-    icon: <Settings className="h-5 w-5" />,
-    adminOnly: true,
-  },
-  {
-    title: 'Categories',
-    href: '/staff/categories',
-    icon: <Settings className="h-5 w-5" />,
-    adminOnly: true,
   },
   {
     title: 'Settings',

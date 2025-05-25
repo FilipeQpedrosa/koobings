@@ -1,9 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useSession } from "next-auth/react";
+import { Calendar } from "lucide-react";
 import { format } from "date-fns";
-import { UserPlus, Calendar } from "lucide-react";
 
 interface Booking {
   id: string;
@@ -17,7 +16,6 @@ interface Booking {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  // Map backend status to display label and color
   const statusMap: Record<string, { label: string; color: string }> = {
     PENDING: { label: 'Booked', color: 'bg-yellow-200 text-yellow-800' },
     COMPLETED: { label: 'Completed', color: 'bg-green-200 text-green-800' },
@@ -31,15 +29,12 @@ function StatusBadge({ status }: { status: string }) {
 
 function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, services, clients, staffList }: any) {
   const [step, setStep] = useState(1);
-  // Step 1: Client
   const [clientSearch, setClientSearch] = useState("");
   const [showAddClient, setShowAddClient] = useState(false);
   const [client, setClient] = useState<{ id: string; name: string; email: string } | null>(null);
   const [newClient, setNewClient] = useState({ name: "", email: "", phone: "", notes: "" });
   const [localClients, setLocalClients] = useState<typeof clients>(clients);
-  // Step 2: Services
   const [selectedServices, setServicesState] = useState<string[]>([]);
-  // Step 3: Staff & Scheduling
   const [staff, setStaff] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -75,7 +70,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
   }, [editBooking, open]);
 
   useEffect(() => {
-    // Auto-calculate duration from selected services
     const total = selectedServices.reduce((sum, id) => {
       const svc = services.find((s: any) => s.id === id);
       return sum + (svc ? svc.duration : 0);
@@ -85,7 +79,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
 
   useEffect(() => { setLocalClients(clients); }, [clients]);
 
-  // Filter clients by search
   const filteredClients = localClients.filter(
     (c: any) =>
       c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
@@ -129,7 +122,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
     }
   }
 
-  // Check staff availability when staff, date, time, and duration are set
   useEffect(() => {
     async function checkAvailability() {
       setAvailabilityError('');
@@ -159,7 +151,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
     setSaveError('');
     try {
       if (editBooking) {
-        // PATCH: Only update allowed fields
         const payload: any = {
           status,
           notes,
@@ -171,10 +162,9 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Erro ao atualizar marcação');
-        onAddBooking(); // refetch bookings
+        onAddBooking();
         onClose();
       } else {
-        // Only support single service for now (API limitation)
         const serviceId = selectedServices[0];
         const payload = {
           clientId: client.id,
@@ -189,7 +179,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Erro ao guardar marcação');
-        onAddBooking(); // refetch bookings
+        onAddBooking();
         onClose();
       }
     } catch (err: any) {
@@ -199,7 +189,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
     }
   }
 
-  // For time picker dropdown
   function getTimeSlots() {
     const slots = [];
     for (let h = 8; h <= 20; h++) {
@@ -209,7 +198,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
         slots.push(`${hour}:${min}`);
       }
     }
-    // Filter out past times if selected date is today
     if (date === format(new Date(), 'yyyy-MM-dd')) {
       const now = new Date();
       return slots.filter((t) => {
@@ -223,38 +211,50 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-lg">
-        <h2 className="text-xl font-bold mb-4">{editBooking ? 'Edit Booking' : 'Add Booking'}</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Stepper UI */}
-          <div className="flex items-center justify-between mb-4">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className={`flex-1 text-center ${step === s ? 'font-bold text-primary' : 'text-gray-400'}`}>{['Client', 'Service', 'Schedule'][s-1]}</div>
-            ))}
-          </div>
-          {/* Step 1: Client */}
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-xl animate-fade-in">
+        <div className="flex items-center justify-between mb-8">
+          {[1, 2, 3].map((s, idx) => (
+            <div key={s} className="flex-1 flex flex-col items-center">
+              <div className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors duration-200 ${step === s ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-500'} ${idx !== 0 ? 'ml-2' : ''}`}>{s}</div>
+              <span className={`mt-2 text-xs font-medium ${step === s ? 'text-blue-600' : 'text-gray-400'}`}>{['Client', 'Service', 'Schedule'][s-1]}</span>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
           {step === 1 && (
-            <div>
-              <input
-                type="text"
-                placeholder="Search client by name or email"
-                className="w-full border rounded p-2 mb-2"
-                value={clientSearch}
-                onChange={e => setClientSearch(e.target.value)}
-              />
-              <div className="max-h-32 overflow-y-auto mb-2">
+            <div className="space-y-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search client by name or email..."
+                  className="w-full border border-gray-300 rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
+                  value={clientSearch}
+                  onChange={e => setClientSearch(e.target.value)}
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                </span>
+              </div>
+              <button type="button" className="flex items-center gap-2 text-blue-600 hover:underline" onClick={() => setShowAddClient(true)}>
+                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+                Add new client
+              </button>
+              <div className="max-h-40 overflow-y-auto grid grid-cols-1 gap-2">
                 {filteredClients.map((c: any) => (
-                  <div key={c.id} className={`p-2 cursor-pointer hover:bg-gray-100 rounded ${client?.id === c.id ? 'bg-blue-100' : ''}`} onClick={() => handleSelectClient(c)}>
-                    {c.name} <span className="text-xs text-gray-400">({c.email})</span>
-                  </div>
+                  <button type="button" key={c.id} className={`flex items-center gap-3 p-3 rounded-lg border transition ${client?.id === c.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`} onClick={() => handleSelectClient(c)}>
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                      {c.name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-xs text-gray-500">{c.email}</div>
+                    </div>
+                  </button>
                 ))}
-                <div className="p-2 cursor-pointer text-blue-600 hover:underline" onClick={() => setShowAddClient(true)}>
-                  <UserPlus className="inline w-4 h-4 mr-1" /> Add new client
-                </div>
               </div>
               {showAddClient && (
-                <div className="border rounded p-2 mt-2">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2 space-y-2 animate-fade-in">
                   <input type="text" placeholder="Name" className="w-full border rounded p-2 mb-2" value={newClient.name} onChange={e => setNewClient(n => ({ ...n, name: e.target.value }))} />
                   <input type="email" placeholder="Email" className="w-full border rounded p-2 mb-2" value={newClient.email} onChange={e => setNewClient(n => ({ ...n, email: e.target.value }))} />
                   <input type="text" placeholder="Phone" className="w-full border rounded p-2 mb-2" value={newClient.phone} onChange={e => setNewClient(n => ({ ...n, phone: e.target.value }))} />
@@ -268,13 +268,20 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
               </div>
             </div>
           )}
-          {/* Step 2: Service */}
           {step === 2 && (
-            <div>
-              <div className="mb-2">Select service:</div>
-              <div className="flex flex-wrap gap-2 mb-4">
+            <div className="space-y-4">
+              <div className="mb-2 font-medium text-gray-700">Select a service:</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {services.map((svc: any) => (
-                  <Button key={svc.id} type="button" variant={selectedServices.includes(svc.id) ? 'default' : 'outline'} onClick={() => setServicesState([svc.id])}>{svc.name}</Button>
+                  <button
+                    key={svc.id}
+                    type="button"
+                    className={`flex flex-col items-start p-4 rounded-lg border transition shadow-sm ${selectedServices.includes(svc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                    onClick={() => setServicesState([svc.id])}
+                  >
+                    <div className="font-semibold text-base mb-1">{svc.name}</div>
+                    <div className="text-xs text-gray-500">Duration: {svc.duration} min</div>
+                  </button>
                 ))}
               </div>
               <div className="flex justify-between mt-4">
@@ -283,32 +290,47 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
               </div>
             </div>
           )}
-          {/* Step 3: Schedule */}
           {step === 3 && (
-            <div>
-              <div className="mb-2">Select staff, date, and time:</div>
-              <select className="w-full border rounded p-2 mb-2" value={staff} onChange={e => setStaff(e.target.value)}>
-                <option value="">Select staff</option>
-                {staffList.map((s: any) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              <input type="date" className="w-full border rounded p-2 mb-2" value={date} onChange={e => setDate(e.target.value)} />
-              <select className="w-full border rounded p-2 mb-2" value={time} onChange={e => setTime(e.target.value)}>
-                <option value="">Select time</option>
-                {getTimeSlots().map((t: string) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-              {/* Status dropdown for edit mode */}
-              {editBooking && (
-                <select className="w-full border rounded p-2 mb-2" value={status} onChange={e => setStatus(e.target.value)}>
-                  <option value="PENDING">Booked</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
-              )}
-              <textarea placeholder="Notes" className="w-full border rounded p-2 mb-2" value={notes} onChange={e => setNotes(e.target.value)} />
+            <div className="space-y-4">
+              <div className="mb-2 font-medium text-gray-700">Schedule</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
+                  <select className="w-full border rounded-lg p-2" value={staff} onChange={e => setStaff(e.target.value)}>
+                    <option value="">Select staff</option>
+                    {staffList.map((s: any) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input type="date" className="w-full border rounded-lg p-2" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                  <select className="w-full border rounded-lg p-2" value={time} onChange={e => setTime(e.target.value)}>
+                    <option value="">Select time</option>
+                    {getTimeSlots().map((t: string) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                {editBooking && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select className="w-full border rounded-lg p-2" value={status} onChange={e => setStatus(e.target.value)}>
+                      <option value="PENDING">Booked</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea placeholder="Notes" className="w-full border rounded-lg p-2" value={notes} onChange={e => setNotes(e.target.value)} />
+              </div>
               {availabilityError && <div className="text-red-600 text-sm mt-2">{availabilityError}</div>}
               <div className="flex justify-between mt-4">
                 <Button type="button" variant="outline" onClick={() => setStep(2)}>Back</Button>
@@ -318,7 +340,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
             </div>
           )}
         </form>
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end mt-8">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
         </div>
       </div>
@@ -327,7 +349,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
 }
 
 export default function StaffBookingsPage() {
-  const { data: session } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -406,12 +427,6 @@ export default function StaffBookingsPage() {
     setEditBooking(null);
   }
 
-  // Only show to staff
-  if (!session?.user?.staffRole) {
-    return <div className="p-8">You do not have permission to manage bookings.</div>;
-  }
-
-  // Group bookings by date (if you want to show multiple days at once, but here we show only selectedDate)
   const sortedBookings = Array.isArray(bookings) ? [...bookings].sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()) : [];
 
   return (
@@ -486,7 +501,6 @@ export default function StaffBookingsPage() {
           open={showModal}
           onClose={closeModal}
           onAddBooking={() => {
-            // Refetch bookings after add/edit
             const today = selectedDate;
             let url = `/api/business/appointments?date=${today}`;
             if (selectedStaff && selectedStaff !== 'all') {
