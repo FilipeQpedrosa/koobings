@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient, VerificationStatus, BusinessStatus } from '@prisma/client';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { sendVerificationEmail } from '@/lib/email';
 
 const prisma = new PrismaClient();
@@ -40,9 +40,16 @@ export async function POST(
     }
 
     // Update business verification status
-    const verification = await prisma.businessVerification.update({
+    const verification = await prisma.businessVerification.upsert({
       where: { businessId: params.id },
-      data: {
+      update: {
+        status,
+        notes,
+        verifiedAt: new Date(),
+        verifiedBy: admin.id
+      },
+      create: {
+        businessId: params.id,
         status,
         notes,
         verifiedAt: new Date(),

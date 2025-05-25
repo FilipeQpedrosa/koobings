@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { PrismaClient } from '@prisma/client';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const profile = await prisma.patient.findUnique({
+    const profile = await prisma.client.findUnique({
       where: { email: session.user.email },
       include: {
         appointments: {
@@ -22,7 +22,6 @@ export async function GET(request: Request) {
             staff: true,
           },
         },
-        preferences: true,
       },
     });
 
@@ -52,19 +51,16 @@ export async function PUT(request: Request) {
     const { name, phone, emailNotifications, smsNotifications, reminderTime, marketingEmails } = body;
 
     // First find the patient to ensure they exist
-    const patient = await prisma.patient.findUnique({
+    const client = await prisma.client.findUnique({
       where: { email: session.user.email },
-      include: {
-        preferences: true
-      }
     });
 
-    if (!patient) {
+    if (!client) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
     }
 
     // Update patient profile
-    const profile = await prisma.patient.update({
+    const profile = await prisma.client.update({
       where: { email: session.user.email },
       data: {
         name,
@@ -72,7 +68,7 @@ export async function PUT(request: Request) {
         preferences: {
           upsert: {
             where: {
-              patientId: patient.id
+              clientId: client.id
             },
             create: {
               emailNotifications,
@@ -96,7 +92,6 @@ export async function PUT(request: Request) {
             staff: true,
           },
         },
-        preferences: true,
       },
     });
 

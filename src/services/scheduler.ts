@@ -44,31 +44,29 @@ export class SchedulerService {
       const appointments = await prisma.appointment.findMany({
         where: {
           status: 'CONFIRMED',
-          startTime: {
+          scheduledFor: {
             gt: now,
             lt: addHours(now, 24) // Next 24 hours
-          },
-          reminders: {
-            none: {
-              status: 'SENT',
-              type: 'REMINDER'
-            }
           }
         },
         include: {
-          patient: {
-            include: {
-              preferences: true
-            }
-          }
+          client: true
         }
       });
 
       for (const appointment of appointments) {
-        const { patient } = appointment;
-        const reminderTime = patient.preferences?.reminderTime || 24; // Default 24 hours
+        const { client } = appointment;
+        let reminderTime = 24;
+        if (client.preferences) {
+          try {
+            const prefs = typeof client.preferences === 'string' ? JSON.parse(client.preferences) : client.preferences;
+            reminderTime = prefs.reminderTime || 24;
+          } catch (e) {
+            reminderTime = 24;
+          }
+        }
         const shouldSendReminder = isAfter(
-          appointment.startTime,
+          appointment.scheduledFor,
           addHours(now, reminderTime - 1) // Send reminder if within the reminder window
         );
 
@@ -90,28 +88,14 @@ export class SchedulerService {
       // Archive old appointments
       await prisma.appointment.updateMany({
         where: {
-          endTime: {
+          updatedAt: {
             lt: cutoffDate
           },
           status: {
             in: ['COMPLETED', 'CANCELLED', 'NO_SHOW']
           }
         },
-        data: {
-          isDeleted: true
-        }
-      });
-
-      // Clean up old reminders
-      await prisma.appointmentReminder.updateMany({
-        where: {
-          sentAt: {
-            lt: cutoffDate
-          }
-        },
-        data: {
-          isDeleted: true
-        }
+        data: {}
       });
 
       // Clean up old access logs

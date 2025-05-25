@@ -40,12 +40,19 @@ interface Business {
   };
 }
 
+interface AdminStats {
+  totalBusinesses: number;
+  activeBusinesses: number;
+  pendingVerifications: number;
+}
+
 export default function BusinessesPage() {
   const router = useRouter();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [stats, setStats] = useState<AdminStats | null>(null);
 
   useEffect(() => {
     async function fetchBusinesses() {
@@ -60,15 +67,28 @@ export default function BusinessesPage() {
       }
     }
 
+    async function fetchStats() {
+      try {
+        const response = await fetch('/api/admin/businesses/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch (error) {
+        // fallback: hide stats if error
+      }
+    }
+
     fetchBusinesses();
+    fetchStats();
   }, []);
 
-  const filteredBusinesses = businesses.filter((business) => {
+  const filteredBusinesses = Array.isArray(businesses) ? businesses.filter((business) => {
     const matchesSearch = business.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       business.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || business.status === statusFilter;
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
 
   const getStatusColor = (status: BusinessStatus) => {
     switch (status) {
@@ -89,6 +109,42 @@ export default function BusinessesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Stats Overview */}
+      {stats && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <dt className="text-sm font-medium text-gray-500 truncate">
+                Total Businesses
+              </dt>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                {stats.totalBusinesses}
+              </dd>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <dt className="text-sm font-medium text-gray-500 truncate">
+                Active Businesses
+              </dt>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                {stats.activeBusinesses}
+              </dd>
+            </div>
+          </div>
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <dt className="text-sm font-medium text-gray-500 truncate">
+                Pending Verifications
+              </dt>
+              <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                {stats.pendingVerifications}
+              </dd>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Businesses</h1>

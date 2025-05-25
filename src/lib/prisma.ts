@@ -12,9 +12,7 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
     db: {
       url: env.DATABASE_URL
     }
-  },
-  connectionLimit: env.DB_POOL_SIZE,
-  connectTimeout: env.DB_CONNECT_TIMEOUT
+  }
 })
 
 // Middleware for query logging and error tracking
@@ -48,11 +46,6 @@ prisma.$use(async (params, next) => {
     }
     throw error
   }
-})
-
-// Connection management
-prisma.$on('beforeExit', async () => {
-  console.log('Shutting down Prisma Client...')
 })
 
 // Prevent multiple instances in development

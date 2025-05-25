@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -17,7 +17,6 @@ export async function GET(request: Request) {
     const patient = await prisma.patient.findUnique({
       where: { email: session.user.email },
       include: {
-        preferences: true,
         relationship: true,
         appointments: {
           take: 5,
@@ -96,7 +95,6 @@ export async function PATCH(request: Request) {
         } : undefined
       },
       include: {
-        preferences: true,
         relationship: true
       }
     });

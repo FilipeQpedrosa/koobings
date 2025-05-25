@@ -1,9 +1,6 @@
+import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
 import { PrismaClient } from '../src/generated/prisma'
-import testEnv from '../vitest.env'
-
-// Use environment variables from test config
-Object.assign(process.env, testEnv)
 
 async function setupTestEnvironment() {
   try {

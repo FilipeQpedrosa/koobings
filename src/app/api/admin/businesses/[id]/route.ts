@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
@@ -35,7 +35,7 @@ export async function GET(
         verification: true,
         _count: {
           select: {
-            patients: true,
+            clients: true,
             staff: true,
             services: true
           }

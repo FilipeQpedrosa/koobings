@@ -41,8 +41,8 @@ export async function POST(request: Request) {
     // Calculate end time based on service duration
     const endDateTime = addMinutes(startDateTime, service.duration);
 
-    // First, ensure the patient exists
-    const patientData = session?.user?.email ? {
+    // First, ensure the client exists
+    const clientData = session?.user?.email ? {
       email: session.user.email,
       name: session.user.name || 'Guest User',
       status: PatientStatus.ACTIVE
@@ -53,15 +53,15 @@ export async function POST(request: Request) {
       status: PatientStatus.ACTIVE
     };
 
-    const patient = await prisma.patient.upsert({
-      where: { email: patientData.email },
+    const client = await prisma.client.upsert({
+      where: { email: clientData.email },
       create: {
-        ...patientData,
+        ...clientData,
         businesses: {
           connect: { id: service.businessId }
         }
       },
-      update: {} // Don't update existing patient data
+      update: {} // Don't update existing client data
     });
 
     // Create the appointment
@@ -77,8 +77,8 @@ export async function POST(request: Request) {
         staff: {
           connect: { id: staffId }
         },
-        patient: {
-          connect: { id: patient.id }
+        client: {
+          connect: { id: client.id }
         },
         business: {
           connect: { id: service.businessId }
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       include: {
         service: true,
         staff: true,
-        patient: true,
+        client: true,
         business: true
       }
     });

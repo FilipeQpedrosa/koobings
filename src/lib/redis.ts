@@ -1,6 +1,6 @@
 import Redis from 'ioredis'
 import { logger } from './logger'
-import { cacheHitTotal, cacheMissTotal } from '../app/api/metrics/route'
+import { cacheHitTotal, cacheMissTotal } from '@/lib/metrics'
 
 // Redis client configuration
 const redisConfig = {

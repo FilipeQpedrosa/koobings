@@ -1,10 +1,11 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Providers } from './providers';
+import { Providers, ReactQueryProvider } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 import { initializeServices } from '@/lib/init';
 import { headers } from 'next/headers';
+import { ReactNode } from 'react';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   // Initialize services in development
   if (process.env.NODE_ENV === 'development') {
@@ -31,12 +32,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <ReactQueryProvider>
         <Providers>
           <div className="relative flex min-h-screen flex-col">
             <main className="flex-1">{children}</main>
           </div>
           <Toaster />
         </Providers>
+        </ReactQueryProvider>
       </body>
     </html>
   );

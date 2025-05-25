@@ -20,7 +20,7 @@ export async function GET() {
     return NextResponse.json(services)
   } catch (error) {
     console.error('Error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
   }
 }
 
@@ -34,12 +34,15 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const service = await prisma.service.create({
-      data: body,
+      data: {
+        ...body,
+        businessId: session.user.businessId,
+      },
     })
 
     return NextResponse.json(service)
   } catch (error) {
     console.error('Error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
   }
 }

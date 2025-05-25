@@ -1,10 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar } from '@/components/ui/Calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { addDays, format, isSameDay } from 'date-fns';
 import { AppointmentStatus } from '@prisma/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
 
 interface Appointment {
   id: string;
@@ -25,6 +29,18 @@ export default function StaffCalendar({
   selectedDate,
   onDateSelect,
 }: StaffCalendarProps) {
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({
+    clientName: '',
+    clientEmail: '',
+    service: '',
+    staff: '',
+    date: '',
+    time: '',
+    notes: '',
+  });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   // Function to get appointments for a specific date
   const getAppointmentsForDate = (date: Date) => {
     return appointments.filter((appointment) =>
@@ -58,10 +74,36 @@ export default function StaffCalendar({
     );
   };
 
+  // Placeholder handlers
+  const handleAddBooking = () => {
+    setShowModal(true);
+  };
+  const handleModalClose = () => {
+    setShowModal(false);
+    setForm({ clientName: '', clientEmail: '', service: '', staff: '', date: '', time: '', notes: '' });
+  };
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Call API to create booking
+    setShowModal(false);
+  };
+  const handleDelete = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this booking?')) {
+      // TODO: Call API to delete booking
+      setDeletingId(id);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Schedule</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Schedule</CardTitle>
+          <Button onClick={handleAddBooking} variant="default">Add Booking</Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Calendar
@@ -90,8 +132,11 @@ export default function StaffCalendar({
                     <p className="font-medium">{appointment.clientName}</p>
                     <p className="text-sm text-gray-500">{appointment.serviceName}</p>
                   </div>
-                  <div className="text-sm">
-                    {format(new Date(appointment.dateTime), 'h:mm a')}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{format(new Date(appointment.dateTime), 'h:mm a')}</span>
+                    <Button size="icon" variant="ghost" onClick={() => handleDelete(appointment.id)}>
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -101,6 +146,26 @@ export default function StaffCalendar({
             </div>
           </div>
         )}
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Booking</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input name="clientName" value={form.clientName} onChange={handleFormChange} placeholder="Client Name" required />
+              <Input name="clientEmail" value={form.clientEmail} onChange={handleFormChange} placeholder="Client Email" type="email" required />
+              <Input name="service" value={form.service} onChange={handleFormChange} placeholder="Service" required />
+              <Input name="staff" value={form.staff} onChange={handleFormChange} placeholder="Staff" required />
+              <Input name="date" value={form.date} onChange={handleFormChange} type="date" required />
+              <Input name="time" value={form.time} onChange={handleFormChange} type="time" required />
+              <Input name="notes" value={form.notes} onChange={handleFormChange} placeholder="Notes (optional)" />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleModalClose}>Cancel</Button>
+                <Button type="submit" variant="default">Create Booking</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

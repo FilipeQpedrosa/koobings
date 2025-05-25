@@ -1,6 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
-import twilio from 'twilio';
 
 const prisma = new PrismaClient();
 
@@ -23,12 +22,6 @@ const emailTransporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASSWORD,
   },
 });
-
-// Initialize Twilio client
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
 
 export class NotificationService {
   async sendAppointmentConfirmation(appointmentId: string) {
@@ -61,18 +54,6 @@ export class NotificationService {
           businessName: business.name,
           startTime: appointment.scheduledFor,
           duration: appointment.duration
-        })
-      });
-    }
-
-    // Send SMS notification
-    if (preferences.smsNotifications && client.phone) {
-      await this.sendSMS({
-        to: client.phone,
-        body: this.getAppointmentConfirmationSMS({
-          serviceName: service.name,
-          businessName: business.name,
-          startTime: appointment.scheduledFor
         })
       });
     }
@@ -109,18 +90,6 @@ export class NotificationService {
       });
     }
 
-    // Send SMS reminder
-    if (preferences.smsNotifications && client.phone) {
-      await this.sendSMS({
-        to: client.phone,
-        body: this.getAppointmentReminderSMS({
-          serviceName: service.name,
-          businessName: business.name,
-          startTime: appointment.scheduledFor
-        })
-      });
-    }
-
     // Update reminder status
     await prisma.appointmentReminder.updateMany({
       where: {
@@ -145,19 +114,6 @@ export class NotificationService {
     } catch (error) {
       console.error('Failed to send email:', error);
       throw new Error('Failed to send email notification');
-    }
-  }
-
-  private async sendSMS({ to, body }: { to: string; body: string }) {
-    try {
-      await twilioClient.messages.create({
-        to,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        body
-      });
-    } catch (error) {
-      console.error('Failed to send SMS:', error);
-      throw new Error('Failed to send SMS notification');
     }
   }
 

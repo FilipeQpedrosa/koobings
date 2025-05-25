@@ -28,7 +28,7 @@ export async function GET(request: Request) {
         verification: true,
         _count: {
           select: {
-            patients: true,
+            clients: true,
             staff: true,
             services: true
           }
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       name,
+      ownerName,
       type,
       email,
       phone,
@@ -72,10 +73,20 @@ export async function POST(request: Request) {
       passwordHash
     } = body;
 
+    // Check if the owner email is already used in business or staff (case-insensitive)
+    const emailLower = email.toLowerCase();
+    const [existingBusiness, existingStaff] = await Promise.all([
+      prisma.business.findUnique({ where: { email: emailLower } }),
+      prisma.staff.findUnique({ where: { email: emailLower } }),
+    ]);
+    if (existingBusiness || existingStaff) {
+      return NextResponse.json({ error: 'Email is already in use by another business or staff member.' }, { status: 400 });
+    }
+
     const businessData: Prisma.BusinessCreateInput = {
       name,
       type,
-      email,
+      email: emailLower,
       phone,
       address,
       settings,
@@ -100,6 +111,18 @@ export async function POST(request: Request) {
         verification: true
       }
     });
+
+    // Create staff record for the business owner with ADMIN role
+    const ownerStaff = await prisma.staff.create({
+      data: {
+        name: ownerName,
+        email: emailLower,
+        password: passwordHash,
+        role: 'ADMIN',
+        businessId: business.id,
+      }
+    });
+    console.log('Created owner staff:', ownerStaff);
 
     return NextResponse.json(business, { status: 201 });
   } catch (error) {

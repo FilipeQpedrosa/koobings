@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 interface Appointment {
   id: string;
   businessId: string;
-  patientId: string;
+  clientId: string;
   staffId: string;
   serviceId: string;
   startTime: Date;
@@ -28,16 +28,16 @@ export class NotificationService {
     this.prisma = new PrismaClient();
   }
 
-  private async getPatientEmail(patientId: string): Promise<string> {
-    const patient = await this.prisma.patient.findUnique({
-      where: { id: patientId }
+  private async getClientEmail(clientId: string): Promise<string> {
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId }
     });
 
-    if (!patient?.email) {
-      throw new Error('Patient email not found');
+    if (!client?.email) {
+      throw new Error('Client email not found');
     }
 
-    return patient.email;
+    return client.email;
   }
 
   private async sendEmail(to: string, subject: string, body: string): Promise<boolean> {
@@ -60,11 +60,11 @@ export class NotificationService {
       return false;
     }
 
-    const patientEmail = await this.getPatientEmail(appointment.patientId);
+    const clientEmail = await this.getClientEmail(appointment.clientId);
     const subject = 'Appointment Confirmation';
     const body = `Your appointment has been confirmed for ${appointment.startTime.toLocaleDateString()} at ${appointment.startTime.toLocaleTimeString()}.`;
 
-    return this.sendEmail(patientEmail, subject, body);
+    return this.sendEmail(clientEmail, subject, body);
   }
 
   async sendAppointmentReminder(appointment: Appointment): Promise<boolean> {
@@ -73,11 +73,11 @@ export class NotificationService {
       return false;
     }
 
-    const patientEmail = await this.getPatientEmail(appointment.patientId);
+    const clientEmail = await this.getClientEmail(appointment.clientId);
     const subject = 'Appointment Reminder';
     const body = `This is a reminder for your appointment tomorrow at ${appointment.startTime.toLocaleTimeString()}.`;
 
-    return this.sendEmail(patientEmail, subject, body);
+    return this.sendEmail(clientEmail, subject, body);
   }
 
   async sendAppointmentCancellation(appointment: Appointment): Promise<boolean> {
@@ -86,10 +86,10 @@ export class NotificationService {
       return false;
     }
 
-    const patientEmail = await this.getPatientEmail(appointment.patientId);
+    const clientEmail = await this.getClientEmail(appointment.clientId);
     const subject = 'Appointment Cancellation';
     const body = `Your appointment scheduled for ${appointment.startTime.toLocaleDateString()} at ${appointment.startTime.toLocaleTimeString()} has been cancelled.`;
 
-    return this.sendEmail(patientEmail, subject, body);
+    return this.sendEmail(clientEmail, subject, body);
   }
 } 

@@ -37,7 +37,6 @@ async function testAdvancedFeatures() {
       data: {
         businessId: business.id,
         staffId: staff[0].id,
-        clientId: clients[0].id,
         accessType: 'VIEW',
         resource: 'client_sensitive_info',
         reason: 'Appointment preparation',
@@ -57,25 +56,17 @@ async function testAdvancedFeatures() {
     // First appointment
     const appointment1 = await prisma.appointment.create({
       data: {
-        startTime: baseDate,
-        endTime: new Date(baseDate.getTime() + 60 * 60 * 1000), // 1 hour later
+        scheduledFor: baseDate,
+        duration: 60, // 1 hour in minutes
         status: 'CONFIRMED',
         businessId: business.id,
         clientId: clients[0].id,
         serviceId: services[0].id,
         staffId: staff[0].id,
-        payment: {
-          create: {
-            amount: services[0].price,
-            status: 'PENDING',
-            paymentMethod: 'CREDIT_CARD',
-          },
-        },
       },
     });
     console.log('Created First Appointment:', {
-      startTime: appointment1.startTime,
-      endTime: appointment1.endTime,
+      scheduledFor: appointment1.scheduledFor,
       status: appointment1.status,
     });
 
@@ -83,8 +74,8 @@ async function testAdvancedFeatures() {
     try {
       const appointment2 = await prisma.appointment.create({
         data: {
-          startTime: new Date(baseDate.getTime() + 30 * 60 * 1000), // 30 minutes after first appointment start
-          endTime: new Date(baseDate.getTime() + 90 * 60 * 1000), // 1.5 hours after first appointment start
+          scheduledFor: new Date(baseDate.getTime() + 30 * 60 * 1000), // 30 minutes after first appointment start
+          duration: 60, // 1 hour
           status: 'PENDING',
           businessId: business.id,
           clientId: clients[1].id,
@@ -100,40 +91,20 @@ async function testAdvancedFeatures() {
     // 3. Test Payment Flow
     console.log('\n=== Testing Payment Flow ===');
 
-    // Create appointment with payment
+    // Create appointment (no payment relation)
     const appointmentWithPayment = await prisma.appointment.create({
       data: {
-        startTime: new Date('2024-05-16T14:00:00Z'),
-        endTime: new Date('2024-05-16T15:00:00Z'),
+        scheduledFor: new Date('2024-05-16T14:00:00Z'),
+        duration: 60,
         status: 'PENDING',
         businessId: business.id,
         clientId: clients[0].id,
         serviceId: services[0].id,
         staffId: staff[0].id,
-        payment: {
-          create: {
-            amount: services[0].price,
-            status: 'PENDING',
-            paymentMethod: 'CREDIT_CARD',
-          },
-        },
-      },
-      include: {
-        payment: true,
       },
     });
 
-    // Update payment status to completed
-    const updatedPayment = await prisma.payment.update({
-      where: {
-        appointmentId: appointmentWithPayment.id,
-      },
-      data: {
-        status: 'COMPLETED',
-      },
-    });
-
-    // Update appointment status based on payment
+    // No payment update, just update appointment status
     const confirmedAppointment = await prisma.appointment.update({
       where: {
         id: appointmentWithPayment.id,
@@ -144,42 +115,17 @@ async function testAdvancedFeatures() {
       include: {
         client: true,
         service: true,
-        payment: true,
       },
     });
 
     console.log('Payment Flow Test:', {
       appointmentStatus: confirmedAppointment.status,
-      paymentStatus: confirmedAppointment.payment?.status,
-      amount: confirmedAppointment.payment?.amount,
       service: confirmedAppointment.service.name,
       client: confirmedAppointment.client.name,
     });
 
     // 4. Test Client Data Rules
     console.log('\n=== Testing Client Data Rules ===');
-
-    const dataRule = await prisma.clientDataRule.create({
-      data: {
-        businessId: business.id,
-        clientId: clients[0].id,
-        staffId: staff[0].id,
-        resource: 'medical_records',
-        accessLevel: 'RESTRICTED',
-        reason: 'Treatment planning',
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      },
-    });
-
-    console.log('Created Client Data Rule:', {
-      resource: dataRule.resource,
-      accessLevel: dataRule.accessLevel,
-      validityPeriod: {
-        from: dataRule.startDate,
-        to: dataRule.endDate,
-      },
-    });
 
   } catch (error) {
     console.error('Error during advanced testing:', error);

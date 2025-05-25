@@ -5,15 +5,26 @@ const prisma = new PrismaClient()
 
 async function cleanup() {
   // Delete all records in the correct order to handle foreign key constraints
+  await prisma.systemAdmin.deleteMany();
+  await prisma.review.deleteMany();
+  await prisma.appointment.deleteMany();
+  await prisma.recurringAppointment.deleteMany();
+  await prisma.paymentMethod.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.visitHistory.deleteMany();
+  await prisma.relationshipNote.deleteMany();
+  await prisma.dataAccessLog.deleteMany();
+  await prisma.staffPermission.deleteMany();
   await prisma.staffAvailability.deleteMany();
-  await prisma.service.deleteMany();
-  await prisma.serviceCategory.deleteMany();
-  await prisma.staff.deleteMany();
-  await prisma.securitySettings.deleteMany();
   await prisma.featureOption.deleteMany();
   await prisma.feature.deleteMany();
   await prisma.featureConfiguration.deleteMany();
+  await prisma.securitySettings.deleteMany();
   await prisma.businessVerification.deleteMany();
+  await prisma.client.deleteMany();
+  await prisma.staff.deleteMany();
+  await prisma.service.deleteMany();
+  await prisma.serviceCategory.deleteMany();
   await prisma.business.deleteMany();
 }
 
@@ -22,8 +33,49 @@ async function main() {
   await cleanup();
 
   try {
-    // Create a test business
+    // Create Filipe as the ONLY system admin
+    await prisma.systemAdmin.create({
+      data: {
+        email: 'f.queirozpedrosa@gmail.com',
+        name: 'Filipe Pedrosa',
+        role: 'SUPER_ADMIN',
+        passwordHash: await hash('Pipo1234', 10),
+      },
+    });
+
+    // Create Sandra as a business owner
     const business = await prisma.business.create({
+      data: {
+        name: 'Onport',
+        ownerName: 'Sandra',
+        email: 'sandra@gmail.com',
+        phone: '914603522',
+        address: 'Rua Senhora do Porto 852',
+        type: BusinessType.HAIR_SALON,
+        passwordHash: await hash('admin123', 10),
+        settings: {
+          timezone: 'UTC',
+          currency: 'USD',
+          language: 'en',
+          notificationsEnabled: true,
+          defaultAppointmentDuration: 60
+        }
+      },
+    });
+
+    // Create Sandra as a staff admin for her business
+    await prisma.staff.create({
+      data: {
+        name: 'Sandra',
+        email: 'sandra@gmail.com',
+        password: await hash('admin123', 10),
+        role: StaffRole.ADMIN,
+        businessId: business.id,
+      },
+    });
+
+    // Create a test business
+    const testBusiness = await prisma.business.create({
       data: {
         name: 'Test Salon & Spa',
         email: 'test@business.com',
@@ -105,7 +157,7 @@ async function main() {
         email: 'john@test.com',
         password: await hash('staff123', 10),
         role: StaffRole.STANDARD,
-        businessId: business.id,
+        businessId: testBusiness.id,
       },
     });
 

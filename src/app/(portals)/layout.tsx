@@ -40,6 +40,19 @@ export default async function PortalLayout({
     redirect(redirectUrl)
   }
 
+  // Extra: Prevent staff with staffRole ADMIN from accessing admin portal
+  if (portalType === 'admin' && userRole === 'STAFF') {
+    redirect('/portals/staff/dashboard');
+  }
+
+  // Extra: If staff is not staffRole ADMIN, restrict access to staff admin features (e.g., settings)
+  if (portalType === 'staff' && userRole === 'STAFF') {
+    // @ts-ignore
+    if (session.user.staffRole !== 'ADMIN' && pathname.includes('/settings')) {
+      redirect('/portals/staff/dashboard');
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="flex">

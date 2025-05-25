@@ -3,8 +3,7 @@ import { prisma } from "@/lib/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from 'bcryptjs';
 import { Business, Staff, Prisma, DataAccessType } from "@prisma/client";
-
-export type UserRole = 'staff' | 'business';
+import type { UserRole } from '@/types/dashboard';
 
 export interface CustomUser {
   id: string;
@@ -14,6 +13,7 @@ export interface CustomUser {
   businessId?: string;
   lastLogin?: Date;
   permissions?: string[];
+  staffRole?: string;
 }
 
 // Extend the built-in session types
@@ -52,8 +52,9 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Try to find staff member first
+        const staffEmail = credentials.email.toLowerCase();
         const staff = await prisma.staff.findUnique({
-          where: { email: credentials.email },
+          where: { email: staffEmail },
           include: {
             permissions: true
           }
@@ -65,23 +66,12 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Invalid password');
           }
 
-          // Check if MFA is required
-          if (staff.mfaEnabled) {
-            // In a real implementation, you would handle MFA here
-            // For now, we'll just pass through
-          }
-
-          // Update last active
-          await prisma.staff.update({
-            where: { id: staff.id },
-            data: { lastActive: new Date() }
-          });
-
           const user: CustomUser = {
             id: staff.id,
             email: staff.email,
             name: staff.name,
-            role: 'staff',
+            role: 'STAFF',
+            staffRole: staff.role,
             businessId: staff.businessId,
             lastLogin: new Date(),
             permissions: staff.permissions.map(p => p.resource)
@@ -91,39 +81,49 @@ export const authOptions: NextAuthOptions = {
         }
 
         // If not staff, try business owner
+        const businessEmail = credentials.email.toLowerCase();
         const business = await prisma.business.findUnique({
-          where: { email: credentials.email },
-          include: {
-            securitySettings: true
-          }
+          where: { email: businessEmail }
         });
 
         if (business) {
-          // Check business status
-          if (business.status !== 'ACTIVE') {
-            throw new Error('Business account is not active');
-          }
-
-          // For now, we'll store the password in the settings JSON field
-          const settings = business.settings as { password?: string };
-          const isPasswordValid = settings.password ? await compare(credentials.password, settings.password) : false;
+          const isPasswordValid = await compare(credentials.password, business.passwordHash);
           if (!isPasswordValid) {
             throw new Error('Invalid password');
-          }
-
-          // Check security settings
-          if (business.securitySettings?.requireMFA) {
-            // In a real implementation, you would handle MFA here
-            // For now, we'll just pass through
           }
 
           const user: CustomUser = {
             id: business.id,
             email: business.email,
             name: business.name,
-            role: 'business',
+            role: 'BUSINESS_OWNER',
+            businessId: business.id,
             lastLogin: new Date(),
             permissions: ['business_admin']
+          };
+
+          return user;
+        }
+
+        // If not business, try system admin
+        const adminEmail = credentials.email.toLowerCase();
+        const admin = await prisma.systemAdmin.findUnique({
+          where: { email: adminEmail }
+        });
+
+        if (admin) {
+          const isPasswordValid = await compare(credentials.password, admin.passwordHash);
+          if (!isPasswordValid) {
+            throw new Error('Invalid password');
+          }
+
+          const user: CustomUser = {
+            id: admin.id,
+            email: admin.email,
+            name: admin.name,
+            role: 'ADMIN',
+            lastLogin: new Date(),
+            permissions: ['admin']
           };
 
           return user;
@@ -141,6 +141,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
+      console.log('SESSION CALLBACK', { session, token });
       session.user = token as CustomUser;
       return session;
     }
@@ -148,15 +149,14 @@ export const authOptions: NextAuthOptions = {
   events: {
     async signIn({ user }) {
       const customUser = user as CustomUser;
-      const isStaff = customUser.role === 'staff';
-      const dummyPatientId = await getDummyPatientId();
+      const isStaff = customUser.role === 'STAFF';
+      const dummyClientId = await getDummyClientId(customUser.businessId || customUser.id);
 
       // Log successful sign-in
       await prisma.dataAccessLog.create({
         data: {
           businessId: isStaff ? customUser.businessId! : customUser.id,
           staffId: isStaff ? customUser.id : await getDummyStaffId(customUser.id),
-          patientId: dummyPatientId,
           accessType: DataAccessType.VIEW,
           resource: 'auth',
           reason: 'User sign in',
@@ -167,15 +167,14 @@ export const authOptions: NextAuthOptions = {
     },
     async signOut({ token }) {
       if (token) {
-        const isStaff = token.role === 'staff';
-        const dummyPatientId = await getDummyPatientId();
+        const isStaff = token.role === 'STAFF';
+        const dummyClientId = await getDummyClientId(token.businessId || token.id);
 
         // Log sign-out
         await prisma.dataAccessLog.create({
           data: {
             businessId: isStaff ? token.businessId! : token.id,
             staffId: isStaff ? token.id : await getDummyStaffId(token.id),
-            patientId: dummyPatientId,
             accessType: DataAccessType.VIEW,
             resource: 'auth',
             reason: 'User sign out',
@@ -188,25 +187,30 @@ export const authOptions: NextAuthOptions = {
   }
 };
 
-// Helper function to get or create a dummy patient for system logs
-async function getDummyPatientId(): Promise<string> {
-  const dummyPatient = await prisma.patient.findFirst({
-    where: { email: 'system@scheduler.local' }
+// Helper function to get or create a dummy client for system logs
+async function getDummyClientId(businessId: string): Promise<string> {
+  const dummyClient = await prisma.client.findFirst({
+    where: { email: 'system@scheduler.local', businessId }
   });
 
-  if (dummyPatient) {
-    return dummyPatient.id;
+  if (dummyClient) {
+    return dummyClient.id;
   }
 
-  const newDummyPatient = await prisma.patient.create({
-    data: {
-      email: 'system@scheduler.local',
+  // Use upsert to avoid unique constraint errors (unique on email only)
+  const newDummyClient = await prisma.client.upsert({
+    where: { email: 'system@scheduler.local' },
+    update: {},
+    create: {
       name: 'System',
-      status: 'ACTIVE'
+      email: 'system@scheduler.local',
+      businessId,
+      status: 'ACTIVE',
+      isDeleted: false,
     }
   });
 
-  return newDummyPatient.id;
+  return newDummyClient.id;
 }
 
 // Helper function to get or create a dummy staff for business owner logs

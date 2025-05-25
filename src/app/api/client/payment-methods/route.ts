@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { PrismaClient } from '@prisma/client';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
     const paymentMethods = await prisma.paymentMethod.findMany({
       where: {
-        patientId: session.user.id,
+        clientId: session.user.id,
         isActive: true,
       },
       orderBy: {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     if (isDefault) {
       await prisma.paymentMethod.updateMany({
         where: {
-          patientId: session.user.id,
+          clientId: session.user.id,
           isDefault: true,
         },
         data: {
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     const paymentMethod = await prisma.paymentMethod.create({
       data: {
-        patientId: session.user.id,
+        clientId: session.user.id,
         type,
         details,
         isDefault: isDefault || false,
@@ -107,7 +107,7 @@ export async function PATCH(request: Request) {
     const existingPaymentMethod = await prisma.paymentMethod.findFirst({
       where: {
         id: paymentMethodId,
-        patientId: session.user.id,
+        clientId: session.user.id,
       },
     });
 
@@ -122,7 +122,7 @@ export async function PATCH(request: Request) {
     if (isDefault) {
       await prisma.paymentMethod.updateMany({
         where: {
-          patientId: session.user.id,
+          clientId: session.user.id,
           isDefault: true,
         },
         data: {

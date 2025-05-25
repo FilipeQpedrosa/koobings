@@ -1,17 +1,31 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import StaffSidebar from '@/components/staff/StaffSidebar';
+"use client";
+import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import StaffSidebar from '@/components/Staff/StaffSidebar';
 
-export default async function StaffPortalLayout({
+export default function StaffPortalLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
-  if (!session?.user || session.user.role !== 'STAFF') {
-    redirect('/auth/signin');
+  useEffect(() => {
+    if (session?.user?.staffRole) {
+      sessionStorage.setItem('staffRole', session.user.staffRole);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+    }
+  }, [status, router]);
+
+  if (status === 'loading') {
+    return <div className="p-8">Loading...</div>;
   }
 
   return (

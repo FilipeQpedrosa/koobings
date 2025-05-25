@@ -1,95 +1,122 @@
 'use client';
 
-import { formatDate } from '@/lib/utils';
+import React, { useState } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { AppointmentStatus } from '@prisma/client';
 
 interface Appointment {
   id: string;
-  startTime: Date;
-  status: string;
-  service: {
-    name: string;
-  };
-  patient: {
-    name: string;
-  };
+  clientName: string;
+  serviceName: string;
+  dateTime: Date;
+  status: AppointmentStatus;
+  duration: number;
 }
 
 interface RecentAppointmentsProps {
   appointments: Appointment[];
+  onStatusChange?: () => void;
 }
 
-const RecentAppointments = ({ appointments }: RecentAppointmentsProps) => {
-  return (
-    <div className="bg-white shadow sm:rounded-lg">
-      <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-base font-semibold leading-6 text-gray-900">
-          Recent Appointments
-        </h3>
-        <div className="mt-6 flow-root">
-          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead>
-                  <tr>
-                    <th
-                      scope="col"
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
-                    >
-                      Client
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Service
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Date
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {appointments.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-4 text-center text-sm text-gray-500">
-                        No recent appointments
-                      </td>
-                    </tr>
-                  ) : (
-                    appointments.map((appointment) => (
-                      <tr key={appointment.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                          {appointment.patient.name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {appointment.service.name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {formatDate(new Date(appointment.startTime))}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <span className="capitalize">{appointment.status.toLowerCase()}</span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+const getStatusColor = (status: AppointmentStatus) => {
+  switch (status) {
+    case 'COMPLETED':
+      return 'bg-green-100 text-green-800';
+    case 'CANCELLED':
+      return 'bg-red-100 text-red-800';
+    case 'PENDING':
+      return 'bg-yellow-100 text-yellow-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
 };
 
-export default RecentAppointments; 
+export default function RecentAppointments({ appointments, onStatusChange }: RecentAppointmentsProps) {
+  const [statusFilter, setStatusFilter] = useState<'ALL' | AppointmentStatus>('ALL');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const filtered = statusFilter === 'ALL' ? appointments : appointments.filter(a => a.status === statusFilter);
+
+  async function handleStatusChange(id: string, newStatus: AppointmentStatus) {
+    setUpdatingId(id);
+    await fetch(`/api/business/appointments/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    setUpdatingId(null);
+    onStatusChange && onStatusChange();
+  }
+
+  return (
+    <Card className="col-span-4">
+      <CardHeader>
+        <CardTitle>Recent Appointments</CardTitle>
+        <div className="mt-2 flex gap-2 items-center">
+          <span>Status:</span>
+          <select
+            className="border rounded p-1"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as any)}
+          >
+            <option value="ALL">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Client</TableHead>
+              <TableHead>Service</TableHead>
+              <TableHead>Date & Time</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((appointment) => (
+              <TableRow key={appointment.id}>
+                <TableCell className="font-medium">{appointment.clientName}</TableCell>
+                <TableCell>{appointment.serviceName}</TableCell>
+                <TableCell>{format(appointment.dateTime, 'PPp')}</TableCell>
+                <TableCell>{appointment.duration} min</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={getStatusColor(appointment.status)}>
+                    {appointment.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <select
+                    className="border rounded p-1"
+                    value={appointment.status}
+                    disabled={updatingId === appointment.id}
+                    onChange={e => handleStatusChange(appointment.id, e.target.value as AppointmentStatus)}
+                  >
+                    <option value="PENDING">Pending</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+} 

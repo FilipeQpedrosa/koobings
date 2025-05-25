@@ -15,11 +15,11 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect if not authenticated or not an admin
-    if (status === 'unauthenticated') {
+    // Redirect if not authenticated or not a system admin
+    if (status === 'unauthenticated' || session?.user?.role !== 'ADMIN') {
       router.push('/auth/signin');
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   if (status === 'loading') {
     return <div>Loading...</div>;

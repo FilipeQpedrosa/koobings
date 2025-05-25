@@ -14,9 +14,9 @@ export default async function SignInPage() {
 
   if (session?.user) {
     // Redirect based on user role
-    if (session.user.role === 'staff') {
+    if (session.user.role === 'STAFF') {
       redirect('/staff/dashboard');
-    } else if (session.user.role === 'business') {
+    } else if (session.user.role === 'BUSINESS_OWNER') {
       redirect('/business/dashboard');
     }
   }

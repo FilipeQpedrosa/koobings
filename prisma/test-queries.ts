@@ -18,7 +18,7 @@ async function testQueries() {
             },
           },
         },
-        businessHours: true,
+        // businessHours: true, // Removed, not in schema
       },
     });
     console.log('Business:', {
@@ -26,21 +26,20 @@ async function testQueries() {
       type: business?.type,
       securityEnabled: !!business?.securitySettings,
       features: business?.featureConfiguration?.features.length,
-      businessHours: business?.businessHours.length,
+      // businessHours: business?.businessHours?.length, // Removed
     });
 
     // Test 2: Verify staff and their schedules
     console.log('\n=== Testing Staff ===');
     const staff = await prisma.staff.findMany({
       include: {
-        schedules: true,
         services: true,
       },
     });
     console.log('Staff:', staff.map((s: any) => ({
       name: s.name,
       role: s.role,
-      scheduleDays: s.schedules.length,
+      // scheduleDays: s.schedules.length, // Removed
       servicesOffered: s.services.length,
     })));
 
@@ -49,7 +48,7 @@ async function testQueries() {
     const services = await prisma.service.findMany({
       include: {
         category: true,
-        providers: true,
+        // providers: true, // Removed
       },
     });
     console.log('Services:', services.map((s: any) => ({
@@ -57,59 +56,37 @@ async function testQueries() {
       category: s.category?.name,
       duration: s.duration,
       price: s.price,
-      providersCount: s.providers.length,
+      // providersCount: s.providers.length, // Removed
     })));
 
-    // Test 4: Verify clients and their relationships
+    // Test 4: Verify clients
     console.log('\n=== Testing Clients ===');
     const clients = await prisma.client.findMany({
-      include: {
-        sensitiveInfo: true,
-        relationship: true,
-      },
+      // No includes, as 'relationship' and 'sensitiveInfo' do not exist
     });
     console.log('Clients:', clients.map((c: any) => ({
       name: c.name,
-      status: c.status,
-      hasSensitiveInfo: !!c.sensitiveInfo,
-      hasRelationship: !!c.relationship,
+      email: c.email,
     })));
 
-    // Test 5: Test creating an appointment
-    console.log('\n=== Testing Appointment Creation ===');
-    const appointment = await prisma.appointment.create({
-      data: {
-        startTime: new Date('2024-05-14T10:00:00Z'),
-        endTime: new Date('2024-05-14T11:00:00Z'),
-        status: 'PENDING',
-        businessId: business!.id,
-        clientId: clients[0].id,
-        serviceId: services[0].id,
-        staffId: staff[0].id,
-        notes: 'Test appointment',
-        payment: {
-          create: {
-            amount: services[0].price,
-            status: 'PENDING',
-            paymentMethod: 'CREDIT_CARD',
-          },
-        },
-      },
+    // Test 5: Verify appointments
+    console.log('\n=== Testing Appointments ===');
+    const appointments = await prisma.appointment.findMany({
       include: {
         client: true,
         service: true,
         staff: true,
-        payment: true,
       },
     });
-    console.log('Created Appointment:', {
-      clientName: appointment.client.name,
-      serviceName: appointment.service.name,
-      providerName: appointment.staff.name,
-      startTime: appointment.startTime,
-      status: appointment.status,
-      paymentStatus: appointment.payment?.status,
-    });
+    console.log('Appointments:', appointments.map((a: any) => ({
+      id: a.id,
+      scheduledFor: a.scheduledFor,
+      duration: a.duration,
+      status: a.status,
+      client: a.client?.name,
+      service: a.service?.name,
+      staff: a.staff?.name,
+    })));
 
   } catch (error) {
     console.error('Error during testing:', error);
