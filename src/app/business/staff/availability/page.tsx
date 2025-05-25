@@ -6,22 +6,10 @@ import { StaffAvailabilityManager } from '@/components/Staff/StaffAvailabilityMa
 import { redirect } from 'next/navigation';
 
 async function getStaffMembers(businessId: string) {
+  // Only fetch staff; schedules/availability should be fetched in the manager or elsewhere if needed
   return prisma.staff.findMany({
     where: {
       businessId,
-    },
-    include: {
-      schedules: true,
-      availability: {
-        where: {
-          date: {
-            gte: new Date(),
-          },
-        },
-        orderBy: {
-          date: 'asc',
-        },
-      },
     },
     orderBy: {
       name: 'asc',
@@ -36,7 +24,13 @@ export default async function StaffAvailabilityPage() {
     redirect('/auth/signin');
   }
 
-  const businessId = session.user.role === 'business' ? session.user.id : session.user.businessId;
+  // Use the correct role string (likely 'BUSINESS'), but fallback to string for now
+  const businessId = session.user.businessId || session.user.id;
+
+  if (!businessId) {
+    redirect('/auth/signin');
+  }
+
   const staff = await getStaffMembers(businessId);
 
   return (

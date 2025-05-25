@@ -16,26 +16,40 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const staffId = searchParams.get('staffId');
 
-    if (!staffId) {
-      return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
-    }
-
-    const services = await prisma.staff.findUnique({
-      where: { id: staffId },
-      include: {
-        services: {
-          include: {
-            category: true,
+    if (staffId) {
+      // Return services assigned to a specific staff member
+      const services = await prisma.staff.findUnique({
+        where: { id: staffId },
+        include: {
+          services: {
+            include: {
+              category: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!services) {
-      return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+      if (!services) {
+        return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+      }
+
+      return NextResponse.json(services.services);
+    } else {
+      // Return all services for the staff's business
+      if (session.user.role !== 'STAFF') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      const businessId = session.user.businessId;
+      if (!businessId) {
+        return NextResponse.json({ error: 'Missing businessId' }, { status: 400 });
+      }
+      const services = await prisma.service.findMany({
+        where: { businessId },
+        include: { category: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      return NextResponse.json(services);
     }
-
-    return NextResponse.json(services.services);
   } catch (error) {
     console.error('Error fetching staff services:', error);
     return NextResponse.json(

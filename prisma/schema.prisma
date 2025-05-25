@@ -96,6 +96,8 @@ model Business {
   visitHistory         VisitHistory[]
   relationshipNotes    RelationshipNote[]
   allowStaffToViewAllBookings Boolean @default(false)
+  restrictStaffToViewAllClients Boolean @default(false)
+  restrictStaffToViewAllNotes Boolean @default(false)
 
   @@index([email])
 }
@@ -228,17 +230,19 @@ model VisitHistory {
 }
 
 model RelationshipNote {
-  id          String   @id @default(cuid())
-  noteType    NoteType
-  content     String
-  createdById String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  businessId  String
-  clientId    String
-  createdBy   Staff    @relation(fields: [createdById], references: [id])
-  business    Business @relation(fields: [businessId], references: [id])
-  client      Client   @relation(fields: [clientId], references: [id])
+  id            String      @id @default(cuid())
+  noteType      NoteType
+  content       String
+  createdById   String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  businessId    String
+  clientId      String
+  appointmentId String?
+  createdBy     Staff       @relation(fields: [createdById], references: [id])
+  business      Business    @relation(fields: [businessId], references: [id])
+  client        Client      @relation(fields: [clientId], references: [id])
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
 
   @@map("relationship_notes")
 }
@@ -487,6 +491,7 @@ model Appointment {
   service                Service               @relation(fields: [serviceId], references: [id])
   staff                  Staff                 @relation(fields: [staffId], references: [id])
   review                 Review?
+  relationshipNotes      RelationshipNote[]
 
   @@index([staffId])
   @@index([clientId])
