@@ -255,8 +255,8 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                 </select>
                 {scheduleErrors.dayOfWeek &&
                   typeof scheduleErrors.dayOfWeek.message === 'string' && (
-                    <p className="mt-1 text-sm text-red-600">{scheduleErrors.dayOfWeek.message}</p>
-                  )}
+                  <p className="mt-1 text-sm text-red-600">{scheduleErrors.dayOfWeek.message}</p>
+                )}
               </div>
 
               <div>
@@ -268,8 +268,8 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                 />
                 {scheduleErrors.startTime &&
                   typeof scheduleErrors.startTime.message === 'string' && (
-                    <p className="mt-1 text-sm text-red-600">{scheduleErrors.startTime.message}</p>
-                  )}
+                  <p className="mt-1 text-sm text-red-600">{scheduleErrors.startTime.message}</p>
+                )}
               </div>
 
               <div>
@@ -281,8 +281,8 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                 />
                 {scheduleErrors.endTime &&
                   typeof scheduleErrors.endTime.message === 'string' && (
-                    <p className="mt-1 text-sm text-red-600">{scheduleErrors.endTime.message}</p>
-                  )}
+                  <p className="mt-1 text-sm text-red-600">{scheduleErrors.endTime.message}</p>
+                )}
               </div>
 
               <div className="flex justify-end space-x-3">
@@ -324,8 +324,8 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                 />
                 {availabilityErrors.date &&
                   typeof availabilityErrors.date.message === 'string' && (
-                    <p className="mt-1 text-sm text-red-600">{availabilityErrors.date.message}</p>
-                  )}
+                  <p className="mt-1 text-sm text-red-600">{availabilityErrors.date.message}</p>
+                )}
               </div>
 
               <div>
@@ -353,8 +353,8 @@ export function StaffAvailabilityManager({ staff }: StaffAvailabilityManagerProp
                 />
                 {availabilityErrors.reason &&
                   typeof availabilityErrors.reason.message === 'string' && (
-                    <p className="mt-1 text-sm text-red-600">{availabilityErrors.reason.message}</p>
-                  )}
+                  <p className="mt-1 text-sm text-red-600">{availabilityErrors.reason.message}</p>
+                )}
               </div>
 
               <div className="flex justify-end space-x-3">

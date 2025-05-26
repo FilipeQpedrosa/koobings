@@ -51,13 +51,13 @@ export default function StaffDashboardPage() {
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-      <p className="text-muted-foreground mb-8">Welcome back! Here's an overview of your schedule</p>
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-8 py-4 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-1">Dashboard</h1>
+      <p className="text-muted-foreground mb-6 sm:mb-8 text-sm sm:text-base">Welcome back! Here's an overview of your schedule</p>
       {loading && <p>Loading dashboard...</p>}
       {error && <p className="text-red-600">{error}</p>}
       {stats && (
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <DashboardStats
             totalAppointments={stats.totalAppointments}
             upcomingAppointments={stats.upcomingAppointments}
@@ -69,4 +69,4 @@ export default function StaffDashboardPage() {
       <RecentAppointments appointments={appointments.map(a => ({ ...a, dateTime: new Date(a.dateTime), status: a.status as AppointmentStatus }))} />
     </div>
   );
-}
+} 
