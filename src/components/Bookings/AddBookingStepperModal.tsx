@@ -204,6 +204,12 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, sele
   }
 
   if (!open) return null;
+
+  // Stepper progress bar logic
+  const totalSteps = 4;
+  const progressPercent = ((step - 1) / (totalSteps - 1)) * 100;
+  const stepLabels = ['Cliente', 'Serviços', 'Confirmação', 'Horário'];
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-100 relative">
@@ -216,8 +222,53 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, sele
           &times;
         </button>
         <h2 className="text-2xl font-bold mb-6">{editBooking ? 'Editar Marcação' : 'Adicionar Marcação'}</h2>
-        {/* ...rest of the modal JSX as in the original component... */}
-        {/* (You can paste the full JSX from the business page here) */}
+        {!editBooking && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center relative">
+              {stepLabels.map((label, idx) => (
+                <div key={label} className="flex flex-col items-center flex-1">
+                  <div className={`w-8 h-8 flex items-center justify-center rounded-full text-white text-sm font-bold z-10 ${step === idx + 1 ? 'bg-blue-600' : idx + 1 < step ? 'bg-blue-400' : 'bg-gray-300'}`}>{idx + 1}</div>
+                  <span className={`mt-2 text-xs font-medium ${step === idx + 1 ? 'text-blue-600' : 'text-gray-400'}`}>{label}</span>
+                </div>
+              ))}
+              {/* Blue progress bar */}
+              <div className="absolute left-0 right-0 top-4 h-1 bg-gray-200 z-0 rounded-full" style={{marginLeft: '16px', marginRight: '16px'}}>
+                <div className="h-full bg-blue-600 rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <form onSubmit={handleSubmit}>
+          {/* ...rest of the form rendering as before... */}
+          {/* Add error message for missing fields or save error */}
+          {saveError && <div className="text-red-600 text-sm mb-2">{saveError}</div>}
+          {/* ...rest of the form rendering as before... */}
+          {/* In the final step, update the Add Booking button: */}
+          {/* Example for step 4 (add this in the correct place): */}
+          {/*
+          <div className="flex justify-between gap-2 mt-8">
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={saving || !client || !staff || !date || !time || selectedServices.length === 0 || !!availabilityError}>
+              {saving ? <span className="flex items-center"><span className="loader mr-2" />A guardar...</span> : 'Guardar Marcação'}
+            </Button>
+          </div>
+          */}
+          {/* Add a simple spinner style if not present: */}
+          <style jsx>{`
+            .loader {
+              border: 2px solid #f3f3f3;
+              border-top: 2px solid #2563eb;
+              border-radius: 50%;
+              width: 16px;
+              height: 16px;
+              animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </form>
       </div>
     </div>
   );

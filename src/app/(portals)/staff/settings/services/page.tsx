@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
+import { useSession } from 'next-auth/react';
 
 // Placeholder service type
 interface Service {
@@ -107,6 +108,7 @@ const settingsTabs = [
 
 export default function StaffSettingsServicesPage() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -217,11 +219,32 @@ export default function StaffSettingsServicesPage() {
           body: JSON.stringify(payload),
         });
       } else {
-        res = await fetch("/api/staff/services", {
+        // 1. Create the service via business endpoint
+        const createRes = await fetch("/api/business/services", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!createRes.ok) {
+          const err = await createRes.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to create service");
+        }
+        const createdService = await createRes.json();
+        // 2. Assign the new service to this staff member
+        const staffId = session?.user?.id;
+        if (!staffId) {
+          throw new Error("Staff ID not found in session");
+        }
+        const assignRes = await fetch("/api/staff/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ staffId, serviceIds: [createdService.id] }),
+        });
+        if (!assignRes.ok) {
+          const err = await assignRes.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to assign service to staff");
+        }
+        res = assignRes;
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

@@ -44,6 +44,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [availabilityError, setAvailabilityError] = useState('');
+  const [serviceSearch, setServiceSearch] = useState("");
 
   useEffect(() => {
     if (editBooking && open) {
@@ -146,6 +147,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    console.log('Submitting booking...', { client, staff, date, time, selectedServices, availabilityError });
     if (!client || !staff || !date || !time || selectedServices.length === 0 || availabilityError) return;
     setSaving(true);
     setSaveError('');
@@ -210,138 +212,191 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
 
   if (!open) return null;
 
+  // Stepper progress bar logic
+  const totalSteps = 3;
+  const progressPercent = ((step - 1) / (totalSteps - 1)) * 100;
+  const stepLabels = ['Client', 'Service', 'Schedule'];
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-xl animate-fade-in">
-        <div className="flex items-center justify-between mb-8">
-          {[1, 2, 3].map((s, idx) => (
-            <div key={s} className="flex-1 flex flex-col items-center">
-              <div className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors duration-200 ${step === s ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-500'} ${idx !== 0 ? 'ml-2' : ''}`}>{s}</div>
-              <span className={`mt-2 text-xs font-medium ${step === s ? 'text-blue-600' : 'text-gray-400'}`}>{['Client', 'Service', 'Schedule'][s-1]}</span>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl sm:max-w-xl h-auto max-h-[90vh] flex flex-col mx-2 animate-fade-in">
+        <div className="sticky top-0 left-0 right-0 bg-white z-20 border-b px-4 pt-6 pb-2">
+          <div className="mb-4">
+            <div className="flex justify-between items-center relative">
+              {stepLabels.map((label, idx) => (
+                <div key={label} className="flex flex-col items-center flex-1">
+                  <div className={`w-8 h-8 flex items-center justify-center rounded-full text-white text-sm font-bold z-10 ${step === idx + 1 ? 'bg-blue-600' : idx + 1 < step ? 'bg-blue-400' : 'bg-gray-300'}`}>{idx + 1}</div>
+                  <span className={`mt-2 text-xs font-medium ${step === idx + 1 ? 'text-blue-600' : 'text-gray-400'}`}>{label}</span>
+                </div>
+              ))}
+              {/* Blue progress bar */}
+              <div className="absolute left-0 right-0 top-4 h-1 bg-gray-200 z-0 rounded-full" style={{marginLeft: '16px', marginRight: '16px'}}>
+                <div className="h-full bg-blue-600 rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+              </div>
             </div>
-          ))}
+          </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {step === 1 && (
-            <div className="space-y-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search client by name or email..."
-                  className="w-full border border-gray-300 rounded-lg p-3 pl-10 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
-                  value={clientSearch}
-                  onChange={e => setClientSearch(e.target.value)}
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                </span>
-              </div>
-              <button type="button" className="flex items-center gap-2 text-blue-600 hover:underline" onClick={() => setShowAddClient(true)}>
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
-                Add new client
-              </button>
-              <div className="max-h-40 overflow-y-auto grid grid-cols-1 gap-2">
-                {filteredClients.map((c: any) => (
-                  <button type="button" key={c.id} className={`flex items-center gap-3 p-3 rounded-lg border transition ${client?.id === c.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`} onClick={() => handleSelectClient(c)}>
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
-                      {c.name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div className="flex-1 text-left">
-                      <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-gray-500">{c.email}</div>
-                    </div>
+        <div className="flex-1 overflow-y-auto px-2 sm:px-8 pb-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Add error message for missing fields or save error */}
+            {saveError && <div className="text-red-600 text-sm mb-2">{saveError}</div>}
+            {step === 1 && (
+              <div className="space-y-4">
+                <div className="sticky top-0 bg-white z-10 pb-2">
+                  <input
+                    type="text"
+                    placeholder="Search client by name or email..."
+                    className="border border-gray-300 rounded-lg p-2 w-full"
+                    value={clientSearch}
+                    onChange={e => setClientSearch(e.target.value)}
+                  />
+                  <button type="button" className="flex items-center gap-2 text-blue-600 hover:underline mt-2" onClick={() => setShowAddClient(true)}>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+                    Add new client
                   </button>
-                ))}
-              </div>
-              {showAddClient && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2 space-y-2 animate-fade-in">
-                  <input type="text" placeholder="Name" className="w-full border rounded p-2 mb-2" value={newClient.name} onChange={e => setNewClient(n => ({ ...n, name: e.target.value }))} />
-                  <input type="email" placeholder="Email" className="w-full border rounded p-2 mb-2" value={newClient.email} onChange={e => setNewClient(n => ({ ...n, email: e.target.value }))} />
-                  <input type="text" placeholder="Phone" className="w-full border rounded p-2 mb-2" value={newClient.phone} onChange={e => setNewClient(n => ({ ...n, phone: e.target.value }))} />
-                  <textarea placeholder="Notes" className="w-full border rounded p-2 mb-2" value={newClient.notes} onChange={e => setNewClient(n => ({ ...n, notes: e.target.value }))} />
-                  <Button type="button" onClick={handleAddClient} disabled={saving}>Save Client</Button>
-                  {saveError && <div className="text-red-600 text-sm mt-2">{saveError}</div>}
                 </div>
-              )}
-              <div className="flex justify-end mt-4">
-                <Button type="button" onClick={() => setStep(2)} disabled={!client}>Next</Button>
-              </div>
-            </div>
-          )}
-          {step === 2 && (
-            <div className="space-y-4">
-              <div className="mb-2 font-medium text-gray-700">Select a service:</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {services.map((svc: any) => (
-                  <button
-                    key={svc.id}
-                    type="button"
-                    className={`flex flex-col items-start p-4 rounded-lg border transition shadow-sm ${selectedServices.includes(svc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
-                    onClick={() => setServicesState([svc.id])}
-                  >
-                    <div className="font-semibold text-base mb-1">{svc.name}</div>
-                    <div className="text-xs text-gray-500">Duration: {svc.duration} min</div>
-                  </button>
-                ))}
-              </div>
-              <div className="flex justify-between mt-4">
-                <Button type="button" variant="outline" onClick={() => setStep(1)}>Back</Button>
-                <Button type="button" onClick={() => setStep(3)} disabled={selectedServices.length === 0}>Next</Button>
-              </div>
-            </div>
-          )}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="mb-2 font-medium text-gray-700">Schedule</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
-                  <select className="w-full border rounded-lg p-2" value={staff} onChange={e => setStaff(e.target.value)}>
-                    <option value="">Select staff</option>
-                    {staffList.map((s: any) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                <div className="divide-y divide-gray-200">
+                  {filteredClients.map((c: any) => (
+                    <button type="button" key={c.id} className={`flex items-center gap-3 p-3 w-full text-left ${client?.id === c.id ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50 transition`} onClick={() => handleSelectClient(c)}>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                        {c.name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-base">{c.name}</div>
+                        <div className="text-xs text-gray-500">{c.email}</div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input type="date" className="w-full border rounded-lg p-2" value={date} onChange={e => setDate(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                  <select className="w-full border rounded-lg p-2" value={time} onChange={e => setTime(e.target.value)}>
-                    <option value="">Select time</option>
-                    {getTimeSlots().map((t: string) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-                {editBooking && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select className="w-full border rounded-lg p-2" value={status} onChange={e => setStatus(e.target.value)}>
-                      <option value="PENDING">Booked</option>
-                      <option value="COMPLETED">Completed</option>
-                      <option value="CANCELLED">Cancelled</option>
-                    </select>
+                {showAddClient && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2 space-y-2 animate-fade-in">
+                    <input type="text" placeholder="Name" className="w-full border rounded p-2 mb-2" value={newClient.name} onChange={e => setNewClient(n => ({ ...n, name: e.target.value }))} />
+                    <input type="email" placeholder="Email" className="w-full border rounded p-2 mb-2" value={newClient.email} onChange={e => setNewClient(n => ({ ...n, email: e.target.value }))} />
+                    <input type="text" placeholder="Phone" className="w-full border rounded p-2 mb-2" value={newClient.phone} onChange={e => setNewClient(n => ({ ...n, phone: e.target.value }))} />
+                    <textarea placeholder="Notes" className="w-full border rounded p-2 mb-2" value={newClient.notes} onChange={e => setNewClient(n => ({ ...n, notes: e.target.value }))} />
+                    <Button type="button" onClick={handleAddClient} disabled={saving}>Save Client</Button>
                   </div>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea placeholder="Notes" className="w-full border rounded-lg p-2" value={notes} onChange={e => setNotes(e.target.value)} />
+            )}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Search services..."
+                    className="border border-gray-300 rounded-lg p-2 flex-1"
+                    value={serviceSearch}
+                    onChange={e => setServiceSearch(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto">
+                  {services
+                    .filter((svc: any) =>
+                      (!serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || (svc.description && svc.description.toLowerCase().includes(serviceSearch.toLowerCase())))
+                    )
+                    .map((svc: any) => (
+                      <button
+                        key={svc.id}
+                        type="button"
+                        className={`flex flex-col items-start p-4 rounded-lg border transition shadow-sm relative text-left w-full ${selectedServices.includes(svc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                        onClick={() => setServicesState([svc.id])}
+                      >
+                        <div className="font-semibold text-base mb-1 flex items-center gap-2">
+                          {svc.name}
+                          {selectedServices.includes(svc.id) && (
+                            <span className="ml-2 text-blue-600">✔</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 mb-1">Duration: {svc.duration} min{svc.price ? ` • €${svc.price}` : ''}</div>
+                        {svc.description && <div className="text-xs text-gray-400 line-clamp-2">{svc.description}</div>}
+                      </button>
+                    ))}
+                </div>
               </div>
-              {availabilityError && <div className="text-red-600 text-sm mt-2">{availabilityError}</div>}
-              <div className="flex justify-between mt-4">
-                <Button type="button" variant="outline" onClick={() => setStep(2)}>Back</Button>
-                <Button type="submit" disabled={saving || !client || !staff || !date || !time || selectedServices.length === 0 || !!availabilityError}>{editBooking ? 'Save Changes' : 'Add Booking'}</Button>
+            )}
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="mb-2 font-medium text-gray-700">Schedule</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
+                    <select className="w-full border rounded-lg p-2" value={staff} onChange={e => setStaff(e.target.value)}>
+                      <option value="">Select staff</option>
+                      {staffList.map((s: any) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" className="w-full border rounded-lg p-2" value={date} min={format(new Date(), 'yyyy-MM-dd')} onChange={e => setDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                    <select className="w-full border rounded-lg p-2" value={time} onChange={e => setTime(e.target.value)}>
+                      <option value="">Select time</option>
+                      {getTimeSlots().map((t: string) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {editBooking && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select className="w-full border rounded-lg p-2" value={status} onChange={e => setStatus(e.target.value)}>
+                        <option value="PENDING">Booked</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea placeholder="Notes" className="w-full border rounded-lg p-2" value={notes} onChange={e => setNotes(e.target.value)} />
+                </div>
+                {availabilityError && <div className="text-red-600 text-sm mt-2">{availabilityError}</div>}
               </div>
-              {saveError && <div className="text-red-600 text-sm mt-2">{saveError}</div>}
+            )}
+            {/* Action buttons inside the form */}
+            <div className="sticky bottom-0 left-0 right-0 bg-white border-t flex flex-col sm:flex-row justify-end gap-2 p-2 sm:p-4 z-10">
+              {step > 1 && <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setStep(step - 1)}>Back</Button>}
+              {step < 3 && <Button type="button" className="w-full sm:w-auto" onClick={() => setStep(step + 1)} disabled={step === 1 ? !client : selectedServices.length === 0}>Next</Button>}
+              {step === 3 && (
+                <>
+                  <Button type="submit" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" disabled={saving || !client || !staff || !date || !time || selectedServices.length === 0 || !!availabilityError}>{saving ? <span className="flex items-center justify-center"><span className="loader mr-2" />Saving...</span> : (editBooking ? 'Save Changes' : 'Add Booking')}</Button>
+                  {/* UI feedback for why the button is disabled */}
+                  {(!client || !staff || !date || !time || selectedServices.length === 0 || !!availabilityError) && (
+                    <div className="text-xs text-red-500 mt-2">
+                      {!client && <div>Please select a client.</div>}
+                      {selectedServices.length === 0 && <div>Please select a service.</div>}
+                      {!staff && <div>Please select a staff member.</div>}
+                      {!date && <div>Please select a date.</div>}
+                      {!time && <div>Please select a time.</div>}
+                      {availabilityError && <div>{availabilityError}</div>}
+                    </div>
+                  )}
+                </>
+              )}
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cancel</Button>
             </div>
-          )}
-        </form>
-        <div className="flex justify-end mt-8">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            {/* Add a simple spinner style if not present: */}
+            <style jsx>{`
+              .loader {
+                border: 2px solid #f3f3f3;
+                border-top: 2px solid #2563eb;
+                border-radius: 50%;
+                width: 16px;
+                height: 16px;
+                animation: spin 1s linear infinite;
+              }
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </form>
         </div>
       </div>
     </div>
@@ -360,30 +415,27 @@ export default function StaffBookingsPage() {
   const [selectedDate, setSelectedDate] = useState<string>('all');
   const [selectedStaff, setSelectedStaff] = useState<string>('all');
 
-  useEffect(() => {
-    async function fetchBookings() {
-      setLoading(true);
-      setError("");
-      try {
-        let url = `/api/business/appointments`;
-        if (selectedDate && selectedDate !== 'all') {
-          url += `?date=${selectedDate}`;
-          if (selectedStaff && selectedStaff !== 'all') {
-            url += `&staffId=${selectedStaff}`;
-          }
-        } else if (selectedStaff && selectedStaff !== 'all') {
-          url += `?staffId=${selectedStaff}`;
-        }
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Failed to fetch bookings");
-        const data = await res.json();
-        setBookings(data);
-      } catch (err: any) {
-        setError(err.message || "Error fetching bookings");
-      } finally {
-        setLoading(false);
+  // Refactored fetchBookings function
+  function fetchBookings() {
+    setLoading(true);
+    setError("");
+    let url = `/api/business/appointments`;
+    if (selectedDate && selectedDate !== 'all') {
+      url += `?date=${selectedDate}`;
+      if (selectedStaff && selectedStaff !== 'all') {
+        url += `&staffId=${selectedStaff}`;
       }
+    } else if (selectedStaff && selectedStaff !== 'all') {
+      url += `?staffId=${selectedStaff}`;
     }
+    fetch(url)
+      .then(res => res.json())
+      .then(data => setBookings(data))
+      .catch(err => setError("Failed to fetch bookings"))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
     fetchBookings();
   }, [selectedDate, selectedStaff]);
 
@@ -430,86 +482,117 @@ export default function StaffBookingsPage() {
   const sortedBookings = Array.isArray(bookings) ? [...bookings].sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()) : [];
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Bookings Management</h1>
-        <div className="flex flex-wrap gap-2 items-center">
-          <label className="font-medium">Date:</label>
-          <select
-            className="border rounded p-2"
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-          >
-            <option value="all">All Dates</option>
-            <option value={new Date().toISOString().slice(0, 10)}>{new Date().toISOString().slice(0, 10)}</option>
-          </select>
-          <label className="font-medium ml-4">Staff:</label>
-          <select
-            className="border rounded p-2"
-            value={selectedStaff}
-            onChange={e => setSelectedStaff(e.target.value)}
-          >
-            <option value="all">All Staff</option>
-            {staffList.map((s: any) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <Button onClick={openAddModal} className="ml-4">
-            <Calendar className="w-4 h-4 mr-1" /> Add Booking
-          </Button>
+    <div className="container mx-auto py-10 px-2 sm:px-0">
+      {/* Filters and Add Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <label className="font-medium">Date:</label>
+            <select
+              className="border rounded p-2 w-full sm:w-auto"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+            >
+              <option value="all">All Dates</option>
+              <option value={new Date().toISOString().slice(0, 10)}>{new Date().toISOString().slice(0, 10)}</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="font-medium ml-0 sm:ml-4">Staff:</label>
+            <select
+              className="border rounded p-2 w-full sm:w-auto"
+              value={selectedStaff}
+              onChange={e => setSelectedStaff(e.target.value)}
+            >
+              <option value="all">All Staff</option>
+              {staffList.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <Button onClick={openAddModal} className="w-full sm:w-auto sticky bottom-4 right-4 z-20 sm:static">
+          <span className="hidden sm:inline">Add Booking</span>
+          <span className="sm:hidden flex items-center justify-center"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></span>
+        </Button>
+      </div>
+      {/* Responsive Bookings List/Table */}
+      <div>
+        {/* Desktop Table */}
+        <div className="hidden sm:block">
+          {loading ? (
+            <div>Loading bookings...</div>
+          ) : error ? (
+            <div className="text-red-600">{error}</div>
+          ) : sortedBookings.length === 0 ? (
+            <div className="text-gray-500">No bookings for this date.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortedBookings.map((booking) => (
+                    <tr key={booking.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">{booking.client?.name || <span className="text-gray-400 italic">No client</span>}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{booking.staff?.name || <span className="text-gray-400 italic">No staff</span>}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{booking.services?.map(s => s.name).join(", ")}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{format(new Date(booking.scheduledFor), "yyyy-MM-dd HH:mm")}</td>
+                      <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={booking.status} /></td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <Button variant="ghost" size="sm" onClick={() => openEditModal(booking)}>Edit</Button>
+                        <Button variant="ghost" size="sm" className="text-red-600 ml-2">Remove</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        {/* Mobile Card/List View */}
+        <div className="sm:hidden">
+          {loading ? (
+            <div>Loading bookings...</div>
+          ) : error ? (
+            <div className="text-red-600">{error}</div>
+          ) : sortedBookings.length === 0 ? (
+            <div className="text-gray-500">No bookings for this date.</div>
+          ) : (
+            <ul className="space-y-4">
+              {sortedBookings.map((booking) => (
+                <li key={booking.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-base">{booking.client?.name || <span className="text-gray-400 italic">No client</span>}</div>
+                    <StatusBadge status={booking.status} />
+                  </div>
+                  <div className="text-xs text-gray-500">{booking.services?.map(s => s.name).join(", ")}</div>
+                  <div className="text-xs text-gray-500">Staff: {booking.staff?.name || <span className="text-gray-400 italic">No staff</span>}</div>
+                  <div className="text-xs text-gray-500">{format(new Date(booking.scheduledFor), "yyyy-MM-dd HH:mm")}</div>
+                  <div className="flex gap-2 mt-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditModal(booking)}>Edit</Button>
+                    <Button variant="destructive" size="sm" className="flex-1">Remove</Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
-      {loading ? (
-        <div>Loading bookings...</div>
-      ) : error ? (
-        <div className="text-red-600">{error}</div>
-      ) : sortedBookings.length === 0 ? (
-        <div className="text-gray-500">No bookings for this date.</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortedBookings.map((booking) => (
-                <tr key={booking.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{booking.client?.name || <span className="text-gray-400 italic">No client</span>}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{booking.staff?.name || <span className="text-gray-400 italic">No staff</span>}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{booking.services?.map(s => s.name).join(", ")}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{format(new Date(booking.scheduledFor), "yyyy-MM-dd HH:mm")}</td>
-                  <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={booking.status} /></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <Button variant="ghost" size="sm" onClick={() => openEditModal(booking)}>Edit</Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 ml-2">Remove</Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Add Booking Modal */}
       {showModal && (
         <AddBookingStepperModal
           open={showModal}
           onClose={closeModal}
-          onAddBooking={() => {
-            const today = selectedDate;
-            let url = `/api/business/appointments?date=${today}`;
-            if (selectedStaff && selectedStaff !== 'all') {
-              url += `&staffId=${selectedStaff}`;
-            }
-            fetch(url)
-              .then(res => res.json())
-              .then(data => setBookings(data));
-          }}
+          onAddBooking={fetchBookings}
           editBooking={editBooking}
           services={services}
           clients={clients}
