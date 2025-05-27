@@ -60,12 +60,12 @@ export default function StaffSettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-8">
+    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <h1 className="text-2xl font-bold mb-4">Settings</h1>
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
           <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-4 py-2 rounded ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
+            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
           </Link>
         ))}
       </div>
@@ -73,21 +73,21 @@ export default function StaffSettingsPage() {
         <div>Loading settings...</div>
       ) : (
         <>
-          <div className="mb-6">
-            <label className="flex items-center gap-4 mb-2">
+          <div className="mb-6 flex flex-col gap-4">
+            <label className="flex items-center gap-3 sm:gap-4 mb-2 text-sm sm:text-base">
               <Switch checked={restrictClients} onCheckedChange={setRestrictClients} />
-              Restrict staff to only view their own clients
+              <span>Restrict staff to only view their own clients</span>
             </label>
-            <label className="flex items-center gap-4 mb-2">
+            <label className="flex items-center gap-3 sm:gap-4 mb-2 text-sm sm:text-base">
               <Switch checked={restrictNotes} onCheckedChange={setRestrictNotes} />
-              Restrict staff to only view their own notes
+              <span>Restrict staff to only view their own notes</span>
             </label>
-            <Button onClick={handleSave} disabled={saving} className="mt-2">
+            <Button onClick={handleSave} disabled={saving} className="mt-2 w-full sm:w-auto">
               {saving ? 'Saving...' : 'Save Settings'}
             </Button>
             {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
           </div>
-          <p>Select a settings section from the tabs above.</p>
+          <p className="text-sm sm:text-base">Select a settings section from the tabs above.</p>
         </>
       )}
     </div>

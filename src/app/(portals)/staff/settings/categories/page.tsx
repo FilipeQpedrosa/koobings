@@ -233,12 +233,12 @@ export default function StaffSettingsCategoriesPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
+    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <h1 className="text-2xl font-bold mb-4">Categories Management</h1>
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
           <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-4 py-2 rounded ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
+            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
           </Link>
         ))}
       </div>
@@ -268,40 +268,67 @@ export default function StaffSettingsCategoriesPage() {
       ) : error ? (
         <div className="text-red-600">{error}</div>
       ) : (
-        <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg shadow">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"># Services</th>
-              <th className="px-6 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <>
+          {/* Card layout for mobile */}
+          <div className="flex flex-col gap-4 sm:hidden">
             {categories.map(category => (
-              <tr key={category.id}>
-                <td className="px-6 py-4 whitespace-nowrap">{category.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {category.color ? (
-                    <span className="inline-block w-4 h-4 rounded-full mr-2" style={{ backgroundColor: category.color }} />
-                  ) : null}
-                  {category.color || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">{category.description || '-'}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{category.services?.length ?? 0}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right flex gap-2 justify-end">
+              <div key={category.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
+                <div className="font-semibold text-lg">{category.name}</div>
+                <div className="flex items-center gap-2 text-sm">
+                  {category.color && (
+                    <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
+                  )}
+                  <span>{category.color || '-'}</span>
+                </div>
+                <div className="text-gray-600 text-sm">{category.description || '-'}</div>
+                <div className="text-gray-500 text-xs mb-2"># Services: {category.services?.length ?? 0}</div>
+                <div className="flex gap-2 mt-2">
                   <Button size="sm" variant="outline" onClick={() => openEditModal(category)}>
                     Edit
                   </Button>
                   <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(category)}>
                     Delete
                   </Button>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+          {/* Table layout for desktop */}
+          <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg shadow hidden sm:table">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"># Services</th>
+                <th className="px-6 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {categories.map(category => (
+                <tr key={category.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">{category.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {category.color ? (
+                      <span className="inline-block w-4 h-4 rounded-full mr-2" style={{ backgroundColor: category.color }} />
+                    ) : null}
+                    {category.color || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{category.description || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{category.services?.length ?? 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right flex gap-2 justify-end">
+                    <Button size="sm" variant="outline" onClick={() => openEditModal(category)}>
+                      Edit
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(category)}>
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   );
