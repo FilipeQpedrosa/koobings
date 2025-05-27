@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import StaffSidebar from '@/components/Staff/StaffSidebar';
 import { Menu, X as CloseIcon } from 'lucide-react';
+import { usePathname } from "next/navigation";
 
 export default function StaffPortalLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   // Prevent background scroll (vertical and horizontal) when sidebar is open
   useEffect(() => {
@@ -17,6 +19,11 @@ export default function StaffPortalLayout({ children }: { children: React.ReactN
     // Clean up on unmount
     return () => document.body.classList.remove('overflow-hidden', 'overflow-x-hidden');
   }, [sidebarOpen]);
+
+  // Close sidebar automatically on route change
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen flex-col">

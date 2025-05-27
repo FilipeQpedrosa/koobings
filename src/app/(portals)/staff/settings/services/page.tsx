@@ -260,12 +260,12 @@ export default function StaffSettingsServicesPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
+    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <h1 className="text-2xl font-bold mb-4">Services Management</h1>
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
           <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-4 py-2 rounded ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
+            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
           </Link>
         ))}
       </div>

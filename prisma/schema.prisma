@@ -140,6 +140,7 @@ model Staff {
   relationshipNotes          RelationshipNote[]
   permissions                StaffPermission[]
   services                   Service[]                    @relation("StaffServices")
+  unavailabilities           StaffUnavailability[]
 
   @@index([businessId])
   @@index([email])
@@ -499,6 +500,17 @@ model Appointment {
   @@index([businessId])
   @@index([recurringAppointmentId])
   @@map("appointments")
+}
+
+model StaffUnavailability {
+  id        String   @id @default(cuid())
+  staff     Staff    @relation(fields: [staffId], references: [id])
+  staffId   String
+  start     DateTime
+  end       DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum BusinessType {

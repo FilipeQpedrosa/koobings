@@ -152,12 +152,12 @@ export default function StaffSettingsStaffPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
+    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <h1 className="text-2xl font-bold mb-4">Staff Management</h1>
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
           <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-4 py-2 rounded ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
+            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
           </Link>
         ))}
       </div>
@@ -172,32 +172,52 @@ export default function StaffSettingsStaffPage() {
       ) : staff.length === 0 ? (
         <div className="text-gray-500">No staff members found.</div>
       ) : (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <>
+          {/* Card layout for mobile */}
+          <div className="flex flex-col gap-4 sm:hidden">
             {staff.map((member) => (
-              <tr key={member.id}>
-                <td className="px-6 py-4 whitespace-nowrap">{member.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{member.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{member.role}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right">
+              <div key={member.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
+                <div className="font-semibold text-lg">{member.name}</div>
+                <div className="text-gray-600 text-sm">{member.email}</div>
+                <div className="text-gray-500 text-xs mb-2">Role: {member.role}</div>
+                <div className="flex gap-2 mt-2">
                   <Button variant="ghost" size="sm" onClick={() => openEditModal(member)}>Edit</Button>
-                  <Link href={`/staff/${member.id}/availability`} passHref legacyBehavior>
+                  <Link href={`/staff/settings/staff/${member.id}/availability`} passHref legacyBehavior>
                     <Button variant="ghost" size="sm" className="text-blue-600 ml-2">Availability</Button>
                   </Link>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => setShowDeleteId(member.id)}>Remove</Button>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+          {/* Table layout for desktop */}
+          <table className="min-w-full divide-y divide-gray-200 hidden sm:table">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {staff.map((member) => (
+                <tr key={member.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">{member.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{member.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{member.role}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <Button variant="ghost" size="sm" onClick={() => openEditModal(member)}>Edit</Button>
+                    <Link href={`/staff/settings/staff/${member.id}/availability`} passHref legacyBehavior>
+                      <Button variant="ghost" size="sm" className="text-blue-600 ml-2">Availability</Button>
+                    </Link>
+                    <Button variant="ghost" size="sm" className="text-red-600" onClick={() => setShowDeleteId(member.id)}>Remove</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
       {/* Modal for adding/editing staff */}
       {showModal && (
