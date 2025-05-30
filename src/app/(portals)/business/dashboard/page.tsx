@@ -33,10 +33,8 @@ const markStatus = async (id: string, status: string) => {
 
 const statusOptions = [
   { value: 'PENDING', label: 'Pending' },
-  { value: 'CONFIRMED', label: 'Confirmed' },
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'CANCELLED', label: 'Cancelled' },
-  { value: 'NO_SHOW', label: 'No Show' },
 ];
 
 function StatusBadge({ status }: { status: string }) {
@@ -148,9 +146,13 @@ function Example() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {statusOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
+                        {apt.status === 'PENDING' ? (
+                          statusOptions.filter(opt => opt.value !== 'PENDING').map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value={apt.status} disabled>{statusOptions.find(opt => opt.value === apt.status)?.label}</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
