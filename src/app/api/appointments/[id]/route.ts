@@ -84,6 +84,10 @@ export async function PATCH(
     console.log('PATCH /api/appointments/[id] payload:', body);
     console.log('PATCH /api/appointments/[id] session user:', session.user);
 
+    if (!status) {
+      return NextResponse.json({ error: 'Status is required' }, { status: 400 });
+    }
+
     const appointment = await prisma.appointment.findUnique({
       where: { id: params.id },
       include: {
@@ -125,6 +129,20 @@ export async function PATCH(
       // Optionally, allow staff to view/update only their own appointments
       // For delete, we allow any staff (see below)
       // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Strict status transition validation
+    const currentStatus = appointment.status;
+    const allowedTransitions: Record<string, string[]> = {
+      PENDING: ['COMPLETED', 'CANCELLED'],
+      COMPLETED: [],
+      CANCELLED: [],
+    };
+    if (!allowedTransitions[currentStatus]?.includes(status)) {
+      return NextResponse.json(
+        { error: `Invalid status transition from ${currentStatus} to ${status}` },
+        { status: 400 }
+      );
     }
 
     // Handle cancellation

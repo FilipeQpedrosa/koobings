@@ -51,7 +51,7 @@ export default function StaffDashboardPage() {
   }, []);
 
   return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-8 py-4 sm:py-8">
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-8 py-4 sm:py-8 overflow-x-hidden w-full flex flex-col items-center">
       <h1 className="text-2xl sm:text-3xl font-bold mb-1">Dashboard</h1>
       <p className="text-muted-foreground mb-6 sm:mb-8 text-sm sm:text-base">Welcome back! Here's an overview of your schedule</p>
       {loading && <p>Loading dashboard...</p>}
@@ -66,7 +66,10 @@ export default function StaffDashboardPage() {
           />
         </div>
       )}
-      <RecentAppointments appointments={appointments.map(a => ({ ...a, dateTime: new Date(a.dateTime), status: a.status as AppointmentStatus }))} />
+      <RecentAppointments appointments={appointments
+        .filter(a => ['PENDING', 'COMPLETED', 'CANCELLED'].includes(a.status))
+        .map(a => ({ ...a, dateTime: new Date(a.dateTime), status: a.status as 'PENDING' | 'COMPLETED' | 'CANCELLED' }))
+      } />
     </div>
   );
 } 
