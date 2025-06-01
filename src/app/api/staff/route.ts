@@ -27,6 +27,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Backend guard for settings
+    if (
+      session.user.staffRole !== 'ADMIN' &&
+      !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
+    ) {
+      return NextResponse.json({ error: 'Not authorized to access settings' }, { status: 403 });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const businessId = searchParams.get('businessId');
 
@@ -124,6 +132,14 @@ export async function PATCH(request: NextRequest) {
         { error: 'Unauthorized' },
         { status: 401 }
       );
+    }
+
+    // Backend guard for settings
+    if (
+      session.user.staffRole !== 'ADMIN' &&
+      !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
+    ) {
+      return NextResponse.json({ error: 'Not authorized to access settings' }, { status: 403 });
     }
 
     const data = await request.json();

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { MultiSelect } from '@/components/ui/multi-select';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface StaffMember {
   id: string;
@@ -12,6 +12,7 @@ interface StaffMember {
   email: string;
   role: string;
   services?: { id: string; name: string }[];
+  permissions?: string[];
 }
 
 interface Service {
@@ -32,7 +33,8 @@ const settingsTabs = [
 ];
 
 export default function StaffSettingsStaffPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -44,6 +46,18 @@ export default function StaffSettingsStaffPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const pathname = usePathname();
+  const [canViewAllBookings, setCanViewAllBookings] = useState(false);
+  const [requireAdminCancelApproval, setRequireAdminCancelApproval] = useState(false);
+
+  useEffect(() => {
+    if (status === 'loading' || !session) return;
+    if (
+      session.user.staffRole !== 'ADMIN' &&
+      !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
+    ) {
+      router.replace('/staff/dashboard');
+    }
+  }, [session, status, router]);
 
   useEffect(() => {
     fetchStaff();
@@ -86,6 +100,7 @@ export default function StaffSettingsStaffPage() {
     setEditId(member.id);
     setForm({ name: member.name, email: member.email, role: member.role, password: '' });
     setSelectedServices(member.services ? member.services.map(s => s.id) : []);
+    setCanViewAllBookings(member.permissions?.includes('canViewAllBookings') ?? false);
     setShowModal(true);
     fetchServices();
   }
@@ -96,7 +111,14 @@ export default function StaffSettingsStaffPage() {
     setError('');
     try {
       let response;
-      const payload = { ...form, services: selectedServices };
+      const payload = { ...form, services: selectedServices, permissions: (form as any).permissions || [] };
+      if (canViewAllBookings) {
+        if (!payload.permissions.includes('canViewAllBookings')) {
+          payload.permissions.push('canViewAllBookings');
+        }
+      } else {
+        payload.permissions = payload.permissions.filter((p: string) => p !== 'canViewAllBookings');
+      }
       if (editId) {
         response = await fetch(`/api/staff/${editId}`, {
           method: 'PUT',
@@ -167,6 +189,19 @@ export default function StaffSettingsStaffPage() {
           Add Staff Member
         </Button>
       </div>
+      {session?.user?.staffRole === 'ADMIN' && (
+        <div className="mb-6 flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="requireAdminCancelApproval"
+            checked={requireAdminCancelApproval}
+            onChange={e => setRequireAdminCancelApproval(e.target.checked)}
+          />
+          <label htmlFor="requireAdminCancelApproval" className="text-sm font-medium">
+            Require admin approval for staff appointment cancellations
+          </label>
+        </div>
+      )}
       {isLoading ? (
         <div>Loading staff...</div>
       ) : staff.length === 0 ? (
@@ -277,6 +312,17 @@ export default function StaffSettingsStaffPage() {
                   onChange={setSelectedServices}
                 />
               </div>
+              {session?.user?.staffRole === 'ADMIN' && (
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="canViewAllBookings"
+                    checked={canViewAllBookings}
+                    onChange={e => setCanViewAllBookings(e.target.checked)}
+                  />
+                  <label htmlFor="canViewAllBookings" className="text-sm">Allow this staff member to view all bookings</label>
+                </div>
+              )}
               <div>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? 'Saving...' : 'Save'}

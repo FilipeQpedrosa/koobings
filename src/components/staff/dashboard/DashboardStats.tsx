@@ -63,31 +63,31 @@ export default function DashboardStats({
       {/* Desktop: always show grid; Mobile: show grid if expanded */}
       <div className={collapsed ? 'hidden sm:block' : 'block sm:block'}>
         <div className="grid grid-cols-1 gap-4 gap-y-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
-          <StatsCard
-            title="Total Appointments"
-            value={totalAppointments}
-            description="All time appointments"
-            icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />}
-          />
-          <StatsCard
-            title="Upcoming"
-            value={upcomingAppointments}
-            description="Next 7 days"
-            icon={<Clock className="h-4 w-4 text-muted-foreground" />}
-          />
-          <StatsCard
-            title="Total Clients"
-            value={totalClients}
-            description="Unique clients served"
-            icon={<Users className="h-4 w-4 text-muted-foreground" />}
-          />
-          <StatsCard
-            title="Completion Rate"
-            value={`${completionRate}%`}
-            description="Last 30 days"
-            icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}
-          />
-        </div>
+      <StatsCard
+        title="Total Appointments"
+        value={totalAppointments}
+        description="All time appointments"
+        icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />}
+      />
+      <StatsCard
+        title="Upcoming"
+        value={upcomingAppointments}
+        description="Next 7 days"
+        icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+      />
+      <StatsCard
+        title="Total Clients"
+        value={totalClients}
+        description="Unique clients served"
+        icon={<Users className="h-4 w-4 text-muted-foreground" />}
+      />
+      <StatsCard
+        title="Completion Rate"
+        value={`${completionRate}%`}
+        description="Last 30 days"
+        icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}
+      />
+    </div>
       </div>
     </>
   );

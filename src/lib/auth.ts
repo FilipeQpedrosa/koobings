@@ -55,9 +55,15 @@ export const authOptions: NextAuthOptions = {
         const staffEmail = credentials.email.toLowerCase();
         const staff = await prisma.staff.findUnique({
           where: { email: staffEmail },
-          include: {
-            permissions: true
-          }
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            role: true,
+            businessId: true,
+            permissions: { select: { resource: true } },
+          },
         });
 
         if (staff) {
@@ -74,7 +80,7 @@ export const authOptions: NextAuthOptions = {
             staffRole: staff.role,
             businessId: staff.businessId,
             lastLogin: new Date(),
-            permissions: staff.permissions.map(p => p.resource)
+            permissions: Array.isArray(staff.permissions) ? staff.permissions.map((p: { resource: string }) => p.resource) : [],
           };
 
           return user;

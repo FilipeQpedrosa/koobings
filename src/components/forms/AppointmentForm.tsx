@@ -222,11 +222,14 @@ export function AppointmentForm({
             {...register('status')}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
-            {Object.values(AppointmentStatus).map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
+            {initialData?.status === 'PENDING' ? (
+              [
+                <option key="COMPLETED" value="COMPLETED">Completed</option>,
+                <option key="CANCELLED" value="CANCELLED">Cancelled</option>
+              ]
+            ) : (
+              <option value={initialData?.status} disabled>{initialData?.status.charAt(0) + initialData?.status.slice(1).toLowerCase()}</option>
+            )}
           </select>
           {errors.status && (
             <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>

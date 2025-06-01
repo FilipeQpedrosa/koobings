@@ -148,7 +148,7 @@ function Example() {
                       <SelectContent>
                         {apt.status === 'PENDING' ? (
                           statusOptions.filter(opt => opt.value !== 'PENDING').map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                           ))
                         ) : (
                           <SelectItem value={apt.status} disabled>{statusOptions.find(opt => opt.value === apt.status)?.label}</SelectItem>
