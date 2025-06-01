@@ -120,3 +120,12 @@
 .fc .fc-timegrid-slot-label {
   @apply text-sm text-gray-500;
 }
+
+/* Fix for react-big-calendar controls being unresponsive due to global CSS or Tailwind resets */
+.rbc-toolbar,
+.rbc-toolbar button,
+.rbc-btn-group,
+.rbc-btn-group button {
+  pointer-events: auto !important;
+  z-index: 20 !important;
+}

@@ -26,7 +26,7 @@ export function SignInForm() {
       });
 
       if (result?.error) {
-        setError('Invalid email or password');
+        setError(result.error);
       }
     } catch (error) {
       setError('An error occurred. Please try again.');

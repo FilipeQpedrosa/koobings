@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 const settingsTabs = [
   { label: 'General', href: '/staff/settings' },
@@ -13,12 +14,24 @@ const settingsTabs = [
 ];
 
 export default function StaffSettingsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [restrictClients, setRestrictClients] = useState(false);
   const [restrictNotes, setRestrictNotes] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (status === 'loading' || !session) return;
+    if (
+      session.user.staffRole !== 'ADMIN' &&
+      !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
+    ) {
+      router.replace('/staff/dashboard');
+    }
+  }, [session, status, router]);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -58,6 +71,13 @@ export default function StaffSettingsPage() {
       setSaving(false);
     }
   }
+
+  React.useEffect(() => {
+    if (session) {
+      // Debug: log session object
+      console.log('StaffSettingsPage session:', session);
+    }
+  }, [session]);
 
   return (
     <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-8">

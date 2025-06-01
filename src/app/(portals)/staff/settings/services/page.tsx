@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { useSession } from 'next-auth/react';
 
@@ -108,7 +108,8 @@ const settingsTabs = [
 
 export default function StaffSettingsServicesPage() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -120,6 +121,16 @@ export default function StaffSettingsServicesPage() {
   const [deleteService, setDeleteService] = useState<Service | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === 'loading' || !session) return;
+    if (
+      session.user.staffRole !== 'ADMIN' &&
+      !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
+    ) {
+      router.replace('/staff/dashboard');
+    }
+  }, [session, status, router]);
 
   useEffect(() => {
     async function fetchServices() {

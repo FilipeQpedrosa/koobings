@@ -26,7 +26,7 @@ export default function StaffPortalLayout({ children }: { children: React.ReactN
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Hamburger for mobile */}
       <button
         className={`sm:hidden fixed top-4 left-4 z-50 bg-white rounded-full shadow p-2 border border-gray-200 transition-all ${sidebarOpen ? 'ring-2 ring-primary' : ''}`}
@@ -37,13 +37,13 @@ export default function StaffPortalLayout({ children }: { children: React.ReactN
       </button>
       {/* Mobile sidebar and backdrop overlay at top level */}
       {sidebarOpen && (
-        <StaffSidebar className="block sm:hidden" open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <StaffSidebar className="block sm:hidden fixed inset-0 z-50" open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       )}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex-1 flex flex-col sm:flex-row min-h-0">
         {/* Desktop sidebar (always visible on sm+) */}
         <StaffSidebar className="hidden sm:block" />
         {/* Main content */}
-        <main className="flex-1 p-2 sm:p-8 overflow-y-auto w-full max-w-full">{children}</main>
+        <main className="flex-1 w-full p-2 sm:p-8 overflow-y-auto max-w-full">{children}</main>
       </div>
     </div>
   );

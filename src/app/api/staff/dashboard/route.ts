@@ -62,6 +62,28 @@ export async function GET() {
   const completionRate = totalAppointments > 0
     ? Math.round((completedAppointments / totalAppointments) * 100)
     : 0;
+
+  // Check for canViewAllBookings permission
+  const canViewAllBookings = Array.isArray(session.user.permissions) && session.user.permissions.includes('canViewAllBookings');
+
+  let appointmentsQuery = {};
+  if (canViewAllBookings) {
+    // Show all bookings for the business
+    appointmentsQuery = { businessId: staff.businessId };
+  } else {
+    // Only show bookings for this staff
+    appointmentsQuery = { staffId: staff.id };
+  }
+
+  const recentAppointments = await prisma.appointment.findMany({
+    where: appointmentsQuery,
+    include: {
+      client: true,
+      service: true,
+    },
+    orderBy: { scheduledFor: 'desc' },
+    take: 20,
+  });
   return NextResponse.json({
     stats: {
       totalAppointments,
@@ -69,6 +91,13 @@ export async function GET() {
       totalClients,
       completionRate,
     },
-    appointments: upcomingAppointments,
+    appointments: recentAppointments.map(apt => ({
+      id: apt.id,
+      clientName: apt.client?.name || 'Unknown',
+      serviceName: apt.service?.name || 'Unknown',
+      dateTime: apt.scheduledFor,
+      status: apt.status,
+      duration: apt.duration,
+    })),
   });
 } 

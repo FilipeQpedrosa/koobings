@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { useSession } from 'next-auth/react';
 
 const settingsTabs = [
   { label: 'General', href: '/staff/settings' },
@@ -86,6 +87,8 @@ function CategoryModal({ form, setForm, formError, setShowModal, handleAddCatego
 
 export default function StaffSettingsCategoriesPage() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,6 +101,16 @@ export default function StaffSettingsCategoriesPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (status === 'loading' || !session) return;
+    if (
+      session.user.staffRole !== 'ADMIN' &&
+      !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
+    ) {
+      router.replace('/staff/dashboard');
+    }
+  }, [session, status, router]);
 
   useEffect(() => {
     async function fetchCategories() {
