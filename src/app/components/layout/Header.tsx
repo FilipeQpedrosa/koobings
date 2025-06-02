@@ -1,38 +1,24 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
 export default function Header() {
   const { data: session, status } = useSession();
-  const [businessName, setBusinessName] = useState<string | null>(null);
-  const [ownerName, setOwnerName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!session) return;
-    setLoading(true);
-    fetch('/api/business')
-      .then(res => res.json())
-      .then(data => {
-        setBusinessName(data.name);
-        setOwnerName(data.ownerName);
-      })
-      .catch(() => {
-        setBusinessName('');
-        setOwnerName('');
-      })
-      .finally(() => setLoading(false));
-  }, [session]);
-
-  if (status === 'loading' || !session || loading) {
+  if (status === 'loading' || !session) {
     return null;
   }
 
-  // Show ownerName for business owner, staff name for staff
+  // Use business name from session for both staff and business owner
+  let businessName = '';
   let displayName = '';
   if (session.user.role === 'BUSINESS_OWNER') {
-    displayName = ownerName || session.user.name || '';
+    businessName = session.user.name || '';
+    displayName = session.user.name || '';
+  } else if (session.user.role === 'STAFF') {
+    businessName = session.user.businessId ? 'Business' : '';
+    displayName = session.user.name || '';
   } else {
     displayName = session.user.name || '';
   }

@@ -15,16 +15,15 @@ function parseSettings(settings: any) {
   return settings;
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: Request) {
+  const businessName = request.headers.get('x-business');
+  if (!businessName) {
+    return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
   }
-  const businessId = session.user.businessId;
-  if (!businessId) {
-    return NextResponse.json({ error: 'No businessId' }, { status: 400 });
+  const business = await prisma.business.findFirst({ where: { name: businessName } });
+  if (!business) {
+    return NextResponse.json({ error: 'Business not found' }, { status: 404 });
   }
-  const business = await prisma.business.findUnique({ where: { id: businessId } });
   const settings = parseSettings(business?.settings);
   return NextResponse.json({
     requireAdminCancelApproval: settings.requireAdminCancelApproval ?? false,
@@ -32,13 +31,13 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.staffRole !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const businessName = request.headers.get('x-business');
+  if (!businessName) {
+    return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
   }
-  const businessId = session.user.businessId;
-  if (!businessId) {
-    return NextResponse.json({ error: 'No businessId' }, { status: 400 });
+  const business = await prisma.business.findFirst({ where: { name: businessName } });
+  if (!business) {
+    return NextResponse.json({ error: 'Business not found' }, { status: 404 });
   }
   const body = await request.json();
   const { requireAdminCancelApproval } = body;
@@ -46,11 +45,10 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Invalid value' }, { status: 400 });
   }
   // Update settings JSON
-  const business = await prisma.business.findUnique({ where: { id: businessId } });
   const settings = parseSettings(business?.settings);
   settings.requireAdminCancelApproval = requireAdminCancelApproval;
   await prisma.business.update({
-    where: { id: businessId },
+    where: { id: business.id },
     data: { settings },
   });
   return NextResponse.json({ success: true, requireAdminCancelApproval });

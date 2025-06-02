@@ -18,30 +18,19 @@ const staffSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Get business name from subdomain (middleware sets x-business header)
+    const businessName = request.headers.get('x-business');
+    if (!businessName) {
+      return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
     }
-
-    // Backend guard for settings
-    if (
-      session.user.staffRole !== 'ADMIN' &&
-      !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
-    ) {
-      return NextResponse.json({ error: 'Not authorized to access settings' }, { status: 403 });
+    // Find business by name
+    const business = await prisma.business.findFirst({ where: { name: businessName } });
+    if (!business) {
+      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
-
-    const searchParams = request.nextUrl.searchParams;
-    const businessId = searchParams.get('businessId');
-
-    const where = businessId ? { businessId } : {};
-
+    // Optionally: add permission checks here if needed
     const staff = await prisma.staff.findMany({
-      where,
+      where: { businessId: business.id },
       select: {
         id: true,
         name: true,
@@ -50,7 +39,6 @@ export async function GET(request: NextRequest) {
         businessId: true,
       },
     });
-
     return NextResponse.json(staff);
   } catch (error) {
     console.error('Error fetching staff:', error);

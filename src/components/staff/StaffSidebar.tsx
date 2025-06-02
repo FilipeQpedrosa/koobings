@@ -12,8 +12,9 @@ import {
   Home,
   LogOut,
   X as CloseIcon,
+  User,
 } from 'lucide-react';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 
 interface NavItem {
   title: string;
@@ -59,6 +60,11 @@ const navItems: NavItem[] = [
     href: '/staff/settings',
     icon: <Settings className="h-5 w-5" />,
   },
+  {
+    title: 'Profile',
+    href: '/staff/profile',
+    icon: <User className="h-5 w-5" />,
+  },
 ];
 
 interface StaffSidebarProps {
@@ -67,14 +73,38 @@ interface StaffSidebarProps {
   onClose?: () => void;
 }
 
+// Add this helper for avatar/initials
+function StaffAvatar({ name }: { name?: string }) {
+  const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+  return (
+    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
+      {initials}
+    </div>
+  );
+}
+
 export default function StaffSidebar({ className, open = false, onClose }: StaffSidebarProps) {
   const pathname = usePathname();
-  const [staffRole, setStaffRole] = React.useState<string | null>(null);
+  const { data: session } = useSession();
+  const staffRole = session?.user?.staffRole;
+  const staffName = session?.user?.name;
+  const [canViewSettings, setCanViewSettings] = React.useState<boolean>(false);
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setStaffRole(sessionStorage.getItem('staffRole'));
+    if (session?.user?.permissions) {
+      setCanViewSettings(session.user.permissions.includes('canViewSettings'));
     }
-  }, []);
+  }, [session]);
+
+  // Filter nav items for settings
+  const filteredNavItems = navItems.filter(item => {
+    if (item.title === 'Settings') {
+      return staffRole === 'ADMIN';
+    }
+    if (item.adminOnly) {
+      return staffRole === 'ADMIN';
+    }
+    return true;
+  });
 
   // Desktop sidebar (always visible)
   const desktopSidebar = (
@@ -87,10 +117,16 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
       aria-label="Sidebar"
     >
       <div className="space-y-4 py-4">
+        <Link href="/staff/profile" className="flex items-center gap-3 px-3 py-2 mb-2 hover:bg-gray-100 rounded-lg transition">
+          <StaffAvatar name={staffName} />
+          <div>
+            <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
+            <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
+          </div>
+        </Link>
         <div className="px-3 py-2">
           <div className="space-y-1">
-            {navItems
-              .filter(item => !item.adminOnly || staffRole === 'ADMIN')
+            {filteredNavItems
               .map((item) => (
                 <Link
                   key={item.href}
@@ -147,11 +183,17 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
             <CloseIcon className="h-6 w-6" />
           </button>
         </div>
+        <Link href="/staff/profile" className="flex items-center gap-3 px-4 py-4 border-b hover:bg-gray-100 transition">
+          <StaffAvatar name={staffName} />
+          <div>
+            <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
+            <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
+          </div>
+        </Link>
         <div className="space-y-4 py-4">
           <div className="px-3 py-2">
             <div className="space-y-1">
-              {navItems
-                .filter(item => !item.adminOnly || staffRole === 'ADMIN')
+              {filteredNavItems
                 .map((item) => (
                   <Link
                     key={item.href}

@@ -34,7 +34,24 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (existingStaff.businessId !== session.user.businessId) {
       return NextResponse.json({ error: 'Unauthorized to delete this staff member' }, { status: 403 });
     }
-    await prisma.staff.delete({ where: { id: staffId } });
+    // Check for appointments before deleting
+    const appointmentCount = await prisma.appointment.count({ where: { staffId } });
+    if (appointmentCount > 0) {
+      return NextResponse.json({ error: 'Cannot delete staff with existing appointments' }, { status: 400 });
+    }
+    // Clean up related records before deleting staff
+    await prisma.$transaction([
+      prisma.staffPermission.deleteMany({ where: { staffId } }),
+      prisma.staffAvailability.deleteMany({ where: { staffId } }),
+      prisma.staffUnavailability.deleteMany({ where: { staffId } }),
+      prisma.relationshipNote.deleteMany({ where: { createdById: staffId } }),
+      prisma.dataAccessLog.deleteMany({ where: { staffId } }),
+      prisma.staff.update({
+        where: { id: staffId },
+        data: { services: { set: [] } },
+      }),
+      prisma.staff.delete({ where: { id: staffId } }),
+    ]);
     return NextResponse.json({ message: 'Staff deleted successfully' });
   } catch (error) {
     console.error('Error deleting staff:', error);

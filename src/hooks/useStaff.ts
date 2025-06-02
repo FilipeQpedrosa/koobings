@@ -128,7 +128,7 @@ export function useStaff(options: UseStaffOptions = {}) {
 
   const deleteStaff = async (id: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/staff?id=${id}`, {
+      const response = await fetch(`/api/staff/${id}`, {
         method: 'DELETE',
       });
 

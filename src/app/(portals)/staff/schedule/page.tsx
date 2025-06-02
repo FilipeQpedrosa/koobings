@@ -78,11 +78,13 @@ export default function StaffSchedulePage() {
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
         <DialogContent>
           <DialogTitle>Appointment Details</DialogTitle>
-          <DialogDescription>
-            <div><b>Service:</b> {selectedEvent?.serviceName}</div>
-            <div><b>Status:</b> {selectedEvent?.status}</div>
-            <div><b>Start:</b> {selectedEvent ? moment(selectedEvent.start).format('LLLL') : ''}</div>
-            <div><b>End:</b> {selectedEvent ? moment(selectedEvent.end).format('LLLL') : ''}</div>
+          <DialogDescription asChild>
+            <div>
+              <div><b>Service:</b> {selectedEvent?.serviceName}</div>
+              <div><b>Status:</b> {selectedEvent?.status}</div>
+              <div><b>Start:</b> {selectedEvent ? moment(selectedEvent.start).format('LLLL') : ''}</div>
+              <div><b>End:</b> {selectedEvent ? moment(selectedEvent.end).format('LLLL') : ''}</div>
+            </div>
           </DialogDescription>
           <DialogFooter>
             <Button onClick={() => setSelectedEvent(null)}>Close</Button>

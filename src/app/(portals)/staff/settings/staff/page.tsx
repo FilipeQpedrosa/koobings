@@ -149,6 +149,7 @@ export default function StaffSettingsStaffPage() {
   }
 
   async function handleDeleteStaff(id: string) {
+    console.log('handleDeleteStaff called with id:', id);
     setIsSubmitting(true);
     setError('');
     try {
@@ -220,7 +221,7 @@ export default function StaffSettingsStaffPage() {
                   <Link href={`/staff/settings/staff/${member.id}/availability`} passHref legacyBehavior>
                     <Button variant="ghost" size="sm" className="text-blue-600 ml-2">Availability</Button>
                   </Link>
-                  <Button variant="ghost" size="sm" className="text-red-600" onClick={() => setShowDeleteId(member.id)}>Remove</Button>
+                  <Button variant="ghost" size="sm" className="text-red-600" onClick={() => { console.log('Remove button clicked for', member.id); setShowDeleteId(member.id); }}>Remove</Button>
                 </div>
               </div>
             ))}
@@ -246,7 +247,7 @@ export default function StaffSettingsStaffPage() {
                     <Link href={`/staff/settings/staff/${member.id}/availability`} passHref legacyBehavior>
                       <Button variant="ghost" size="sm" className="text-blue-600 ml-2">Availability</Button>
                     </Link>
-                    <Button variant="ghost" size="sm" className="text-red-600" onClick={() => setShowDeleteId(member.id)}>Remove</Button>
+                    <Button variant="ghost" size="sm" className="text-red-600" onClick={() => { console.log('Remove button clicked for', member.id); setShowDeleteId(member.id); }}>Remove</Button>
                   </td>
                 </tr>
               ))}
@@ -329,6 +330,23 @@ export default function StaffSettingsStaffPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showDeleteId && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-4 text-red-600">Remove Staff Member</h2>
+            <p>Are you sure you want to remove this staff member? This action cannot be undone.</p>
+            {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+            <div className="flex justify-end gap-2 mt-6">
+              <Button type="button" variant="outline" onClick={() => setShowDeleteId(null)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button type="button" variant="destructive" onClick={() => showDeleteId && handleDeleteStaff(showDeleteId)} disabled={isSubmitting}>
+                {isSubmitting ? 'Removing...' : 'Confirm Delete'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

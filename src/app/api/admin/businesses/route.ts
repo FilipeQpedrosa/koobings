@@ -83,50 +83,51 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is already in use by another business or staff member.' }, { status: 400 });
     }
 
-    const businessData: Prisma.BusinessCreateInput = {
-      name,
-      type,
-      email: emailLower,
-      phone,
-      address,
-      settings,
-      passwordHash,
-      status: 'PENDING',
-      verification: {
-        create: {
+    // Use a transaction for atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      const business = await tx.business.create({
+        data: {
+          name,
+          type,
+          email: emailLower,
+          phone,
+          address,
+          settings,
+          passwordHash,
           status: 'PENDING',
-          submittedAt: new Date()
+          verification: {
+            create: {
+              status: 'PENDING',
+              submittedAt: new Date()
+            }
+          },
+          systemAdmins: {
+            connect: {
+              id: admin.id
+            }
+          }
+        },
+        include: {
+          verification: true
         }
-      },
-      systemAdmins: {
-        connect: {
-          id: admin.id
-        }
-      }
-    };
+      });
 
-    const business = await prisma.business.create({
-      data: businessData,
-      include: {
-        verification: true
-      }
+      const ownerStaff = await tx.staff.create({
+        data: {
+          name: ownerName,
+          email: emailLower,
+          password: passwordHash,
+          role: 'ADMIN',
+          businessId: business.id,
+        }
+      });
+
+      return { business, ownerStaff };
     });
 
-    // Create staff record for the business owner with ADMIN role
-    const ownerStaff = await prisma.staff.create({
-      data: {
-        name: ownerName,
-        email: emailLower,
-        password: passwordHash,
-        role: 'ADMIN',
-        businessId: business.id,
-      }
-    });
-    console.log('Created owner staff:', ownerStaff);
-
-    return NextResponse.json(business, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('Error creating business:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create business and admin staff. Please try again.' }, { status: 500 });
   }
 } 
