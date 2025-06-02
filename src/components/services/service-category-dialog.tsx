@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-// import * as z from "zod";
+import { z } from "zod";
 import { HexColorPicker } from "react-colorful";
 import {
   Dialog,
@@ -135,10 +135,12 @@ export function ServiceCategoryDialog({
           <DialogTitle>
             {categoryId ? "Edit Category" : "Create Category"}
           </DialogTitle>
-          <DialogDescription>
-            {categoryId
-              ? "Edit your service category details below"
-              : "Add a new service category to organize your services"}
+          <DialogDescription asChild>
+            <div>
+              {categoryId
+                ? "Edit your service category details below"
+                : "Add a new service category to organize your services"}
+            </div>
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

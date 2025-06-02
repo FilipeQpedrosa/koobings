@@ -1,6 +1,4 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -16,95 +14,45 @@ const dayScheduleSchema = z.object({
 
 const weeklyScheduleSchema = z.record(dayScheduleSchema);
 
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const staff = await prisma.staff.findUnique({
-      where: { email: session.user.email },
-      include: {
-        availability: true,
-      },
-    });
-
-    if (!staff) {
-      return NextResponse.json(
-        { error: 'Staff not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(staff.availability);
-  } catch (error) {
-    console.error('Error fetching staff availability:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch availability' },
-      { status: 500 }
-    );
+export async function GET(request: NextRequest) {
+  const businessName = request.headers.get('x-business');
+  if (!businessName) {
+    return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
   }
+  const staffId = request.nextUrl.searchParams.get('staffId');
+  if (!staffId) {
+    return NextResponse.json({ error: 'Missing staffId' }, { status: 400 });
+  }
+  // Ensure staff belongs to business
+  const staff = await prisma.staff.findFirst({ where: { id: staffId, business: { name: businessName } }, include: { availability: true } });
+  if (!staff) {
+    return NextResponse.json({ error: 'Staff not found for this business' }, { status: 404 });
+  }
+  return NextResponse.json(staff.availability);
 }
 
-export async function PUT(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const body = await request.json();
-    
-    // Validate request body
-    const validatedSchedule = weeklyScheduleSchema.parse(body);
-
-    const staff = await prisma.staff.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!staff) {
-      return NextResponse.json(
-        { error: 'Staff not found' },
-        { status: 404 }
-      );
-    }
-
-    // Update availability
-    const availability = await prisma.staffAvailability.upsert({
-      where: {
-        staffId: staff.id,
-      },
-      create: {
-        staffId: staff.id,
-        schedule: validatedSchedule,
-      },
-      update: {
-        schedule: validatedSchedule,
-      },
-    });
-
-    return NextResponse.json(availability);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid schedule format', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error('Error updating staff availability:', error);
-    return NextResponse.json(
-      { error: 'Failed to update availability' },
-      { status: 500 }
-    );
+export async function PUT(request: NextRequest) {
+  const businessName = request.headers.get('x-business');
+  if (!businessName) {
+    return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
   }
+  const staffId = request.nextUrl.searchParams.get('staffId');
+  if (!staffId) {
+    return NextResponse.json({ error: 'Missing staffId' }, { status: 400 });
+  }
+  // Ensure staff belongs to business
+  const staff = await prisma.staff.findFirst({ where: { id: staffId, business: { name: businessName } } });
+  if (!staff) {
+    return NextResponse.json({ error: 'Staff not found for this business' }, { status: 404 });
+  }
+  const body = await request.json();
+  // Validate request body
+  const validatedSchedule = weeklyScheduleSchema.parse(body);
+  // Update availability
+  const availability = await prisma.staffAvailability.upsert({
+    where: { staffId },
+    create: { staffId, schedule: validatedSchedule },
+    update: { schedule: validatedSchedule },
+  });
+  return NextResponse.json(availability);
 } 

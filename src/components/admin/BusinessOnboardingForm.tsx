@@ -67,8 +67,8 @@ export default function BusinessOnboardingForm() {
         throw new Error(error.message || 'Failed to create business');
       }
 
-      const business = await response.json();
-      router.push(`/admin/businesses/${business.id}`);
+      const result = await response.json();
+      router.push(`/admin/businesses/${result.business.id}`);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
