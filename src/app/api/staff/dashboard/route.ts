@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { addDays } from 'date-fns';
 
 export async function GET(request: NextRequest) {
-  const businessName = request.headers.get('x-business');
-  if (!businessName) {
+  const businessId = request.headers.get('x-business');
+  if (!businessId) {
     return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
   }
-  const business = await prisma.business.findFirst({ where: { name: businessName } });
+  const business = await prisma.business.findUnique({ where: { id: businessId } });
   if (!business) {
     return NextResponse.json({ error: 'Business not found' }, { status: 404 });
   }
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
   const totalClients = new Set(clientIds.map(c => c.clientId)).size;
   const completionRate = totalAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0;
   return NextResponse.json({
+    businessName: business.name,
     stats: {
       totalAppointments,
       upcomingAppointments: upcomingAppointmentsCount,

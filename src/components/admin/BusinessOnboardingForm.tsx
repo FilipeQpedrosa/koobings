@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BusinessType } from '@prisma/client';
 import { hash } from 'bcryptjs';
+import { signIn, signOut } from 'next-auth/react';
 
 export default function BusinessOnboardingForm() {
   const router = useRouter();
@@ -68,7 +69,15 @@ export default function BusinessOnboardingForm() {
       }
 
       const result = await response.json();
-      router.push(`/admin/businesses/${result.business.id}`);
+      // Refresh session: sign out and sign in as the new admin staff
+      await signOut({ redirect: false });
+      await signIn('credentials', {
+        email: formData.get('email'),
+        password: formData.get('password'),
+        redirect: true,
+        callbackUrl: '/staff/dashboard',
+      });
+      event.target.reset();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
@@ -77,7 +86,7 @@ export default function BusinessOnboardingForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-2xl mx-auto space-y-6">
+    <form onSubmit={onSubmit} className="max-w-2xl mx-auto space-y-6" autoComplete="off">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
           {error}
@@ -94,6 +103,7 @@ export default function BusinessOnboardingForm() {
             name="name"
             id="name"
             required
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -107,6 +117,7 @@ export default function BusinessOnboardingForm() {
             name="ownerName"
             id="ownerName"
             required
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -119,6 +130,7 @@ export default function BusinessOnboardingForm() {
             name="type"
             id="type"
             required
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             {Object.values(BusinessType).map((type) => (
@@ -138,6 +150,7 @@ export default function BusinessOnboardingForm() {
             name="email"
             id="email"
             required
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -153,6 +166,7 @@ export default function BusinessOnboardingForm() {
               id="password"
               required
               minLength={8}
+              autoComplete="off"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
             />
             <button
@@ -177,6 +191,7 @@ export default function BusinessOnboardingForm() {
               id="confirmPassword"
               required
               minLength={8}
+              autoComplete="off"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
             />
             <button
@@ -201,6 +216,7 @@ export default function BusinessOnboardingForm() {
             type="tel"
             name="phone"
             id="phone"
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -213,6 +229,7 @@ export default function BusinessOnboardingForm() {
             name="address"
             id="address"
             rows={3}
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -225,6 +242,7 @@ export default function BusinessOnboardingForm() {
             name="timezone"
             id="timezone"
             required
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="UTC">UTC</option>
@@ -243,6 +261,7 @@ export default function BusinessOnboardingForm() {
             name="currency"
             id="currency"
             required
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="USD">USD</option>
@@ -261,6 +280,7 @@ export default function BusinessOnboardingForm() {
             name="language"
             id="language"
             required
+            autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="en">English</option>
