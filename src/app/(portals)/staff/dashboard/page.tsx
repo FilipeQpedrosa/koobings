@@ -34,7 +34,10 @@ export default function StaffDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/staff/dashboard');
+        const businessName = session?.user?.businessId;
+        const res = await fetch('/api/staff/dashboard', {
+          headers: businessName ? { 'x-business': businessName } : {},
+        });
         if (!res.ok) throw new Error('Failed to fetch dashboard data');
         const data = await res.json();
         setStats(data.stats);
@@ -44,6 +47,7 @@ export default function StaffDashboardPage() {
             dateTime: new Date(apt.dateTime),
           }))
         );
+        setBusiness({ name: data.businessName });
       } catch (err: any) {
         setError(err.message || 'Unknown error');
       } finally {
@@ -51,17 +55,6 @@ export default function StaffDashboardPage() {
       }
     }
     fetchStats();
-  }, []);
-
-  useEffect(() => {
-    async function fetchBusiness() {
-      if (!session?.user?.businessId) return;
-      const res = await fetch('/api/business');
-      if (!res.ok) return;
-      const data = await res.json();
-      setBusiness({ name: data.name, logo: data.logo });
-    }
-    fetchBusiness();
   }, [session]);
 
   const companyName = business?.name || '';

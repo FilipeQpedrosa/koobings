@@ -18,13 +18,13 @@ const staffSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    // Get business name from subdomain (middleware sets x-business header)
-    const businessName = request.headers.get('x-business');
-    if (!businessName) {
+    // Get business ID from subdomain (middleware sets x-business header)
+    const businessId = request.headers.get('x-business');
+    if (!businessId) {
       return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
     }
-    // Find business by name
-    const business = await prisma.business.findFirst({ where: { name: businessName } });
+    // Find business by ID
+    const business = await prisma.business.findUnique({ where: { id: businessId } });
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
