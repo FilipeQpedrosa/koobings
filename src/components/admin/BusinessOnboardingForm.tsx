@@ -92,7 +92,6 @@ export default function BusinessOnboardingForm() {
           {error}
         </div>
       )}
-
       <div className="space-y-4">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -291,7 +290,6 @@ export default function BusinessOnboardingForm() {
           </select>
         </div>
       </div>
-
       <div className="pt-5">
         <div className="flex justify-end">
           <button

@@ -1,17 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // GET /api/client/services - Browse available services
 export async function GET(request: Request) {
   try {
+    // Try to get businessId from session if available
+    let businessId = null;
+    try {
+      const session = await getServerSession(authOptions);
+      businessId = session?.user?.businessId || null;
+    } catch {}
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
     const search = searchParams.get('search');
     const staffId = searchParams.get('staffId');
 
-    // Fetch all services with their categories and providers
+    // Fetch all services with their categories and providers, filtered by businessId if available
     const services = await prisma.service.findMany({
       where: {
+        ...(businessId ? { businessId } : {}),
         categoryId: categoryId || undefined,
         name: search ? {
           contains: search,

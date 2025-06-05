@@ -167,7 +167,7 @@ export default function BusinessStaffPage() {
                 <td className="px-6 py-4 whitespace-nowrap">{member.role}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right">
                   <Button variant="ghost" size="sm" onClick={() => openEditModal(member)}>Edit</Button>
-                  <Link href={`/business/staff/${member.id}/availability`} passHref legacyBehavior>
+                  <Link href={`/business/staff/${member.id}/availability`}>
                     <Button variant="ghost" size="sm" className="text-blue-600 ml-2">Availability</Button>
                   </Link>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => setShowDeleteId(member.id)}>Remove</Button>

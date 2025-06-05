@@ -92,7 +92,7 @@ async function updateMetrics({
 }) {
   try {
     const client = await RedisClient.getInstance()
-    const currentMetrics = await RedisClient.get<MetricsData>(METRICS_KEY) || {
+    const currentMetrics = (await RedisClient.get<MetricsData>(METRICS_KEY)) || {
       requestCount: 0,
       errorCount: 0,
       averageResponseTime: 0,

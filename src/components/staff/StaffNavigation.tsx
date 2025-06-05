@@ -46,7 +46,7 @@ export default function StaffNavigation() {
                       ? 'border-b-2 border-indigo-500 text-gray-900'
                       : 'border-b-2 border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   }`}
-                >
+                  legacyBehavior>
                   <item.icon className="mr-2 h-5 w-5" />
                   {item.name}
                 </Link>

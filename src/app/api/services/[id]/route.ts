@@ -1,7 +1,82 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const businessId = session.user.businessId;
+    if (!businessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 400 });
+    }
+    const { id } = params;
+    const service = await prisma.service.findFirst({
+      where: { id, businessId },
+      include: { category: true, staff: true },
+    });
+    if (!service) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    }
+    return NextResponse.json(service);
+  } catch (error) {
+    console.error('Error fetching service:', error);
+    return NextResponse.json({ error: 'Failed to fetch service' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const businessId = session.user.businessId;
+    if (!businessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 400 });
+    }
+    const { id } = params;
+    const body = await request.json();
+    const updated = await prisma.service.updateMany({
+      where: { id, businessId },
+      data: body,
+    });
+    if (updated.count === 0) {
+      return NextResponse.json({ error: 'Service not found or not authorized' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating service:', error);
+    return NextResponse.json({ error: 'Failed to update service' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const businessId = session.user.businessId;
+    if (!businessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 400 });
+    }
+    const { id } = params;
+    const deleted = await prisma.service.deleteMany({
+      where: { id, businessId },
+    });
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: 'Service not found or not authorized' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    return NextResponse.json({ error: 'Failed to delete service' }, { status: 500 });
+  }
+}
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
@@ -38,28 +113,5 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   } catch (error) {
     console.error('Error updating service:', error);
     return NextResponse.json({ error: 'Failed to update service' }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const businessId = session.user.businessId;
-    if (!businessId) {
-      return NextResponse.json({ error: 'No business context' }, { status: 400 });
-    }
-    const { id } = params;
-    const service = await prisma.service.findUnique({ where: { id } });
-    if (!service || service.businessId !== businessId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-    await prisma.service.delete({ where: { id } });
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting service:', error);
-    return NextResponse.json({ error: 'Failed to delete service' }, { status: 500 });
   }
 } 

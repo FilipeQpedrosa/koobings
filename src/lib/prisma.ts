@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client'
 import { env } from './env'
-import { Sentry } from './sentry'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -34,16 +33,6 @@ prisma.$use(async (params, next) => {
 
     return result
   } catch (error) {
-    // Track database errors in Sentry
-    if (env.SENTRY_DSN) {
-      Sentry.captureException(error, {
-        extra: {
-          model: params.model,
-          action: params.action,
-          args: params.args,
-        },
-      })
-    }
     throw error
   }
 })

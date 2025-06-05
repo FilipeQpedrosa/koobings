@@ -75,7 +75,6 @@ export default function BusinessVerificationForm({ business }: Props) {
           {error}
         </div>
       )}
-
       <div className="space-y-4">
         <div>
           <label htmlFor="status" className="block text-sm font-medium text-gray-700">
@@ -135,7 +134,6 @@ export default function BusinessVerificationForm({ business }: Props) {
           </dl>
         </div>
       </div>
-
       <div className="pt-5">
         <div className="flex justify-end">
           <button

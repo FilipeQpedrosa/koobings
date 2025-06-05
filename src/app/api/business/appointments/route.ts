@@ -28,8 +28,18 @@ export async function GET(request: Request) {
 
     let where: any = {
       businessId: staff.businessId,
-      ...(staffId && staffId !== 'all' ? { staffId } : {}),
     };
+    // Restrict staff to only view their own bookings if business setting is false
+    if (session.user.role === 'STAFF') {
+      // Only restrict STANDARD staff, not ADMINs
+      if (staff.role !== 'ADMIN' && !staff.business.allowStaffToViewAllBookings) {
+        where.staffId = staff.id;
+      } else if (staffId && staffId !== 'all') {
+        where.staffId = staffId;
+      }
+    } else if (staffId && staffId !== 'all') {
+      where.staffId = staffId;
+    }
 
     if (dateParam) {
       let date;
@@ -124,6 +134,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
     const { clientId, serviceId, startTime, notes, staffId: staffIdFromPayload } = body;
+    console.log('[POST /api/business/appointments] body:', body, 'staffId used:', staffIdFromPayload || staff.id);
 
     if (!clientId || !serviceId || !startTime) {
       return NextResponse.json({ error: 'Missing required fields: clientId, serviceId, startTime' }, { status: 400 });

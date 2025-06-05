@@ -6,6 +6,14 @@ import { authOptions } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const businessId = session.user.businessId;
+    if (!businessId) {
+      return NextResponse.json({ error: 'No business context' }, { status: 400 });
+    }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const sort = (searchParams.get('sort') || 'name') as 'name' | 'price-asc' | 'price-desc' | 'duration';
@@ -15,6 +23,7 @@ export async function GET(request: Request) {
 
     const services = await prisma.service.findMany({
       where: {
+        businessId,
         OR: search ? [
           { name: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } },

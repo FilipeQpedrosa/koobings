@@ -12,6 +12,7 @@ export async function GET() {
     }
 
     const services = await prisma.service.findMany({
+      where: { businessId: session.user.businessId },
       include: {
         category: true,
       },

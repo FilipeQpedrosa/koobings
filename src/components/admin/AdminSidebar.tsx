@@ -36,16 +36,18 @@ export default function AdminSidebar() {
                       ? 'bg-gray-100 text-gray-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
-                >
-                  <item.icon
-                    className={cn(
-                      'mr-3 h-5 w-5 flex-shrink-0',
-                      isActive
-                        ? 'text-gray-500'
-                        : 'text-gray-400 group-hover:text-gray-500'
-                    )}
-                  />
-                  {item.name}
+                  legacyBehavior>
+                  <span className="flex items-center">
+                    <item.icon
+                      className={cn(
+                        'mr-3 h-5 w-5 flex-shrink-0',
+                        isActive
+                          ? 'text-gray-500'
+                          : 'text-gray-400 group-hover:text-gray-500'
+                      )}
+                    />
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}

@@ -26,7 +26,10 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/client/dashboard" className="text-xl font-bold text-gray-800">
+              <Link
+                href="/client/dashboard"
+                className="text-xl font-bold text-gray-800"
+                legacyBehavior>
                 {client.business.name}
               </Link>
             </div>
@@ -35,7 +38,7 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
             <Link
               href="/client/messages"
               className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none"
-            >
+              legacyBehavior>
               <span className="sr-only">Messages</span>
               <MessageSquare className="h-6 w-6" />
               {client.unreadMessages && client.unreadMessages > 0 && (
@@ -45,7 +48,7 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
             <Link
               href="/client/notifications"
               className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none"
-            >
+              legacyBehavior>
               <span className="sr-only">Notifications</span>
               <Bell className="h-6 w-6" />
               {client.unreadNotifications && client.unreadNotifications > 0 && (
@@ -56,7 +59,7 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
               <Link
                 href="/client/profile"
                 className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-800"
-              >
+                legacyBehavior>
                 <User className="h-6 w-6" />
                 <span>{client.name}</span>
               </Link>
