@@ -142,12 +142,21 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        return { ...token, ...user };
+        const merged = { ...token, ...user };
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[NextAuth][jwt callback][MERGED]', merged);
+        }
+        return merged;
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[NextAuth][jwt callback][NO USER]', token);
       }
       return token;
     },
     async session({ session, token }) {
-      console.log('SESSION CALLBACK', { session, token });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[NextAuth][session callback] session:', session, 'token:', token);
+      }
       session.user = token as CustomUser;
       return session;
     }

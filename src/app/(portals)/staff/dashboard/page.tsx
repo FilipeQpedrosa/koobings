@@ -30,21 +30,22 @@ export default function StaffDashboardPage() {
   const [business, setBusiness] = useState<{ name: string; logo?: string | null } | null>(null);
 
   useEffect(() => {
-    async function fetchStats() {
+    async function fetchStatsAndAppointments() {
       setLoading(true);
       setError(null);
       try {
         const businessName = session?.user?.businessId;
-        const res = await fetch('/api/staff/dashboard', {
-          headers: businessName ? { 'x-business': businessName } : {},
-        });
-        if (!res.ok) throw new Error('Failed to fetch dashboard data');
+        const res = await fetch('/api/business/appointments');
+        if (!res.ok) throw new Error('Failed to fetch appointments');
         const data = await res.json();
-        setStats(data.stats);
         setAppointments(
-          (data.appointments || []).map((apt: any) => ({
-            ...apt,
-            dateTime: new Date(apt.dateTime),
+          (data || []).map((apt: any) => ({
+            id: apt.id,
+            clientName: apt.client?.name || '',
+            serviceName: apt.services?.[0]?.name || '',
+            dateTime: apt.scheduledFor,
+            status: apt.status,
+            duration: apt.services?.[0]?.duration || 0,
           }))
         );
         setBusiness({ name: data.businessName });
@@ -54,7 +55,7 @@ export default function StaffDashboardPage() {
         setLoading(false);
       }
     }
-    fetchStats();
+    fetchStatsAndAppointments();
   }, [session]);
 
   const companyName = business?.name || '';

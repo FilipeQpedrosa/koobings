@@ -24,7 +24,8 @@ export default async function PortalLayout({
   }
 
   // Get the current path to determine which portal we're in
-  const pathname = new URL(headers().get('x-url') || '', 'http://localhost').pathname
+  const headersList = await headers();
+  const pathname = new URL(headersList.get('x-url') || '', 'http://localhost').pathname;
   const portalType = pathname.split('/')[2] as PortalType // ['', 'portals', 'admin|business|staff', ...]
 
   const userRole = session.user.role as UserRole

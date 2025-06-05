@@ -48,7 +48,7 @@ export default function StaffClientsPage() {
     <div className="max-w-3xl mx-auto px-2 sm:px-4 md:px-8 py-4 sm:py-8">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Clients</h1>
-        <Link href="/staff/clients/new">
+        <Link href="/staff/clients/new" legacyBehavior>
           <Button size="icon" className="sm:hidden" aria-label="Add Client">
             <Plus className="h-5 w-5" />
           </Button>
@@ -71,7 +71,7 @@ export default function StaffClientsPage() {
         <ul className="divide-y divide-gray-200 bg-white rounded-lg shadow">
           {filtered.map((client) => (
             <li key={client.id} className="p-4 hover:bg-gray-50 transition cursor-pointer">
-              <Link href={`/staff/clients/${client.id}`} className="block">
+              <Link href={`/staff/clients/${client.id}`} className="block" legacyBehavior>
                 <div className="font-medium text-lg mb-1">{client.name}</div>
                 <div className="text-gray-500 text-sm flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                   <span>{client.email || "No email"}</span>

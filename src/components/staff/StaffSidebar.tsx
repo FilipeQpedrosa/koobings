@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   Calendar,
-  Clock,
   Users,
   Settings,
   Home,
@@ -15,6 +14,7 @@ import {
   User,
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
+import StaffSidebar from '@/components/Staff/StaffSidebar';
 
 interface NavItem {
   title: string;
@@ -34,11 +34,6 @@ const navItems: NavItem[] = [
     href: '/staff/schedule',
     icon: <Calendar className="h-5 w-5" />,
   },
-  // {
-  //   title: 'Availability',
-  //   href: '/staff/availability',
-  //   icon: <Clock className="h-5 w-5" />,
-  // },
   {
     title: 'Staff',
     href: '/staff/settings/staff',
@@ -73,7 +68,6 @@ interface StaffSidebarProps {
   onClose?: () => void;
 }
 
-// Add this helper for avatar/initials
 function StaffAvatar({ name }: { name?: string }) {
   const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
   return (
@@ -83,7 +77,7 @@ function StaffAvatar({ name }: { name?: string }) {
   );
 }
 
-export default function StaffSidebar({ className, open = false, onClose }: StaffSidebarProps) {
+const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, onClose }) => {
   const pathname = usePathname();
   const { data: session } = useSession();
   const staffRole = session?.user?.staffRole;
@@ -95,7 +89,6 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
     }
   }, [session]);
 
-  // Filter nav items for settings
   const filteredNavItems = navItems.filter(item => {
     if (item.title === 'Settings') {
       return staffRole === 'ADMIN';
@@ -106,7 +99,7 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
     return true;
   });
 
-  // Desktop sidebar (always visible)
+  // Desktop sidebar
   const desktopSidebar = (
     <nav
       className={cn(
@@ -117,31 +110,37 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
       aria-label="Sidebar"
     >
       <div className="space-y-4 py-4">
-        <Link href="/staff/profile" className="flex items-center gap-3 px-3 py-2 mb-2 hover:bg-gray-100 rounded-lg transition">
-          <StaffAvatar name={staffName} />
-          <div>
-            <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
-            <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
+        <Link
+          href="/staff/profile"
+          className="flex items-center gap-3 px-3 py-2 mb-2 hover:bg-gray-100 rounded-lg transition"
+        >
+          <div className="flex items-center gap-3 w-full">
+            <StaffAvatar name={staffName} />
+            <div>
+              <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
+              <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
+            </div>
           </div>
         </Link>
         <div className="px-3 py-2">
           <div className="space-y-1">
-            {filteredNavItems
-              .map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
-                    pathname === item.href
-                      ? 'bg-accent text-accent-foreground'
-                      : 'transparent'
-                  )}
-                >
+            {filteredNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
+                  pathname === item.href
+                    ? 'bg-accent text-accent-foreground'
+                    : 'transparent'
+                )}
+              >
+                <div className="flex items-center w-full">
                   {item.icon}
                   <span className="ml-3">{item.title}</span>
-                </Link>
-              ))}
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </div>
@@ -157,16 +156,14 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
     </nav>
   );
 
-  // Mobile sidebar overlay (drawer + backdrop, does not push content, main content visible but not clickable)
+  // Mobile sidebar
   const mobileSidebar = open ? (
     <>
-      {/* Backdrop covers the whole screen, disables interaction with main content */}
       <div
         className="fixed inset-0 bg-black bg-opacity-40 z-40 sm:hidden cursor-pointer"
         onClick={onClose}
         aria-label="Close sidebar backdrop"
       />
-      {/* Sidebar drawer overlays content, does not push it */}
       <nav
         className={cn(
           'fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 flex flex-col pb-12 transform transition-transform duration-200 sm:hidden',
@@ -176,40 +173,45 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
         style={{ minWidth: '16rem' }}
         aria-label="Sidebar"
       >
-        {/* Close button on mobile */}
         <div className="flex items-center justify-between px-4 py-4 border-b">
           <span className="font-bold text-lg">Menu</span>
           <button onClick={onClose} aria-label="Close sidebar">
             <CloseIcon className="h-6 w-6" />
           </button>
         </div>
-        <Link href="/staff/profile" className="flex items-center gap-3 px-4 py-4 border-b hover:bg-gray-100 transition">
-          <StaffAvatar name={staffName} />
-          <div>
-            <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
-            <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
+        <Link
+          href="/staff/profile"
+          className="flex items-center gap-3 px-4 py-4 border-b hover:bg-gray-100 transition"
+        >
+          <div className="flex items-center gap-3 w-full">
+            <StaffAvatar name={staffName} />
+            <div>
+              <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
+              <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
+            </div>
           </div>
         </Link>
         <div className="space-y-4 py-4">
           <div className="px-3 py-2">
             <div className="space-y-1">
-              {filteredNavItems
-                .map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
-                      pathname === item.href
-                        ? 'bg-accent text-accent-foreground'
-                        : 'transparent'
-                    )}
-                    onClick={onClose}
-                  >
+              {filteredNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
+                    pathname === item.href
+                      ? 'bg-accent text-accent-foreground'
+                      : 'transparent'
+                  )}
+                  onClick={onClose}
+                >
+                  <div className="flex items-center w-full">
                     {item.icon}
                     <span className="ml-3">{item.title}</span>
-                  </Link>
-                ))}
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -232,4 +234,6 @@ export default function StaffSidebar({ className, open = false, onClose }: Staff
       {mobileSidebar}
     </>
   );
-} 
+};
+
+export default StaffSidebar; 

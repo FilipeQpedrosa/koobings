@@ -15,8 +15,11 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.log('[AdminLayout] session:', session, 'status:', status);
+    }
     // Redirect if not authenticated or not a system admin
-    if (status === 'unauthenticated' || session?.user?.role !== 'ADMIN') {
+    if (status === 'unauthenticated' || !(['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role || ''))) {
       router.push('/auth/signin');
     }
   }, [status, session, router]);

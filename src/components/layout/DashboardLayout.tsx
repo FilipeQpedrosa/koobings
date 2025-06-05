@@ -59,7 +59,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-
       {/* Sidebar */}
       <div
         className={cn(
@@ -91,7 +90,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
-            >
+              legacyBehavior>
               {item.icon}
               <span className="ml-3">{item.title}</span>
             </Link>
@@ -104,7 +103,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </Button>
         </div>
       </div>
-
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Header */}
@@ -132,5 +130,5 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
       </div>
     </div>
-  )
+  );
 } 

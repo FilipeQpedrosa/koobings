@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { StaffRole } from '@prisma/client';
 import { UserRole } from '@/types/dashboard';
+import { hash } from 'bcryptjs';
 
 const BUSINESS_OWNER: UserRole = 'BUSINESS_OWNER';
 
@@ -18,11 +19,11 @@ const staffSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    // Get business ID from subdomain (middleware sets x-business header)
-    const businessId = request.headers.get('x-business');
-    if (!businessId) {
-      return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.businessId) {
+      return NextResponse.json({ error: 'Business not found in session' }, { status: 404 });
     }
+    const businessId = session.user.businessId;
     // Find business by ID
     const business = await prisma.business.findUnique({ where: { id: businessId } });
     if (!business) {
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     const emailLower = data.email.toLowerCase();
 
+    if (!data.password || data.password.length < 8) {
+      return NextResponse.json(
+        { error: 'Password is required and must be at least 8 characters.' },
+        { status: 400 }
+      );
+    }
+
     // Case-insensitive check for existing email in staff or business tables
     const [existingStaff, existingBusiness] = await Promise.all([
       prisma.staff.findFirst({ where: { email: { equals: emailLower, mode: 'insensitive' } } }),
@@ -79,10 +87,11 @@ export async function POST(request: NextRequest) {
     const validatedData = staffSchema.parse({ ...data, email: emailLower, businessId: session.user.businessId });
 
     try {
+      const passwordHash = await hash(data.password, 10);
       const staff = await prisma.staff.create({
         data: {
           ...validatedData,
-          password: '', // This should be handled by a separate password reset flow
+          password: passwordHash,
         },
         select: {
           id: true,

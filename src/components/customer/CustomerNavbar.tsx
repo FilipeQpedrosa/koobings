@@ -18,15 +18,15 @@ export default function CustomerNavbar({ session }: CustomerNavbarProps) {
           <div className="flex items-center gap-4">
             {session ? (
               <>
-                <Link href="/customer/appointments">
+                <Link href="/customer/appointments" legacyBehavior>
                   <Button variant="ghost">My Appointments</Button>
                 </Link>
-                <Link href="/auth/signout">
+                <Link href="/auth/signout" legacyBehavior>
                   <Button variant="outline">Sign Out</Button>
                 </Link>
               </>
             ) : (
-              <Link href="/auth/signin">
+              <Link href="/auth/signin" legacyBehavior>
                 <Button variant="outline">Sign In</Button>
               </Link>
             )}

@@ -38,7 +38,12 @@ export default function StaffSettingsPage() {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch('/api/staff/settings');
+        const businessId = session?.user?.businessId || '';
+        const res = await fetch('/api/staff/settings', {
+          headers: {
+            'x-business-id': businessId,
+          },
+        });
         if (!res.ok) throw new Error('Failed to fetch settings');
         const data = await res.json();
         setRestrictClients(!!data.restrictStaffToViewAllClients);
@@ -49,16 +54,20 @@ export default function StaffSettingsPage() {
         setLoading(false);
       }
     }
-    fetchSettings();
-  }, []);
+    if (session) fetchSettings();
+  }, [session]);
 
   async function handleSave() {
     setSaving(true);
     setError('');
     try {
+      const businessId = session?.user?.businessId || '';
       const res = await fetch('/api/staff/settings', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-business-id': businessId,
+        },
         body: JSON.stringify({
           restrictStaffToViewAllClients: restrictClients,
           restrictStaffToViewAllNotes: restrictNotes,
@@ -84,8 +93,12 @@ export default function StaffSettingsPage() {
       <h1 className="text-2xl font-bold mb-4">Settings</h1>
       <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
-          <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
+          <Link
+            key={tab.href}
+            href={tab.href}
+            className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}
+          >
+            {tab.label}
           </Link>
         ))}
       </div>
@@ -96,11 +109,21 @@ export default function StaffSettingsPage() {
           <div className="mb-6 flex flex-col gap-4">
             <label className="flex items-center gap-3 sm:gap-4 mb-2 text-sm sm:text-base">
               <Switch checked={restrictClients} onCheckedChange={setRestrictClients} />
-              <span>Restrict staff to only view their own clients</span>
+              <span>
+                Restrict staff to only view their own clients
+                <p className="text-xs text-gray-500 mt-1">
+                  When enabled, staff members will only be able to see clients that are assigned to them. They will not be able to view other staff members' clients.
+                </p>
+              </span>
             </label>
             <label className="flex items-center gap-3 sm:gap-4 mb-2 text-sm sm:text-base">
               <Switch checked={restrictNotes} onCheckedChange={setRestrictNotes} />
-              <span>Restrict staff to only view their own notes</span>
+              <span>
+                Restrict staff to only view their own notes
+                <p className="text-xs text-gray-500 mt-1">
+                  When enabled, staff members will only be able to see notes that they have created. They will not be able to view notes created by other staff members.
+                </p>
+              </span>
             </label>
             <Button onClick={handleSave} disabled={saving} className="mt-2 w-full sm:w-auto">
               {saving ? 'Saving...' : 'Save Settings'}

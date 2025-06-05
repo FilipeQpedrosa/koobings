@@ -324,7 +324,10 @@ export default function StaffSettingsStaffPage() {
                   <label htmlFor="canViewAllBookings" className="text-sm">Allow this staff member to view all bookings</label>
                 </div>
               )}
-              <div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={isSubmitting}>
+                  Cancel
+                </Button>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? 'Saving...' : 'Save'}
                 </Button>

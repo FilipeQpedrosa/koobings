@@ -16,40 +16,41 @@ function parseSettings(settings: any) {
 }
 
 export async function GET(request: Request) {
-  const businessName = request.headers.get('x-business');
-  if (!businessName) {
-    return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+  const businessId = request.headers.get('x-business-id');
+  if (!businessId) {
+    return NextResponse.json({ error: 'Business ID missing' }, { status: 400 });
   }
-  const business = await prisma.business.findFirst({ where: { name: businessName } });
+  const business = await prisma.business.findUnique({ where: { id: businessId } });
   if (!business) {
     return NextResponse.json({ error: 'Business not found' }, { status: 404 });
   }
-  const settings = parseSettings(business?.settings);
   return NextResponse.json({
-    requireAdminCancelApproval: settings.requireAdminCancelApproval ?? false,
+    restrictStaffToViewAllClients: business.restrictStaffToViewAllClients ?? false,
+    restrictStaffToViewAllNotes: business.restrictStaffToViewAllNotes ?? false,
   });
 }
 
 export async function PATCH(request: Request) {
-  const businessName = request.headers.get('x-business');
-  if (!businessName) {
-    return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+  const businessId = request.headers.get('x-business-id');
+  const body = await request.json();
+  console.log('[PATCH /api/staff/settings] businessId:', businessId, 'body:', body);
+  if (!businessId) {
+    return NextResponse.json({ error: 'Business ID missing' }, { status: 400 });
   }
-  const business = await prisma.business.findFirst({ where: { name: businessName } });
+  const business = await prisma.business.findUnique({ where: { id: businessId } });
   if (!business) {
     return NextResponse.json({ error: 'Business not found' }, { status: 404 });
   }
-  const body = await request.json();
-  const { requireAdminCancelApproval } = body;
-  if (typeof requireAdminCancelApproval !== 'boolean') {
+  const { restrictStaffToViewAllClients, restrictStaffToViewAllNotes } = body;
+  if (typeof restrictStaffToViewAllClients !== 'boolean' || typeof restrictStaffToViewAllNotes !== 'boolean') {
     return NextResponse.json({ error: 'Invalid value' }, { status: 400 });
   }
-  // Update settings JSON
-  const settings = parseSettings(business?.settings);
-  settings.requireAdminCancelApproval = requireAdminCancelApproval;
   await prisma.business.update({
     where: { id: business.id },
-    data: { settings },
+    data: {
+      restrictStaffToViewAllClients,
+      restrictStaffToViewAllNotes,
+    },
   });
-  return NextResponse.json({ success: true, requireAdminCancelApproval });
+  return NextResponse.json({ success: true, restrictStaffToViewAllClients, restrictStaffToViewAllNotes });
 } 

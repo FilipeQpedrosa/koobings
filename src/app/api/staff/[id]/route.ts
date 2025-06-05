@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { StaffRole } from '@prisma/client';
+import { hash } from 'bcryptjs';
 
 const staffUpdateSchema = z.object({
   name: z.string().min(1),
@@ -89,7 +90,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       role: validated.role,
     };
     if (validated.password) {
-      updateData.password = validated.password; // Should hash in production
+      updateData.password = await hash(validated.password, 10);
     }
     // Update staff
     const updatedStaff = await prisma.staff.update({
