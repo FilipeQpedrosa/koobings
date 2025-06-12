@@ -5,12 +5,6 @@ export interface ApiResponse<T> {
   error?: never;
 }
 
-export interface ApiError {
-  error: string;
-  code: string;
-  data?: never;
-}
-
 export type ApiResult<T> = ApiResponse<T> | ApiError;
 
 export interface ServiceResponse extends Service {
@@ -40,8 +34,8 @@ export function handleApiError(error: unknown) {
   if (error instanceof ApiError) {
     return new Response(
       JSON.stringify({
-        error: error.message,
-        code: error.code
+        code: error.code,
+        message: error.message
       }),
       { status: error.statusCode }
     );
@@ -49,8 +43,8 @@ export function handleApiError(error: unknown) {
 
   return new Response(
     JSON.stringify({
-      error: 'Internal Server Error',
-      code: 'INTERNAL_ERROR'
+      code: 'INTERNAL_ERROR',
+      message: 'Internal Server Error'
     }),
     { status: 500 }
   );

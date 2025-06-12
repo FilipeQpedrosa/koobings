@@ -59,7 +59,9 @@ export async function GET(request: NextRequest, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(request: NextRequest, { params }: any) {
+export async function PUT(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
@@ -75,7 +77,7 @@ export async function PUT(request: NextRequest, { params }: any) {
       const staffAdmin = await prisma.staff.findFirst({
         where: {
           email: session.user.email,
-          businessId: params.id,
+          businessId: id,
           role: 'ADMIN',
         },
       });
@@ -90,7 +92,7 @@ export async function PUT(request: NextRequest, { params }: any) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     // Check for email conflict (if email is being changed)
-    const business = await prisma.business.findUnique({ where: { id: params.id } });
+    const business = await prisma.business.findUnique({ where: { id } });
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
@@ -106,7 +108,7 @@ export async function PUT(request: NextRequest, { params }: any) {
     }
     // Update business
     const updated = await prisma.business.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         email: email.toLowerCase(),

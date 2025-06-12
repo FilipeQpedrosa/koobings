@@ -112,7 +112,7 @@ export default function StaffCalendar({
           onSelect={onDateSelect}
           className="rounded-md border"
           components={{
-            Day: ({ date }) => renderDay(date),
+            Day: ({ day }) => renderDay('date' in day ? day.date : day),
           }}
           disabled={{ before: new Date() }}
           initialFocus

@@ -54,9 +54,7 @@ export async function sendVerificationEmail(
 export interface AppointmentWithRelations extends Appointment {
   client: {
     name: string;
-    sensitiveInfo: {
-      email: string;
-    } | null;
+    email: string | null;
   };
   service: Service;
   staff: Staff;
@@ -166,20 +164,20 @@ export const emailTemplates = {
 export async function sendAppointmentConfirmation(data: AppointmentEmailData) {
   const template = emailTemplates.appointmentConfirmation({
     serviceName: data.appointment.service.name,
-    date: data.appointment.startTime,
-    time: format(data.appointment.startTime, 'HH:mm'),
+    date: data.appointment.scheduledFor,
+    time: format(data.appointment.scheduledFor, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
     clientName: data.appointment.client.name,
   });
 
-  if (!data.appointment.client.sensitiveInfo?.email) {
+  if (!data.appointment.client.email) {
     console.error('Client email not found');
     return { success: false, error: 'Client email not found' };
   }
 
   return sendEmailService({
-    to: data.appointment.client.sensitiveInfo.email,
+    to: data.appointment.client.email,
     subject: template.subject,
     html: template.html,
   });
@@ -188,20 +186,20 @@ export async function sendAppointmentConfirmation(data: AppointmentEmailData) {
 export async function sendAppointmentReminder(data: AppointmentEmailData) {
   const template = emailTemplates.appointmentReminder({
     serviceName: data.appointment.service.name,
-    date: data.appointment.startTime,
-    time: format(data.appointment.startTime, 'HH:mm'),
+    date: data.appointment.scheduledFor,
+    time: format(data.appointment.scheduledFor, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
     clientName: data.appointment.client.name,
   });
 
-  if (!data.appointment.client.sensitiveInfo?.email) {
+  if (!data.appointment.client.email) {
     console.error('Client email not found');
     return { success: false, error: 'Client email not found' };
   }
 
   return sendEmailService({
-    to: data.appointment.client.sensitiveInfo.email,
+    to: data.appointment.client.email,
     subject: template.subject,
     html: template.html,
   });
@@ -212,21 +210,21 @@ export async function sendAppointmentCancellation(
 ) {
   const template = emailTemplates.appointmentCancellation({
     serviceName: data.appointment.service.name,
-    date: data.appointment.startTime,
-    time: format(data.appointment.startTime, 'HH:mm'),
+    date: data.appointment.scheduledFor,
+    time: format(data.appointment.scheduledFor, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
     clientName: data.appointment.client.name,
     cancellationReason: data.cancellationReason,
   });
 
-  if (!data.appointment.client.sensitiveInfo?.email) {
+  if (!data.appointment.client.email) {
     console.error('Client email not found');
     return { success: false, error: 'Client email not found' };
   }
 
   return sendEmailService({
-    to: data.appointment.client.sensitiveInfo.email,
+    to: data.appointment.client.email,
     subject: template.subject,
     html: template.html,
   });
@@ -235,20 +233,20 @@ export async function sendAppointmentCancellation(
 export async function sendAppointmentRescheduled(data: AppointmentEmailData) {
   const template = emailTemplates.appointmentRescheduled({
     serviceName: data.appointment.service.name,
-    date: data.appointment.startTime,
-    time: format(data.appointment.startTime, 'HH:mm'),
+    date: data.appointment.scheduledFor,
+    time: format(data.appointment.scheduledFor, 'HH:mm'),
     businessName: data.appointment.business.name,
     providerName: data.appointment.staff.name,
     clientName: data.appointment.client.name,
   });
 
-  if (!data.appointment.client.sensitiveInfo?.email) {
+  if (!data.appointment.client.email) {
     console.error('Client email not found');
     return { success: false, error: 'Client email not found' };
   }
 
   return sendEmailService({
-    to: data.appointment.client.sensitiveInfo.email,
+    to: data.appointment.client.email,
     subject: template.subject,
     html: template.html,
   });

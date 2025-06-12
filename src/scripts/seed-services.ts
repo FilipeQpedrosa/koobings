@@ -8,7 +8,6 @@ async function main() {
     // Delete existing data
     await prisma.clientRelationship.deleteMany();
     await prisma.staffAvailability.deleteMany();
-    await prisma.schedule.deleteMany();
     await prisma.appointment.deleteMany();
     await prisma.service.deleteMany();
     await prisma.serviceCategory.deleteMany();
@@ -23,7 +22,8 @@ async function main() {
         type: "HAIR_SALON",
         email: "contact-" + Date.now() + "@beautywellness.com",
         phone: "123-456-7890",
-        address: "123 Main St, City, State 12345"
+        address: "123 Main St, City, State 12345",
+        passwordHash: await hash("businesspassword", 10)
       }
     });
 
@@ -36,7 +36,7 @@ async function main() {
             dayOfWeek: i,
             startTime: "09:00",
             endTime: "17:00",
-            isClosed: i === 0 || i === 6 // Closed on Sunday (0) and Saturday (6)
+            isOpen: true
           }
         })
       )
@@ -77,15 +77,8 @@ async function main() {
           name: "Sarah Johnson",
           email: "sarah@beautywellness.com",
           password: await hash("password123", 10),
-          role: StaffRole.PROVIDER,
-          businessId: business.id,
-          schedules: {
-            create: Array.from({ length: 5 }, (_, i) => ({
-              dayOfWeek: i + 1, // Monday to Friday
-              startTime: "09:00",
-              endTime: "17:00"
-            }))
-          }
+          role: StaffRole.STANDARD,
+          businessId: business.id
         }
       }),
       prisma.staff.create({
@@ -93,15 +86,8 @@ async function main() {
           name: "David Wilson",
           email: "david@beautywellness.com",
           password: await hash("password123", 10),
-          role: StaffRole.PROVIDER,
-          businessId: business.id,
-          schedules: {
-            create: Array.from({ length: 5 }, (_, i) => ({
-              dayOfWeek: i + 1, // Monday to Friday
-              startTime: "09:00",
-              endTime: "17:00"
-            }))
-          }
+          role: StaffRole.STANDARD,
+          businessId: business.id
         }
       })
     ]);
@@ -115,10 +101,7 @@ async function main() {
           duration: 60,
           price: 50.00,
           categoryId: categories[0].id,
-          businessId: business.id,
-          providers: {
-            connect: staffMembers.map(staff => ({ id: staff.id }))
-          }
+          businessId: business.id
         }
       }),
       prisma.service.create({
@@ -128,10 +111,7 @@ async function main() {
           duration: 45,
           price: 65.00,
           categoryId: categories[1].id,
-          businessId: business.id,
-          providers: {
-            connect: [{ id: staffMembers[0].id }]
-          }
+          businessId: business.id
         }
       }),
       prisma.service.create({
@@ -141,10 +121,7 @@ async function main() {
           duration: 30,
           price: 35.00,
           categoryId: categories[2].id,
-          businessId: business.id,
-          providers: {
-            connect: [{ id: staffMembers[1].id }]
-          }
+          businessId: business.id
         }
       })
     ]);

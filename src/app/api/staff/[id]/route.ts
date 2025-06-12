@@ -15,19 +15,22 @@ const staffUpdateSchema = z.object({
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: NextRequest, { params }: any) {
+export async function DELETE(request: Request) {
+  const { pathname } = new URL(request.url);
+  const segments = pathname.split('/');
+  const id = segments[segments.indexOf('staff') + 1];
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const staffId = params.id;
-    if (!staffId) {
+    if (!id) {
       return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
     }
     // Verify staff access
     const existingStaff = await prisma.staff.findUnique({
-      where: { id: staffId },
+      where: { id: id },
       select: { businessId: true },
     });
     if (!existingStaff) {
@@ -37,22 +40,23 @@ export async function DELETE(request: NextRequest, { params }: any) {
       return NextResponse.json({ error: 'Unauthorized to delete this staff member' }, { status: 403 });
     }
     // Check for appointments before deleting
-    const appointmentCount = await prisma.appointment.count({ where: { staffId } });
+    const appointmentCount = await prisma.appointment.count({ where: { staffId: id } });
     if (appointmentCount > 0) {
       return NextResponse.json({ error: 'Cannot delete staff with existing appointments' }, { status: 400 });
     }
     // Clean up related records before deleting staff
     await prisma.$transaction([
-      prisma.staffPermission.deleteMany({ where: { staffId } }),
-      prisma.staffAvailability.deleteMany({ where: { staffId } }),
-      prisma.staffUnavailability.deleteMany({ where: { staffId } }),
-      prisma.relationshipNote.deleteMany({ where: { createdById: staffId } }),
-      prisma.dataAccessLog.deleteMany({ where: { staffId } }),
+      prisma.staffPermission.deleteMany({ where: { staffId: id } }),
+      prisma.staffPermission.deleteMany({ where: { staffId: id } }),
+      prisma.staffAvailability.deleteMany({ where: { staffId: id } }),
+      prisma.staffUnavailability.deleteMany({ where: { staffId: id } }),
+      prisma.relationshipNote.deleteMany({ where: { createdById: id } }),
+      prisma.dataAccessLog.deleteMany({ where: { staffId: id } }),
       prisma.staff.update({
-        where: { id: staffId },
+        where: { id: id },
         data: { services: { set: [] } },
       }),
-      prisma.staff.delete({ where: { id: staffId } }),
+      prisma.staff.delete({ where: { id: id } }),
     ]);
     return NextResponse.json({ message: 'Staff deleted successfully' });
   } catch (error) {
@@ -62,13 +66,16 @@ export async function DELETE(request: NextRequest, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(request: NextRequest, { params }: any) {
+export async function PUT(request: NextRequest) {
+  const { pathname } = new URL(request.url);
+  const segments = pathname.split('/');
+  const staffId = segments[segments.indexOf('staff') + 1];
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const staffId = params.id;
     if (!staffId) {
       return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
     }

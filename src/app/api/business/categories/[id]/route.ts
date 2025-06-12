@@ -12,8 +12,9 @@ interface RouteParams {
 
 // GET: Get a specific category
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
-  const id = params.id;
+export async function GET(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
@@ -43,8 +44,9 @@ export async function GET(request: Request, { params }: any) {
 
 // PATCH: Update a category
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(request: Request, { params }: any) {
-  const id = params.id;
+export async function PATCH(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const session = await getServerSession(authOptions)
 
   if (!session || !session.user || !session.user.email) {
@@ -88,8 +90,9 @@ export async function PATCH(request: Request, { params }: any) {
 
 // DELETE: Delete a category
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
-  const id = params.id;
+export async function DELETE(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const session = await getServerSession(authOptions)
 
   if (!session || !session.user || !session.user.email) {

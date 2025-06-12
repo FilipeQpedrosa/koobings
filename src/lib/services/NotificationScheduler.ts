@@ -43,13 +43,13 @@ export class NotificationScheduler {
       const appointments = await this.prisma.appointment.findMany({
         where: {
           status: AppointmentStatus.CONFIRMED,
-          startTime: {
+          scheduledFor: {
             gt: new Date(), // Future appointments only
             lt: addDays(new Date(), 7), // Within next 7 days
           },
         },
         include: {
-          client: true,
+          client: { select: { name: true, email: true } },
           service: true,
           staff: true,
           business: true,
@@ -69,13 +69,13 @@ export class NotificationScheduler {
   private async processAppointment(appointment: AppointmentWithRelations) {
     try {
       // Check if client has email notifications enabled
-      if (!appointment.client.sensitiveInfo?.email) {
-        console.log(`Client ${appointment.client.id} has no email address`);
+      if (!appointment.client.email) {
+        console.log(`Client for appointment ${appointment.id} has no email address`);
         return;
       }
 
       // Calculate when the reminder should be sent (24 hours before appointment)
-      const reminderTime = addHours(appointment.startTime, -24);
+      const reminderTime = addHours(appointment.scheduledFor, -24);
 
       // If it's not time to send the reminder yet, skip
       if (isAfter(reminderTime, new Date())) {
@@ -86,7 +86,7 @@ export class NotificationScheduler {
       const existingNotification = await this.prisma.notification.findFirst({
         where: {
           type: 'APPOINTMENT_REMINDER',
-          appointmentId: appointment.id,
+          userId: appointment.clientId,
         },
       });
 
@@ -102,14 +102,10 @@ export class NotificationScheduler {
         await this.prisma.notification.create({
           data: {
             type: 'APPOINTMENT_REMINDER',
-            appointmentId: appointment.id,
-            recipientId: appointment.client.id,
-            status: 'SENT',
-            channel: 'EMAIL',
-            sentAt: new Date(),
+            userId: appointment.clientId,
+            message: `Reminder sent for appointment ${appointment.id}`,
           },
         });
-
         console.log(`Sent reminder for appointment ${appointment.id}`);
       } else {
         console.error(`Failed to send reminder for appointment ${appointment.id}:`, result.error);

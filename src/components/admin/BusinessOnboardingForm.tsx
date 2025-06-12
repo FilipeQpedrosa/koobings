@@ -77,7 +77,7 @@ export default function BusinessOnboardingForm() {
         redirect: true,
         callbackUrl: '/staff/dashboard',
       });
-      event.target.reset();
+      (event.target as HTMLFormElement).reset();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {

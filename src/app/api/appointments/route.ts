@@ -14,7 +14,7 @@ import { z } from 'zod';
 const appointmentSchema = yup.object({
   serviceId: yup.string().required(),
   staffId: yup.string().required(),
-  patientId: yup.string().required(),
+  clientId: yup.string().required(),
   startTime: yup.date().required(),
   notes: yup.string(),
 });
@@ -41,7 +41,7 @@ const appointmentService = new AppointmentService();
 // Validation schema for creating appointments
 const createAppointmentSchema = z.object({
   startTime: z.string().transform((str) => new Date(str)),
-  patientId: z.string(),
+  clientId: z.string(),
   serviceId: z.string(),
   staffId: z.string(),
   businessId: z.string(),

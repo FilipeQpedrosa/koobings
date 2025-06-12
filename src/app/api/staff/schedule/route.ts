@@ -9,8 +9,6 @@ export async function GET(request: NextRequest) {
   }
   const { searchParams } = new URL(request.url);
   const staffId = searchParams.get('staffId');
-  const startDate = searchParams.get('startDate');
-  const endDate = searchParams.get('endDate');
   if (!staffId) {
     return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
   }
@@ -19,19 +17,11 @@ export async function GET(request: NextRequest) {
   if (!staff) {
     return NextResponse.json({ error: 'Staff not found for this business' }, { status: 404 });
   }
-  const schedule = await prisma.staffAvailability.findMany({
-    where: {
-      staffId: staffId,
-      date: {
-        gte: startDate ? new Date(startDate) : undefined,
-        lte: endDate ? new Date(endDate) : undefined,
-      },
-    },
-    include: {
-      staff: true,
-    },
+  const availability = await prisma.staffAvailability.findUnique({
+    where: { staffId },
+    include: { staff: true },
   });
-  return NextResponse.json(schedule);
+  return NextResponse.json(availability);
 }
 
 // POST /api/staff/schedule - Create or update staff schedule
@@ -41,8 +31,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
   }
   const body = await request.json();
-  const { staffId, date, startTime, endTime, isAvailable } = body;
-  if (!staffId || !date || !startTime || !endTime) {
+  const { staffId, schedule } = body;
+  if (!staffId || !schedule) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
   // Ensure staff belongs to business
@@ -51,24 +41,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Staff not found for this business' }, { status: 404 });
   }
   const availability = await prisma.staffAvailability.upsert({
-    where: {
-      staffId_date: {
-        staffId: staffId,
-        date: new Date(date),
-      },
-    },
-    update: {
-      startTime,
-      endTime,
-      isAvailable,
-    },
-    create: {
-      staffId,
-      date: new Date(date),
-      startTime,
-      endTime,
-      isAvailable,
-    },
+    where: { staffId },
+    update: { schedule },
+    create: { staffId, schedule },
   });
   return NextResponse.json(availability);
 }
@@ -81,9 +56,8 @@ export async function DELETE(request: NextRequest) {
   }
   const { searchParams } = new URL(request.url);
   const staffId = searchParams.get('staffId');
-  const date = searchParams.get('date');
-  if (!staffId || !date) {
-    return NextResponse.json({ error: 'Staff ID and date are required' }, { status: 400 });
+  if (!staffId) {
+    return NextResponse.json({ error: 'Staff ID is required' }, { status: 400 });
   }
   // Ensure staff belongs to business
   const staff = await prisma.staff.findFirst({ where: { id: staffId, business: { name: businessName } } });
@@ -91,12 +65,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Staff not found for this business' }, { status: 404 });
   }
   await prisma.staffAvailability.delete({
-    where: {
-      staffId_date: {
-        staffId: staffId,
-        date: new Date(date),
-      },
-    },
+    where: { staffId },
   });
   return NextResponse.json({ message: 'Schedule deleted successfully' });
-} 
+}

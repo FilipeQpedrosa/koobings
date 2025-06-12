@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-// import * as z from 'zod';
+import { z } from 'zod';
 import { Service, Staff } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 

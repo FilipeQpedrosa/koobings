@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useEffect } from "react";
 import { Edit2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
@@ -83,7 +84,7 @@ export function ServiceCategoryList() {
   };
 
   // Fetch categories on mount
-  useState(() => {
+  useEffect(() => {
     fetchCategories();
   }, []);
 

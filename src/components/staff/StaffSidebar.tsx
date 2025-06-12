@@ -14,7 +14,6 @@ import {
   User,
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
-import StaffSidebar from '@/components/Staff/StaffSidebar';
 
 interface NavItem {
   title: string;

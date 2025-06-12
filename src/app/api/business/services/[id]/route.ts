@@ -12,7 +12,9 @@ interface RouteParams {
 
 // GET: Get a specific service
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
@@ -21,7 +23,7 @@ export async function GET(request: Request, { params }: any) {
     }
 
     const service = await prisma.service.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         category: true,
         business: true
@@ -46,7 +48,9 @@ export async function GET(request: Request, { params }: any) {
 
 // PATCH: Update a service
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(request: Request, { params }: any) {
+export async function PATCH(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
@@ -56,7 +60,7 @@ export async function PATCH(request: Request, { params }: any) {
 
     // Ownership check
     const service = await prisma.service.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: { business: true }
     })
     if (!service) {
@@ -78,7 +82,7 @@ export async function PATCH(request: Request, { params }: any) {
     const { staffIds, ...rest } = schema.parse(body)
 
     const updatedService = await prisma.service.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...rest,
         ...(staffIds && {
@@ -106,7 +110,9 @@ export async function PATCH(request: Request, { params }: any) {
 
 // DELETE: Delete a service
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
+export async function DELETE(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
@@ -116,7 +122,7 @@ export async function DELETE(request: Request, { params }: any) {
 
     // Ownership check
     const service = await prisma.service.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: { business: true }
     })
     if (!service) {
@@ -127,9 +133,9 @@ export async function DELETE(request: Request, { params }: any) {
     }
 
     await prisma.service.delete({
-      where: { id: params.id }
+      where: { id: id }
     })
-    console.info(`Service ${params.id} deleted by user ${session.user.email}`)
+    console.info(`Service ${id} deleted by user ${session.user.email}`)
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('DELETE /business/services/[id] error:', error)

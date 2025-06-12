@@ -1,11 +1,11 @@
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
-  error?: ApiError;
+  error?: ApiErrorResponse;
   metadata?: ApiMetadata;
 }
 
-export interface ApiError {
+export interface ApiErrorResponse {
   code: string;
   message: string;
   details?: Record<string, any>;

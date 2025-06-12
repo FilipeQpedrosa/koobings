@@ -10,8 +10,11 @@ interface RouteParams {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request) {
   try {
+    const { pathname } = new URL(request.url);
+    const id = pathname.split('/').at(-1);
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -20,7 +23,7 @@ export async function GET(request: Request, { params }: any) {
     if (!businessId) {
       return NextResponse.json({ error: 'No business context' }, { status: 400 });
     }
-    const { id } = params;
+    
     const service = await prisma.service.findFirst({
       where: { id, businessId },
       include: { category: true, staff: true },
@@ -36,8 +39,11 @@ export async function GET(request: Request, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(request: Request, { params }: any) {
+export async function PUT(request: Request) {
   try {
+    const { pathname } = new URL(request.url);
+    const id = pathname.split('/').at(-1);
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -46,7 +52,6 @@ export async function PUT(request: Request, { params }: any) {
     if (!businessId) {
       return NextResponse.json({ error: 'No business context' }, { status: 400 });
     }
-    const { id } = params;
     const body = await request.json();
     const updated = await prisma.service.updateMany({
       where: { id, businessId },
@@ -63,8 +68,11 @@ export async function PUT(request: Request, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
+export async function DELETE(request: Request) {
   try {
+    const { pathname } = new URL(request.url);
+    const id = pathname.split('/').at(-1);
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -73,7 +81,6 @@ export async function DELETE(request: Request, { params }: any) {
     if (!businessId) {
       return NextResponse.json({ error: 'No business context' }, { status: 400 });
     }
-    const { id } = params;
     const deleted = await prisma.service.deleteMany({
       where: { id, businessId },
     });
@@ -88,8 +95,11 @@ export async function DELETE(request: Request, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(request: Request, { params }: any) {
+export async function PATCH(request: Request) {
   try {
+    const { pathname } = new URL(request.url);
+    const id = pathname.split('/').at(-1);
+    
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -98,7 +108,7 @@ export async function PATCH(request: Request, { params }: any) {
     if (!businessId) {
       return NextResponse.json({ error: 'No business context' }, { status: 400 });
     }
-    const { id } = params;
+    
     const body = await request.json();
     const { name, duration, price, categoryId, description } = body;
     if (!name || !duration || !price) {

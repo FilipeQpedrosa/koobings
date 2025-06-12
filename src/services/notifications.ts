@@ -90,17 +90,7 @@ export class NotificationService {
       });
     }
 
-    // Update reminder status
-    await prisma.appointmentReminder.updateMany({
-      where: {
-        appointmentId,
-        status: 'PENDING'
-      },
-      data: {
-        status: 'SENT',
-        sentAt: new Date()
-      }
-    });
+    // Reminder status update removed (appointmentReminder model does not exist)
   }
 
   private async sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {

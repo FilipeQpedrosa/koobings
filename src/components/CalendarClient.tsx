@@ -1,17 +1,21 @@
 "use client";
-import { Calendar, momentLocalizer } from 'react-big-calendar';
+import { Calendar } from 'react-big-calendar';
+import type { ComponentProps } from 'react';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-const localizer = momentLocalizer(moment);
+type CalendarEvent = { start: Date; end: Date; [key: string]: any };
 
-export default function CalendarClient(props) {
+// Note: The localizer should be passed in via props, not set here.
+
+export default function CalendarClient(
+  props: ComponentProps<typeof Calendar<CalendarEvent, object>>
+) {
   return (
-    <Calendar
-      localizer={localizer}
+    <Calendar<CalendarEvent, object>
       events={[]}
-      startAccessor="start"
-      endAccessor="end"
+      startAccessor={(event) => event.start}
+      endAccessor={(event) => event.end}
       defaultView="week"
       popup
       toolbar
@@ -19,4 +23,4 @@ export default function CalendarClient(props) {
       {...props}
     />
   );
-} 
+}

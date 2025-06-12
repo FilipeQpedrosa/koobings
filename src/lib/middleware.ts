@@ -2,9 +2,10 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { CustomUser } from './auth';
+import { StaffRole } from '@prisma/client';
 
 export type MiddlewareConfig = {
-  requiredRole?: 'staff' | 'business';
+  requiredRole?: StaffRole;
   requiredPermissions?: string[];
 };
 
@@ -23,7 +24,7 @@ export async function withAuth(
       const user = session.user as CustomUser;
 
       // Check role if required
-      if (config?.requiredRole && user.role !== config.requiredRole) {
+      if (config?.requiredRole && user.staffRole !== config.requiredRole) {
         return res.status(403).json({ error: 'Forbidden: Insufficient role' });
       }
 

@@ -5,7 +5,11 @@ import { prisma } from '@/lib/prisma';
 
 // PATCH: Update a service (staff with ADMIN or canViewSettings)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(request: NextRequest, { params }: any) {
+export async function PATCH(request: Request) {
+  const { pathname } = new URL(request.url);
+  const segments = pathname.split('/');
+  const id = segments[segments.length - 1];
+  
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {
@@ -15,7 +19,7 @@ export async function PATCH(request: NextRequest, { params }: any) {
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
-    const serviceId = params.id;
+    const serviceId = id;
     const body = await request.json();
     const { name, duration, price, categoryId, description } = body;
     if (!name || !duration || !price) {
@@ -47,7 +51,11 @@ export async function PATCH(request: NextRequest, { params }: any) {
 
 // DELETE: Remove a service (staff with ADMIN or canViewSettings)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: NextRequest, { params }: any) {
+export async function DELETE(request: NextRequest) {
+  const { pathname } = new URL(request.url);
+  const segments = pathname.split('/');
+  const serviceId = segments[segments.length - 1];
+  
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {
@@ -57,7 +65,7 @@ export async function DELETE(request: NextRequest, { params }: any) {
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
-    const serviceId = params.id;
+    
     // Ensure the service belongs to this business
     const service = await prisma.service.findFirst({ where: { id: serviceId, businessId: business.id } });
     if (!service) {

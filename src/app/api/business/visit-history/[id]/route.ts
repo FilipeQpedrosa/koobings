@@ -6,7 +6,9 @@ import { z } from 'zod'
 
 // GET: Get a specific visit history entry
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session || !session.user || !session.user.email) {
@@ -17,7 +19,7 @@ export async function GET(request: Request, { params }: any) {
   try {
     // Fetch the record with relations for ownership check and response
     const visitHistory = await prisma.visitHistory.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         client: { select: { id: true, name: true } },
         business: true
@@ -36,10 +38,9 @@ export async function GET(request: Request, { params }: any) {
 
 // PATCH: Update a visit history entry
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(
-  request: Request,
-  { params }: any
-) {
+export async function PATCH(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session || !session.user || !session.user.email) {
@@ -61,7 +62,7 @@ export async function PATCH(
 
     // Fetch the record with relations for ownership check
     const visitHistory = await prisma.visitHistory.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: { business: true }
     })
     if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
@@ -71,7 +72,7 @@ export async function PATCH(
 
     // Update and return the full record with relations
     const updatedVisitHistory = await prisma.visitHistory.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         visitDate: visitDate ? new Date(visitDate) : undefined,
         serviceType,
@@ -96,7 +97,9 @@ export async function PATCH(
 
 // DELETE: Delete a visit history entry
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
+export async function DELETE(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session || !session.user || !session.user.email) {
@@ -107,7 +110,7 @@ export async function DELETE(request: Request, { params }: any) {
   try {
     // Fetch the record with relations for ownership check
     const visitHistory = await prisma.visitHistory.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: { business: true }
     })
     if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
@@ -117,9 +120,9 @@ export async function DELETE(request: Request, { params }: any) {
 
     // Delete the record
     await prisma.visitHistory.delete({
-      where: { id: params.id }
+      where: { id: id }
     })
-    console.info(`Visit history ${params.id} deleted by user ${session.user.email}`)
+    console.info(`Visit history ${id} deleted by user ${session.user.email}`)
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('DELETE /business/visit-history/[id] error:', error)

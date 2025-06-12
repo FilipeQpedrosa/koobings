@@ -8,10 +8,10 @@ type ServiceWithCategory = Service & {
 
 export async function GET() {
   try {
-    // Fetch all active services with their categories
+    // Fetch all services with their categories
     const services = await prisma.service.findMany({
       where: {
-        isActive: true,
+        // isActive: true, // Removed, does not exist
       },
       include: {
         category: true,

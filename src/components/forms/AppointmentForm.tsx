@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-// import * as z from 'zod';
+import { z } from 'zod';
 import { AppointmentStatus } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatTime, generateTimeSlots } from '@/lib/utils';
@@ -228,7 +228,9 @@ export function AppointmentForm({
                 <option key="CANCELLED" value="CANCELLED">Cancelled</option>
               ]
             ) : (
-              <option value={initialData?.status} disabled>{initialData?.status.charAt(0) + initialData?.status.slice(1).toLowerCase()}</option>
+              initialData?.status ? (
+                <option value={initialData.status} disabled>{initialData.status.charAt(0) + initialData.status.slice(1).toLowerCase()}</option>
+              ) : null
             )}
           </select>
           {errors.status && (
