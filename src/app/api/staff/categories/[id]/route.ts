@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PATCH(request: NextRequest, { params }: any) {
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {
@@ -33,7 +34,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: NextRequest, { params }: any) {
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {

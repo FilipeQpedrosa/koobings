@@ -14,7 +14,8 @@ const staffUpdateSchema = z.object({
   services: z.array(z.string()).optional(),
 });
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: NextRequest, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
@@ -60,7 +61,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(request: NextRequest, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {

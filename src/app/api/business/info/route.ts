@@ -21,7 +21,8 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -29,7 +30,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const validatedData = businessInfoSchema.parse(body);
+    const validation = businessInfoSchema.safeParse(body);
+    if (!validation.success) {
+      console.error('Validation error:', validation.error);
+      return NextResponse.json(
+        { error: 'Invalid input', details: validation.error.errors },
+        { status: 400 }
+      );
+    }
+    const validatedData = validation.data;
 
     // Find the business by email
     const business = await prisma.business.findUnique({
@@ -44,20 +53,40 @@ export async function POST(request: Request) {
     }
 
     // Update business information
-    const updatedBusiness = await prisma.business.update({
-      where: { id: business.id },
-      data: {
-        description: validatedData.description,
-        logo: validatedData.logo,
-        coverImage: validatedData.coverImage,
-        phone: validatedData.phone,
-        address: validatedData.address,
-        settings: {
-          ...business.settings,
-          socialLinks: validatedData.socialLinks,
+    let updatedBusiness;
+    try {
+      // Parse current settings or use empty object
+      let currentSettings: any = {};
+      if (business.settings) {
+        try {
+          currentSettings = typeof business.settings === 'string' ? JSON.parse(business.settings) : business.settings;
+        } catch (e) {
+          console.error('Failed to parse business.settings:', e);
+          currentSettings = {};
+        }
+      }
+      // Update socialLinks in settings
+      const newSettings = {
+        ...currentSettings,
+        socialLinks: validatedData.socialLinks,
+      };
+      updatedBusiness = await prisma.business.update({
+        where: { id: business.id },
+        data: {
+          description: validatedData.description,
+          logo: validatedData.logo,
+          phone: validatedData.phone,
+          address: validatedData.address,
+          settings: newSettings,
         },
-      },
-    });
+      });
+    } catch (updateError) {
+      console.error('Database update error:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to update business information' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -65,17 +94,18 @@ export async function POST(request: Request) {
         id: updatedBusiness.id,
         description: updatedBusiness.description,
         logo: updatedBusiness.logo,
-        coverImage: updatedBusiness.coverImage,
         phone: updatedBusiness.phone,
         address: updatedBusiness.address,
         socialLinks: (updatedBusiness.settings as any)?.socialLinks,
       },
     });
   } catch (error) {
-    console.error('Error updating business info:', error);
+    console.error('POST /business/info error:', error);
     return NextResponse.json(
       { error: 'Failed to update business information' },
       { status: 500 }
     );
   }
-} 
+}
+
+// TODO: Add rate limiting middleware for abuse protection in the future. 

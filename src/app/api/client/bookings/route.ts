@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { addMinutes } from 'date-fns';
-import { PatientStatus } from '@prisma/client';
 
 export async function POST(request: Request) {
   try {
@@ -45,19 +44,19 @@ export async function POST(request: Request) {
     const clientData = session?.user?.email ? {
       email: session.user.email,
       name: session.user.name || 'Guest User',
-      status: PatientStatus.ACTIVE
+      status: 'ACTIVE'
     } : {
       email: customerInfo.email,
       name: customerInfo.name,
       phone: customerInfo.phone,
-      status: PatientStatus.ACTIVE
+      status: 'ACTIVE'
     };
 
     const client = await prisma.client.upsert({
       where: { email: clientData.email },
       create: {
         ...clientData,
-        businesses: {
+        business: {
           connect: { id: service.businessId }
         }
       },
@@ -67,8 +66,8 @@ export async function POST(request: Request) {
     // Create the appointment
     const appointment = await prisma.appointment.create({
       data: {
-        startTime: startDateTime,
-        endTime: endDateTime,
+        scheduledFor: startDateTime,
+        duration: service.duration,
         status: 'PENDING',
         notes: customerInfo?.notes,
         service: {

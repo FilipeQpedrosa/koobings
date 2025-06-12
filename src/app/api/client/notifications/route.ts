@@ -46,13 +46,13 @@ export async function PATCH(request: Request) {
 
     const body = await request.json();
     if (body.preferences) {
-      // Update notification preferences
-      const updatedPreferences = await prisma.notificationPreference.upsert({
-        where: { userId: session.user.id },
-        update: body.preferences,
-        create: { userId: session.user.id, ...body.preferences },
+      // Update notification preferences in the Client model's preferences JSON field
+      const updatedClient = await prisma.client.update({
+        where: { id: session.user.id },
+        data: { preferences: body.preferences },
+        select: { preferences: true }
       });
-      return NextResponse.json(updatedPreferences);
+      return NextResponse.json(updatedClient.preferences);
     }
 
     const { notificationIds } = body;

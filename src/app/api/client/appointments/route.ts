@@ -15,14 +15,14 @@ export async function GET(request: Request) {
 
     const appointments = await prisma.appointment.findMany({
       where: {
-        patientId: session.user.id,
+        clientId: session.user.id,
       },
       include: {
         service: true,
         staff: true,
       },
       orderBy: {
-        startTime: 'asc',
+        scheduledFor: 'asc',
       },
     });
 
@@ -55,47 +55,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check staff availability
-    const staffAvailability = await prisma.staffAvailability.findFirst({
-      where: {
-        staffId,
-        date: new Date(date),
-        isAvailable: true,
-        startTime: {
-          lte: startTime,
-        },
-        endTime: {
-          gte: endTime,
-        },
-      },
-    });
-
-    if (!staffAvailability) {
-      return NextResponse.json(
-        { error: 'Staff is not available at selected time' },
-        { status: 400 }
-      );
-    }
+    // Combine date and startTime into scheduledFor
+    const scheduledFor = new Date(`${date}T${startTime}`);
+    // Calculate duration in minutes
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
 
     // Check for conflicting appointments
     const conflictingAppointment = await prisma.appointment.findFirst({
       where: {
         staffId,
-        date: new Date(date),
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: startTime } },
-              { endTime: { gt: startTime } },
-            ],
-          },
-          {
-            AND: [
-              { startTime: { lt: endTime } },
-              { endTime: { gte: endTime } },
-            ],
-          },
-        ],
+        scheduledFor: {
+          gte: scheduledFor,
+          lt: new Date(scheduledFor.getTime() + duration * 60000),
+        },
+        status: { in: ['PENDING', 'CONFIRMED'] },
       },
     });
 
@@ -106,17 +81,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fetch the service to get the businessId
+    const service = await prisma.service.findUnique({
+      where: { id: serviceId },
+      select: { businessId: true },
+    });
+    if (!service) {
+      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+    }
+
     // Create the appointment
     const appointment = await prisma.appointment.create({
       data: {
-        patientId: session.user.id,
+        clientId: session.user.id,
         serviceId,
         staffId,
-        date: new Date(date),
-        startTime,
-        endTime,
+        businessId: service.businessId,
+        scheduledFor,
+        duration,
         notes,
-        status: 'SCHEDULED',
+        status: 'PENDING',
       },
       include: {
         service: true,
@@ -156,7 +140,7 @@ export async function PATCH(request: Request) {
     const existingAppointment = await prisma.appointment.findFirst({
       where: {
         id: appointmentId,
-        patientId: session.user.id,
+        clientId: session.user.id,
       },
     });
 

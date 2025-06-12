@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma, type PrismaClient } from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { startOfWeek, endOfWeek, parseISO } from 'date-fns';
+import { PrismaClient } from '@prisma/client';
 
 interface AvailabilitySlot {
   staffId: string;
@@ -13,10 +14,8 @@ interface AvailabilitySlot {
   type: 'REGULAR' | 'EXCEPTION';
 }
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -41,21 +40,11 @@ export async function GET(
     const weekStart = startOfWeek(weekDate, { weekStartsOn: 0 });
     const weekEnd = endOfWeek(weekDate, { weekStartsOn: 0 });
 
-    const availability = await prisma.staffAvailability.findMany({
-      where: {
-        staffId: params.id,
-        date: {
-          gte: weekStart,
-          lte: weekEnd
-        }
-      },
-      orderBy: [
-        { date: 'asc' },
-        { startTime: 'asc' }
-      ]
+    const availability = await prisma.staffAvailability.findUnique({
+      where: { staffId: params.id }
     });
 
-    return NextResponse.json(availability);
+    return NextResponse.json(availability?.schedule || {});
   } catch (error) {
     console.error('Error fetching staff availability:', error);
     return NextResponse.json(
@@ -65,10 +54,8 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -93,58 +80,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
     }
 
-    const { slots } = await request.json() as { slots: AvailabilitySlot[] };
+    const { schedule } = await request.json();
 
-    // Group slots by date for batch operations
-    const slotsByDate = slots.reduce((acc: Record<string, AvailabilitySlot[]>, slot) => {
-      if (!acc[slot.date]) {
-        acc[slot.date] = [];
-      }
-      acc[slot.date].push(slot);
-      return acc;
-    }, {});
-
-    // Process each date's slots in a transaction
-    await Promise.all(
-      Object.entries(slotsByDate).map(([date, dateSlots]) =>
-        prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use'>) => {
-          // Delete existing slots for the date
-          await tx.staffAvailability.deleteMany({
-            where: {
-              staffId: params.id,
-              date: parseISO(date)
-            }
-          });
-
-          // Create new slots
-          await tx.staffAvailability.createMany({
-            data: dateSlots.map((slot) => ({
-              staffId: params.id,
-              date: parseISO(slot.date),
-              startTime: slot.startTime,
-              endTime: slot.endTime,
-              isAvailable: slot.isAvailable,
-              type: slot.type
-            }))
-          });
-        })
-      )
-    );
-
-    const updatedAvailability = await prisma.staffAvailability.findMany({
-      where: {
-        staffId: params.id,
-        date: {
-          in: Object.keys(slotsByDate).map(date => parseISO(date))
-        }
-      },
-      orderBy: [
-        { date: 'asc' },
-        { startTime: 'asc' }
-      ]
+    // Update the schedule JSON for the staff member
+    const updated = await prisma.staffAvailability.update({
+      where: { staffId: params.id },
+      data: { schedule }
     });
 
-    return NextResponse.json(updatedAvailability);
+    return NextResponse.json(updated.schedule);
   } catch (error) {
     console.error('Error updating staff availability:', error);
     return NextResponse.json(

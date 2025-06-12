@@ -28,29 +28,18 @@ export async function POST(request: Request) {
         phone,
         businessId,
         status: 'ACTIVE',
-        preferredContactMethod,
-        sensitiveInfo: {
-          create: {
-            email,
-            medicalInfo,
-          },
-        },
         preferences: {
-          create: {
-            emailNotifications: notificationPreferences?.email ?? true,
-            smsNotifications: notificationPreferences?.sms ?? false,
-            reminderTime: notificationPreferences?.reminderTime ?? 24,
-            marketingEmails: notificationPreferences?.marketing ?? true,
-          },
+          emailNotifications: notificationPreferences?.email ?? true,
+          smsNotifications: notificationPreferences?.sms ?? false,
+          reminderTime: notificationPreferences?.reminderTime ?? 24,
+          marketingEmails: notificationPreferences?.marketing ?? true,
+          preferredContactMethod,
+          servicePreferences,
         },
-        relationship: {
+        clientRelationships: {
           create: {
             businessId,
             status: 'ACTIVE',
-            preferences: {
-              communicationPreference: preferredContactMethod,
-              servicePreferences,
-            },
           },
         },
       },
@@ -93,7 +82,6 @@ export async function GET(request: Request) {
           },
         },
         services: {
-          where: { isActive: true },
           include: {
             category: true,
             staff: true,

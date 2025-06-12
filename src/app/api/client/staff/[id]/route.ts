@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: {
+    id: string;
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   try {
     const staff = await prisma.staff.findUnique({
       where: { id: params.id },

@@ -4,24 +4,20 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // GET: Get a specific client relationship
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
-    const relationship = await prisma.patientRelationship.findUnique({
+    const relationship = await prisma.clientRelationship.findUnique({
       where: { id: params.id },
       include: {
-        patient: true,
+        client: true,
         business: true,
-        preferredStaff: true,
-        visitHistory: true,
-        noteHistory: true
+        staff: true
       }
     })
 
@@ -37,10 +33,8 @@ export async function GET(
 }
 
 // PATCH: Update a client relationship
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
@@ -48,15 +42,13 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const relationship = await prisma.patientRelationship.update({
+    const relationship = await prisma.clientRelationship.update({
       where: { id: params.id },
       data: body,
       include: {
-        patient: true,
+        client: true,
         business: true,
-        preferredStaff: true,
-        visitHistory: true,
-        noteHistory: true
+        staff: true
       }
     })
 
@@ -68,17 +60,15 @@ export async function PUT(
 }
 
 // DELETE: Delete a client relationship
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
-    await prisma.patientRelationship.delete({
+    await prisma.clientRelationship.delete({
       where: { id: params.id }
     })
 

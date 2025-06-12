@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth';
 import { AppointmentService } from '@/lib/services/appointment';
 import { createApiHandler, ApiError } from '@/lib/api-handler';
 import * as yup from 'yup';
-import { AppointmentStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { CustomUser } from '@/lib/auth';
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -22,7 +21,15 @@ const appointmentSchema = yup.object({
 
 // Schema for appointment status update
 const statusUpdateSchema = yup.object({
-  status: yup.string().oneOf(Object.values(AppointmentStatus)).required(),
+  status: yup.string().oneOf([
+    'PENDING',
+    'CONFIRMED',
+    'CANCELLED',
+    'COMPLETED',
+    'NO_SHOW',
+    'RESCHEDULED',
+    'SCHEDULED',
+  ]).required(),
   reason: yup.string(),
 });
 
@@ -99,7 +106,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         {
-          customer: {
+          client: {
             name: {
               contains: search,
               mode: 'insensitive',
@@ -120,7 +127,7 @@ export async function GET(request: NextRequest) {
     const appointments = await prisma.appointment.findMany({
       where,
       include: {
-        customer: {
+        client: {
           select: {
             id: true,
             name: true,
@@ -145,7 +152,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        date: 'desc',
+        scheduledFor: 'desc',
       },
     });
 
@@ -174,27 +181,48 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
 
     // Validate required fields
-    if (!data.customerId || !data.serviceId || !data.date || !data.time) {
+    if (!data.clientId || !data.serviceId || !data.date || !data.time) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Create appointment
+    // Ensure businessId is present
+    if (!session.user.businessId) {
+      return NextResponse.json(
+        { error: 'Business ID is required to create an appointment.' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch the service to get its duration
+    const service = await prisma.service.findUnique({
+      where: { id: data.serviceId },
+      select: { duration: true },
+    });
+    if (!service) {
+      return NextResponse.json(
+        { error: 'Service not found' },
+        { status: 404 }
+      );
+    }
+
+    // Combine date and time into a single Date object for scheduledFor
+    const scheduledFor = new Date(`${data.date}T${data.time}`);
     const appointment = await prisma.appointment.create({
       data: {
-        customerId: data.customerId,
+        clientId: data.clientId,
         serviceId: data.serviceId,
         staffId: data.staffId || session.user.id,
         businessId: session.user.businessId,
-        date: new Date(data.date),
-        time: data.time,
-        status: 'SCHEDULED',
+        scheduledFor,
+        duration: service.duration,
+        status: 'PENDING',
         notes: data.notes,
       },
       include: {
-        customer: true,
+        client: true,
         service: true,
         staff: true,
       },
@@ -264,7 +292,7 @@ export async function PATCH(request: NextRequest) {
       where: { id },
       data: updateData,
       include: {
-        customer: true,
+        client: true,
         service: true,
         staff: true,
       },
@@ -295,7 +323,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Appointment ID is required' }, { status: 400 });
     }
 
-    await appointmentService.cancel(id, reason, session.user?.email || 'SYSTEM');
+    await prisma.appointment.update({
+      where: { id },
+      data: { status: 'CANCELLED', notes: reason },
+    });
     return NextResponse.json({ message: 'Appointment cancelled successfully' });
   } catch (error) {
     console.error('Failed to cancel appointment:', error);

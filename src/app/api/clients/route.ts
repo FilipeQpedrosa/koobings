@@ -3,11 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const clients = await prisma.client.findMany({
-      include: {
-        preferredProvider: true,
-      },
-    });
+    const clients = await prisma.client.findMany();
     return NextResponse.json(clients);
   } catch (error) {
     console.error('Error fetching clients:', error);
@@ -21,6 +17,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
+    if (!data.businessId) {
+      return NextResponse.json(
+        { error: 'businessId is required' },
+        { status: 400 }
+      );
+    }
     const client = await prisma.client.create({
       data: {
         name: data.name,
@@ -28,10 +30,9 @@ export async function POST(request: Request) {
         phone: data.phone,
         status: data.status,
         notes: data.notes,
-        providerId: data.preferredProvider,
-      },
-      include: {
-        preferredProvider: true,
+        business: {
+          connect: { id: data.businessId }
+        }
       },
     });
     return NextResponse.json(client);

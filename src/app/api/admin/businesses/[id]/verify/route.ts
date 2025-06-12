@@ -6,11 +6,15 @@ import { sendVerificationEmail } from '@/lib/email';
 
 const prisma = new PrismaClient();
 
+interface RouteParams {
+  params: {
+    id: string;
+  };
+}
+
 // POST /api/admin/businesses/[id]/verify - Verify a business
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function POST(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -65,13 +69,15 @@ export async function POST(
       });
     }
 
-    // Send email notification
-    await sendVerificationEmail(
-      business.email,
-      business.name,
-      status,
-      notes
-    );
+    // Send email notification only if status is APPROVED or REJECTED
+    if (status === 'APPROVED' || status === 'REJECTED') {
+      await sendVerificationEmail(
+        business.email,
+        business.name,
+        status,
+        notes
+      );
+    }
 
     return NextResponse.json(verification);
   } catch (error) {

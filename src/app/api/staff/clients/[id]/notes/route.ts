@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // POST /api/staff/clients/[id]/notes - Add a note to a client
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function POST(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

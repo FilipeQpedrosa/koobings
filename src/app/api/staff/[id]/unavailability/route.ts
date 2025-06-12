@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // GET: List all unavailability periods for a staff member
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }) {
   const staffId = params.id;
   // Optionally: check session/permissions
   const unavailability = await prisma.staffUnavailability.findMany({
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // POST: Create a new unavailability period for a staff member
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }) {
   const staffId = params.id;
   const body = await req.json();
   const { start, end, reason } = body;
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // PATCH: Update an unavailability period (by id)
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }) {
   const staffId = params.id;
   const body = await req.json();
   const { unavailabilityId, start, end, reason } = body;
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 // DELETE: Remove an unavailability period (by id)
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }) {
   const staffId = params.id;
   const { unavailabilityId } = await req.json();
   if (!unavailabilityId) {

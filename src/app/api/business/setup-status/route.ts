@@ -25,7 +25,8 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -77,10 +78,12 @@ export async function GET(request: Request) {
       tasks,
     });
   } catch (error) {
-    console.error('Error fetching setup status:', error);
+    console.error('GET /business/setup-status error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch setup status' },
       { status: 500 }
     );
   }
-} 
+}
+
+// TODO: Add rate limiting middleware for abuse protection in the future. 

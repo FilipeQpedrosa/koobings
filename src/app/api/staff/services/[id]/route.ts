@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // PATCH: Update a service (staff with ADMIN or canViewSettings)
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PATCH(request: NextRequest, { params }: any) {
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {
@@ -45,7 +46,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 // DELETE: Remove a service (staff with ADMIN or canViewSettings)
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: NextRequest, { params }: any) {
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {

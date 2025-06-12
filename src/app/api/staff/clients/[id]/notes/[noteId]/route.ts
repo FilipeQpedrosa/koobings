@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // PUT /api/staff/clients/[id]/notes/[noteId] - Edit a note
-export async function PUT(req: NextRequest, { params }: { params: { id: string; noteId: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

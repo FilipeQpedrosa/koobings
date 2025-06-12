@@ -1,23 +1,42 @@
+// Polyfill TextEncoder/TextDecoder FIRST using require
+const { TextEncoder, TextDecoder } = require('util');
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
+// Polyfill ReadableStream/WritableStream for undici/fetch
+if (typeof global.ReadableStream === 'undefined') {
+  global.ReadableStream = require('stream/web').ReadableStream;
+}
+if (typeof global.WritableStream === 'undefined') {
+  global.WritableStream = require('stream/web').WritableStream;
+}
+
+// Polyfill MessagePort/MessageChannel for undici/fetch (Node 18+)
+if (typeof global.MessagePort === 'undefined') {
+  const { MessagePort, MessageChannel } = require('worker_threads');
+  global.MessagePort = MessagePort;
+  global.MessageChannel = MessageChannel;
+}
+
+// Now require undici and polyfill fetch, Headers, Request, Response
+const { fetch: undiciFetch, Headers: UndiciHeaders, Request: UndiciRequest, Response: UndiciResponse } = require('undici');
+if (!globalThis.fetch) globalThis.fetch = undiciFetch;
+if (!globalThis.Headers) globalThis.Headers = UndiciHeaders;
+if (!globalThis.Request) globalThis.Request = UndiciRequest;
+if (!globalThis.Response) globalThis.Response = UndiciResponse;
+
 import '@testing-library/jest-dom'
 import { MOCK_SENDGRID_API_KEY } from './src/lib/services/__mocks__/email';
-import { TextEncoder, TextDecoder } from 'util';
 import { configure } from '@testing-library/react';
 
 // Set mock environment variables
 process.env.SENDGRID_API_KEY = MOCK_SENDGRID_API_KEY;
 process.env.EMAIL_FROM = 'test@example.com';
 
-// Mock TextEncoder/TextDecoder
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
-
 // Configure testing library
 configure({
   testIdAttribute: 'data-testid',
 });
-
-// Mock fetch
-global.fetch = jest.fn();
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({

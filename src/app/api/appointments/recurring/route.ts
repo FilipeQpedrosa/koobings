@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { RecurringFrequency } from '@prisma/client';
 import { addDays, addWeeks, addMonths, addYears, isBefore } from 'date-fns';
 
 // POST /api/appointments/recurring
@@ -60,16 +59,16 @@ export async function POST(request: Request) {
 
       // Calculate next date based on frequency
       switch (frequency) {
-        case RecurringFrequency.DAILY:
+        case 'DAILY':
           currentDate = addDays(currentDate, interval);
           break;
-        case RecurringFrequency.WEEKLY:
+        case 'WEEKLY':
           currentDate = addWeeks(currentDate, interval);
           break;
-        case RecurringFrequency.MONTHLY:
+        case 'MONTHLY':
           currentDate = addMonths(currentDate, interval);
           break;
-        case RecurringFrequency.YEARLY:
+        case 'YEARLY':
           currentDate = addYears(currentDate, interval);
           break;
       }
@@ -155,7 +154,7 @@ export async function DELETE(request: Request) {
 
     // Delete all associated appointments
     await prisma.appointment.deleteMany({
-      where: { recurringId: patternId },
+      where: { recurringAppointmentId: patternId },
     });
 
     // Delete the recurring pattern

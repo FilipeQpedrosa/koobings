@@ -5,10 +5,8 @@ import prisma from '@/lib/prisma';
 import { AppointmentStatus } from '@prisma/client';
 
 // GET /api/appointments/[id]
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -68,10 +66,8 @@ export async function GET(
 }
 
 // PATCH /api/appointments/[id]
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PATCH(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -215,10 +211,8 @@ export async function PATCH(
 }
 
 // DELETE /api/appointments/[id]
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {

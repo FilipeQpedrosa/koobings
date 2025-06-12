@@ -87,7 +87,7 @@ export default function BusinessStaffPage() {
     setError('');
     try {
       let response;
-      const payload = { ...form, role: 'STANDARD', services: selectedServices };
+      const payload = { ...form, services: selectedServices };
       if (editId) {
         response = await fetch(`/api/business/staff/${editId}`, {
           method: 'PUT',
@@ -212,6 +212,19 @@ export default function BusinessStaffPage() {
                   onChange={setSelectedServices}
                   placeholder="Select services..."
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Role</label>
+                <select
+                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                  value={form.role}
+                  onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+                  required
+                >
+                  {STAFF_ROLES.map(r => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">{editId ? 'New Password (leave blank to keep current)' : 'Password'}</label>

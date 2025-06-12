@@ -2,12 +2,14 @@ import { supabase } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { ApiError, handleApiError } from '@/lib/utils/api/error'
+import { z } from 'zod'
 
 // GET: List visit history for a client relationship
 export async function GET(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session) {
+  if (!session || !session.user || !session.user.email) {
+    console.error('Unauthorized: No session or user.');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
     const relationshipId = searchParams.get('relationshipId')
 
     if (!relationshipId) {
-      throw new ApiError(400, 'relationshipId is required')
+      return NextResponse.json({ error: 'relationshipId is required' }, { status: 400 })
     }
 
     // Verify ownership of the client
@@ -30,7 +32,7 @@ export async function GET(request: Request) {
     })
 
     if (!client) {
-      throw new ApiError(404, 'Client relationship not found')
+      return NextResponse.json({ error: 'Client relationship not found' }, { status: 404 })
     }
 
     const visitHistory = await prisma.visitHistory.findMany({
@@ -52,7 +54,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json(visitHistory)
   } catch (error) {
-    return handleApiError(error)
+    console.error('GET /business/visit-history error:', error)
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
   }
 }
 
@@ -60,20 +63,37 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session) {
+  if (!session || !session.user || !session.user.email) {
+    console.error('Unauthorized: No session or user.');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const json = await request.json()
-    const { 
-      relationshipId,
-      visitDate,
-      serviceType,
-      staffNotes,
-      patientFeedback,
-      followUpRequired
-    } = json
+    // Input validation
+    const schema = z.object({
+      relationshipId: z.string().min(1),
+      visitDate: z.string().min(1),
+      serviceType: z.string().min(1),
+      staffNotes: z.string().optional(),
+      clientFeedback: z.string().optional(),
+      followUpRequired: z.boolean().optional()
+    })
+    let json
+    try {
+      json = await request.json()
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+    let parsed
+    try {
+      parsed = schema.parse(json)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+      }
+      throw error
+    }
+    const { relationshipId, visitDate, serviceType, staffNotes, clientFeedback, followUpRequired } = parsed
 
     // Verify ownership of the client
     const client = await prisma.client.findFirst({
@@ -86,16 +106,17 @@ export async function POST(request: Request) {
     })
 
     if (!client) {
-      throw new ApiError(404, 'Client relationship not found')
+      return NextResponse.json({ error: 'Client relationship not found' }, { status: 404 })
     }
 
     const visitHistoryEntry = await prisma.visitHistory.create({
       data: {
         client: { connect: { id: relationshipId } },
+        business: { connect: { id: client.businessId } },
         visitDate: new Date(visitDate),
         serviceType,
         staffNotes,
-        patientFeedback,
+        clientFeedback,
         followUpRequired: followUpRequired || false
       },
       include: {
@@ -116,6 +137,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(visitHistoryEntry)
   } catch (error) {
-    return handleApiError(error)
+    console.error('POST /business/visit-history error:', error)
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
   }
 }
+
+// TODO: Add rate limiting middleware for abuse protection in the future.
