@@ -3,6 +3,7 @@ import { CustomUser } from '@/lib/auth';
 import { withAuth, withErrorHandler, withMethodCheck, withValidation, withRateLimit } from './middleware';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import * as yup from 'yup';
+import { StaffRole } from '@prisma/client';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -21,7 +22,7 @@ export interface ApiResponse<T = any> {
 }
 
 export interface ApiConfig {
-  requiredRole?: 'staff' | 'business';
+  requiredRole?: StaffRole;
   requiredPermissions?: string[];
   rateLimit?: {
     limit: number;

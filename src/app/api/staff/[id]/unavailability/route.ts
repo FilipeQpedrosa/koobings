@@ -4,8 +4,11 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // GET: List all unavailability periods for a staff member
-export async function GET(req: NextRequest, { params }) {
-  const staffId = params.id;
+export async function GET(req: NextRequest) {
+  const { pathname } = new URL(req.url);
+  const segments = pathname.split('/');
+  const staffId = segments[segments.indexOf('staff') + 1];
+  
   // Optionally: check session/permissions
   const unavailability = await prisma.staffUnavailability.findMany({
     where: { staffId },
@@ -15,8 +18,11 @@ export async function GET(req: NextRequest, { params }) {
 }
 
 // POST: Create a new unavailability period for a staff member
-export async function POST(req: NextRequest, { params }) {
-  const staffId = params.id;
+export async function POST(req: NextRequest) {
+  const { pathname } = new URL(req.url);
+  const segments = pathname.split('/');
+  const staffId = segments[segments.indexOf('staff') + 1];
+  
   const body = await req.json();
   const { start, end, reason } = body;
   if (!start || !end) {
@@ -29,8 +35,11 @@ export async function POST(req: NextRequest, { params }) {
 }
 
 // PATCH: Update an unavailability period (by id)
-export async function PATCH(req: NextRequest, { params }) {
-  const staffId = params.id;
+export async function PATCH(req: NextRequest) {
+  const { pathname } = new URL(req.url);
+  const segments = pathname.split('/');
+  const staffId = segments[segments.indexOf('staff') + 1];
+  
   const body = await req.json();
   const { unavailabilityId, start, end, reason } = body;
   if (!unavailabilityId) {
@@ -44,8 +53,11 @@ export async function PATCH(req: NextRequest, { params }) {
 }
 
 // DELETE: Remove an unavailability period (by id)
-export async function DELETE(req: NextRequest, { params }) {
-  const staffId = params.id;
+export async function DELETE(req: NextRequest) {
+  const { pathname } = new URL(req.url);
+  const segments = pathname.split('/');
+  const staffId = segments[segments.indexOf('staff') + 1];
+  
   const { unavailabilityId } = await req.json();
   if (!unavailabilityId) {
     return NextResponse.json({ success: false, error: 'Unavailability ID required.' }, { status: 400 });

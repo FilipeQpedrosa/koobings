@@ -7,7 +7,9 @@ import { NoteType } from '@prisma/client'
 
 // GET: Get a specific note
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session || !session.user || !session.user.email) {
@@ -18,7 +20,7 @@ export async function GET(request: Request, { params }: any) {
   try {
     // Fetch the record with relations for ownership check and response
     const note = await prisma.relationshipNote.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         createdBy: { select: { id: true, name: true } }
       }
@@ -37,7 +39,9 @@ export async function GET(request: Request, { params }: any) {
 
 // PATCH: Update a note
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(request: Request, { params }: any) {
+export async function PATCH(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session || !session.user || !session.user.email) {
@@ -56,7 +60,7 @@ export async function PATCH(request: Request, { params }: any) {
 
     // Fetch the record for ownership check
     const record = await prisma.relationshipNote.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     }) as { businessId: string } | null;
     if (!record) throw new ApiError(404, 'Note not found')
     const business = await prisma.business.findFirst({
@@ -66,7 +70,7 @@ export async function PATCH(request: Request, { params }: any) {
 
     // Update and return the full record with relations
     const note = await prisma.relationshipNote.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         noteType: NoteType[noteType as keyof typeof NoteType],
         content
@@ -87,7 +91,9 @@ export async function PATCH(request: Request, { params }: any) {
 
 // DELETE: Delete a note
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
+export async function DELETE(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session || !session.user || !session.user.email) {
@@ -98,7 +104,7 @@ export async function DELETE(request: Request, { params }: any) {
   try {
     // Fetch the record for ownership check
     const record = await prisma.relationshipNote.findUnique({
-      where: { id: params.id }
+      where: { id: id }
     }) as { businessId: string } | null;
     if (!record) throw new ApiError(404, 'Note not found')
     const business = await prisma.business.findFirst({
@@ -108,10 +114,10 @@ export async function DELETE(request: Request, { params }: any) {
 
     // Delete the record
     await prisma.relationshipNote.delete({
-      where: { id: params.id }
+      where: { id: id }
     })
     // Logging
-    console.info(`Note ${params.id} deleted by user ${session.user.email}`)
+    console.info(`Note ${id} deleted by user ${session.user.email}`)
     // 204 No Content should not return a body
     return new NextResponse(null, { status: 204 })
   } catch (error) {

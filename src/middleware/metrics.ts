@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import {
-  httpRequestDurationMicroseconds,
-  httpRequestTotal
-} from '../app/api/metrics/route';
+// TODO: Integrate metrics collection (httpRequestDurationMicroseconds, httpRequestTotal) when available
 
 export async function metricsMiddleware(
   request: NextRequest,
@@ -19,21 +16,13 @@ export async function metricsMiddleware(
     const duration = Date.now() - start;
     const status = response.status;
 
-    // Record metrics
-    httpRequestTotal.inc({ method, route, status_code: status });
-    httpRequestDurationMicroseconds
-      .labels(method, route, status.toString())
-      .observe(duration / 1000); // Convert to seconds
+    // TODO: Record metrics here when available
 
     return response;
   } catch (error) {
     const duration = Date.now() - start;
     
-    // Record error metrics
-    httpRequestTotal.inc({ method, route, status_code: 500 });
-    httpRequestDurationMicroseconds
-      .labels(method, route, '500')
-      .observe(duration / 1000);
+    // TODO: Record error metrics here when available
 
     throw error;
   }

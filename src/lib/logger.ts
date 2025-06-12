@@ -9,9 +9,13 @@ const logFormat = printf(({ level, message, timestamp, ...metadata }) => {
   
   if (metadata.error) {
     const error = metadata.error
-    msg += `\nError: ${error.message}`
-    if (error.stack) {
-      msg += `\nStack: ${error.stack}`
+    if (error instanceof Error) {
+      msg += `\nError: ${error.message}`
+      if (error.stack) {
+        msg += `\nStack: ${error.stack}`
+      }
+    } else {
+      msg += `\nError: ${JSON.stringify(error)}`
     }
   }
   

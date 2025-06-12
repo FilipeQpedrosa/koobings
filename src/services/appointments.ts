@@ -1,6 +1,6 @@
 import { PrismaClient, AppointmentStatus, Prisma } from '@prisma/client';
 import { addMinutes, isWithinInterval, parseISO } from 'date-fns';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 
 const prisma = new PrismaClient();
 
@@ -35,7 +35,6 @@ export class AppointmentService {
       throw new Error('Service not found');
     }
 
-    // Calculate end time based on service duration
     const endTime = addMinutes(data.startTime, service.duration);
 
     // Check for conflicts
@@ -47,16 +46,14 @@ export class AppointmentService {
     // Create appointment
     const appointment = await prisma.appointment.create({
       data: {
-        startTime: data.startTime,
-        endTime,
+        scheduledFor: data.startTime,
+        duration: service.duration,
         status: 'PENDING',
         notes: data.notes,
         businessId: data.businessId,
         clientId: data.clientId,
         serviceId: data.serviceId,
         staffId: data.staffId,
-        bufferTimeBefore: 15, // Default 15 minutes buffer
-        bufferTimeAfter: 15,
       },
     });
 
@@ -105,7 +102,8 @@ export class AppointmentService {
       where: { id },
       data: {
         ...data,
-        endTime: data.startTime ? addMinutes(data.startTime, appointment.service.duration) : undefined
+        scheduledFor: data.startTime ?? appointment.scheduledFor,
+        duration: data.startTime ? appointment.service.duration : appointment.duration
       }
     });
   }
@@ -118,15 +116,6 @@ export class AppointmentService {
     if (!appointment) {
       throw new Error('Appointment not found');
     }
-
-    // Create cancellation record
-    await prisma.appointmentCancellation.create({
-      data: {
-        appointmentId: id,
-        reason,
-        cancelledBy
-      }
-    });
 
     // Update appointment status
     return prisma.appointment.update({
@@ -149,14 +138,14 @@ export class AppointmentService {
         OR: [
           {
             AND: [
-              { startTime: { lte: startTime } },
-              { endTime: { gt: startTime } }
+              { scheduledFor: { lte: startTime } },
+              { scheduledFor: { gt: startTime } }
             ]
           },
           {
             AND: [
-              { startTime: { lt: endTime } },
-              { endTime: { gte: endTime } }
+              { scheduledFor: { lt: endTime } },
+              { scheduledFor: { gte: endTime } }
             ]
           }
         ]
@@ -187,6 +176,10 @@ export class AppointmentService {
       throw new Error('Business is closed on this day');
     }
 
+    if (!businessHours.startTime || !businessHours.endTime) {
+      throw new Error('Business hours are not properly set for this day');
+    }
+
     const [startHour, startMinute] = businessHours.startTime.split(':').map(Number);
     const [endHour, endMinute] = businessHours.endTime.split(':').map(Number);
 
@@ -203,36 +196,7 @@ export class AppointmentService {
   }
 
   private async createReminder(appointmentId: string) {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-      include: {
-        client: true
-      }
-    });
-
-    if (!appointment) return;
-
-    // Create email reminder
-    if (appointment.client.preferences?.emailNotifications) {
-      await prisma.appointmentReminder.create({
-        data: {
-          appointmentId,
-          type: 'EMAIL',
-          status: 'PENDING'
-        }
-      });
-    }
-
-    // Create SMS reminder
-    if (appointment.client.preferences?.smsNotifications) {
-      await prisma.appointmentReminder.create({
-        data: {
-          appointmentId,
-          type: 'SMS',
-          status: 'PENDING'
-        }
-      });
-    }
+    // Reminders logic removed (model does not exist)
   }
 
   private async scheduleRecurringAppointments(

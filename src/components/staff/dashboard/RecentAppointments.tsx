@@ -17,7 +17,7 @@ interface RecentAppointmentsProps {
   appointments: Appointment[];
 }
 
-function getStatusColor(status) {
+function getStatusColor(status: Appointment['status']) {
   switch (status) {
     case 'COMPLETED':
       return 'bg-green-100 text-green-800';

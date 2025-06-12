@@ -1,106 +1,117 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
-// GET /api/client/profile - Get patient profile
+// GET /api/client/profile - Get client profile
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const profile = await prisma.client.findUnique({
-      where: { email: session.user.email },
-      include: {
-        appointments: {
-          include: {
-            service: true,
-            staff: true,
-          },
-        },
-      },
-    });
-
-    if (!profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(profile);
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch profile' },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT /api/client/profile - Update patient profile
-export async function PUT(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { name, phone, emailNotifications, smsNotifications, reminderTime, marketingEmails } = body;
-
-    // First find the patient to ensure they exist
     const client = await prisma.client.findUnique({
       where: { email: session.user.email },
+      include: {
+        clientRelationships: true, // replaces relationship
+        appointments: {
+          take: 5,
+          orderBy: { scheduledFor: 'desc' },
+          include: {
+            service: true,
+            staff: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    // Update patient profile
-    const profile = await prisma.client.update({
-      where: { email: session.user.email },
+    // Optionally, parse preferences JSON for FE convenience
+    let preferences = {};
+    if (client.preferences) {
+      try {
+        preferences = typeof client.preferences === 'string' ? JSON.parse(client.preferences) : client.preferences;
+      } catch (e) {
+        preferences = {};
+      }
+    }
+
+    return NextResponse.json({ ...client, preferences });
+  } catch (error) {
+    console.error('Error fetching client profile:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// PATCH /api/client/profile - Update client profile
+export async function PATCH(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { email: session.user.email }
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const {
+      name,
+      phone,
+      preferredContactMethod,
+      notificationPreferences,
+      medicalInfo
+    } = body;
+
+    // Merge new preferences into existing preferences JSON
+    let newPreferences: Record<string, any> = {};
+    if (client.preferences) {
+      try {
+        newPreferences = typeof client.preferences === 'string' ? JSON.parse(client.preferences) : client.preferences;
+      } catch (e) {
+        newPreferences = {};
+      }
+    }
+    if (preferredContactMethod !== undefined) newPreferences["preferredContactMethod"] = preferredContactMethod;
+    if (notificationPreferences !== undefined) newPreferences["notificationPreferences"] = notificationPreferences;
+    if (medicalInfo !== undefined) newPreferences["medicalInfo"] = medicalInfo;
+
+    // Update client profile
+    const updatedClient = await prisma.client.update({
+      where: { id: client.id },
       data: {
         name,
         phone,
-        preferences: {
-          upsert: {
-            where: {
-              clientId: client.id
-            },
-            create: {
-              emailNotifications,
-              smsNotifications,
-              reminderTime,
-              marketingEmails,
-            },
-            update: {
-              emailNotifications,
-              smsNotifications,
-              reminderTime,
-              marketingEmails,
-            },
-          },
-        },
+        preferences: newPreferences
       },
       include: {
-        appointments: {
-          include: {
-            service: true,
-            staff: true,
-          },
-        },
-      },
+        clientRelationships: true
+      }
     });
 
-    return NextResponse.json(profile);
+    return NextResponse.json(updatedClient);
   } catch (error) {
-    console.error('Error updating profile:', error);
-    return NextResponse.json(
-      { error: 'Failed to update profile' },
-      { status: 500 }
-    );
+    console.error('Error updating client profile:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 

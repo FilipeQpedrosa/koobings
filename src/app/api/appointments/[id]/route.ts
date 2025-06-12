@@ -5,8 +5,9 @@ import prisma from '@/lib/prisma';
 import { AppointmentStatus } from '@prisma/client';
 
 // GET /api/appointments/[id]
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -14,7 +15,7 @@ export async function GET(request: Request, { params }: any) {
     }
 
     const appointment = await prisma.appointment.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         client: {
           select: {
@@ -66,8 +67,9 @@ export async function GET(request: Request, { params }: any) {
 }
 
 // PATCH /api/appointments/[id]
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PATCH(request: Request, { params }: any) {
+export async function PATCH(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -85,7 +87,7 @@ export async function PATCH(request: Request, { params }: any) {
     }
 
     const appointment = await prisma.appointment.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         client: {
           select: {
@@ -144,7 +146,7 @@ export async function PATCH(request: Request, { params }: any) {
     // Handle cancellation
     if (status === AppointmentStatus.CANCELLED) {
       const updatedAppointment = await prisma.appointment.update({
-        where: { id: params.id },
+        where: { id: id },
         data: {
           status: AppointmentStatus.CANCELLED,
         },
@@ -174,7 +176,7 @@ export async function PATCH(request: Request, { params }: any) {
 
     // Handle other status updates
     const updatedAppointment = await prisma.appointment.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status,
         notes,
@@ -211,8 +213,9 @@ export async function PATCH(request: Request, { params }: any) {
 }
 
 // DELETE /api/appointments/[id]
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
+export async function DELETE(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -220,7 +223,7 @@ export async function DELETE(request: Request, { params }: any) {
     }
 
     const appointment = await prisma.appointment.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!appointment) {
@@ -236,7 +239,7 @@ export async function DELETE(request: Request, { params }: any) {
     }
 
     await prisma.appointment.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: 'Appointment deleted successfully' });
@@ -247,4 +250,4 @@ export async function DELETE(request: Request, { params }: any) {
       { status: 500 }
     );
   }
-} 
+}

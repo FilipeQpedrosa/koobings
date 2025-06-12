@@ -8,10 +8,12 @@ interface RouteParams {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const client = await prisma.client.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!client) {
@@ -32,11 +34,13 @@ export async function GET(request: Request, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(request: Request, { params }: any) {
+export async function PUT(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     const data = await request.json();
     const client = await prisma.client.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         name: data.name,
         email: data.email,
@@ -56,10 +60,12 @@ export async function PUT(request: Request, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
+export async function DELETE(request: Request) {
+  const { pathname } = new URL(request.url);
+  const id = pathname.split('/').at(-1);
   try {
     await prisma.client.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
     return NextResponse.json({ success: true });
   } catch (error) {

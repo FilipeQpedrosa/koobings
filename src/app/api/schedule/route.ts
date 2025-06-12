@@ -4,13 +4,10 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
-// Validation schema for schedule
-const scheduleSchema = z.object({
+// Validation schema for staff availability schedule JSON
+const staffAvailabilitySchema = z.object({
   staffId: z.string(),
-  dayOfWeek: z.number().min(0).max(6),
-  startTime: z.string(),
-  endTime: z.string(),
-  isAvailable: z.boolean().default(true),
+  schedule: z.record(z.any()), // Accepts any JSON for schedule
 });
 
 export async function GET(request: NextRequest) {
@@ -27,26 +24,38 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const staffId = searchParams.get('staffId');
 
-    const where = staffId ? { staffId } : {};
-
-    const schedules = await prisma.schedule.findMany({
-      where,
-      include: {
-        staff: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
+    if (staffId) {
+      const availability = await prisma.staffAvailability.findUnique({
+        where: { staffId },
+        include: {
+          staff: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
           },
         },
-      },
-    });
-
-    return NextResponse.json(schedules);
+      });
+      return NextResponse.json(availability);
+    } else {
+      const availabilities = await prisma.staffAvailability.findMany({
+        include: {
+          staff: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+      return NextResponse.json(availabilities);
+    }
   } catch (error) {
-    console.error('Error fetching schedules:', error);
+    console.error('Error fetching staff availabilities:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch schedules' },
+      { error: 'Failed to fetch staff availabilities' },
       { status: 500 }
     );
   }
@@ -64,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    const validatedData = scheduleSchema.parse(data);
+    const validatedData = staffAvailabilitySchema.parse(data);
 
     // If staff member, can only modify own schedule
     if (session.user.role === 'STAFF' && validatedData.staffId !== session.user.id) {
@@ -74,8 +83,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const schedule = await prisma.schedule.create({
-      data: validatedData,
+    // Upsert staff availability (one per staff)
+    const availability = await prisma.staffAvailability.upsert({
+      where: { staffId: validatedData.staffId },
+      update: { schedule: validatedData.schedule },
+      create: {
+        staffId: validatedData.staffId,
+        schedule: validatedData.schedule,
+      },
       include: {
         staff: {
           select: {
@@ -87,11 +102,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(schedule);
+    return NextResponse.json(availability);
   } catch (error) {
-    console.error('Error creating schedule:', error);
+    console.error('Error creating/updating staff availability:', error);
     return NextResponse.json(
-      { error: 'Failed to create schedule' },
+      { error: 'Failed to create/update staff availability' },
       { status: 500 }
     );
   }
@@ -109,44 +124,26 @@ export async function PATCH(request: NextRequest) {
     }
 
     const data = await request.json();
-    const { id, ...updateData } = data;
+    const { staffId, schedule } = data;
 
-    if (!id) {
+    if (!staffId) {
       return NextResponse.json(
-        { error: 'Schedule ID is required' },
+        { error: 'Staff ID is required' },
         { status: 400 }
       );
     }
 
-    // Verify schedule access
-    const existingSchedule = await prisma.schedule.findUnique({
-      where: { id },
-      select: {
-        staffId: true,
-      },
-    });
-
-    if (!existingSchedule) {
-      return NextResponse.json(
-        { error: 'Schedule not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if user has permission to update
-    if (
-      session.user.role === 'STAFF' &&
-      existingSchedule.staffId !== session.user.id
-    ) {
+    // Verify access
+    if (session.user.role === 'STAFF' && staffId !== session.user.id) {
       return NextResponse.json(
         { error: 'Unauthorized to update this schedule' },
         { status: 403 }
       );
     }
 
-    const schedule = await prisma.schedule.update({
-      where: { id },
-      data: updateData,
+    const availability = await prisma.staffAvailability.update({
+      where: { staffId },
+      data: { schedule },
       include: {
         staff: {
           select: {
@@ -158,11 +155,11 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(schedule);
+    return NextResponse.json(availability);
   } catch (error) {
-    console.error('Error updating schedule:', error);
+    console.error('Error updating staff availability:', error);
     return NextResponse.json(
-      { error: 'Failed to update schedule' },
+      { error: 'Failed to update staff availability' },
       { status: 500 }
     );
   }
@@ -180,50 +177,32 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const staffId = searchParams.get('staffId');
 
-    if (!id) {
+    if (!staffId) {
       return NextResponse.json(
-        { error: 'Schedule ID is required' },
+        { error: 'Staff ID is required' },
         { status: 400 }
       );
     }
 
-    // Verify schedule access
-    const existingSchedule = await prisma.schedule.findUnique({
-      where: { id },
-      select: {
-        staffId: true,
-      },
-    });
-
-    if (!existingSchedule) {
-      return NextResponse.json(
-        { error: 'Schedule not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if user has permission to delete
-    if (
-      session.user.role === 'STAFF' &&
-      existingSchedule.staffId !== session.user.id
-    ) {
+    // Verify access
+    if (session.user.role === 'STAFF' && staffId !== session.user.id) {
       return NextResponse.json(
         { error: 'Unauthorized to delete this schedule' },
         { status: 403 }
       );
     }
 
-    await prisma.schedule.delete({
-      where: { id },
+    await prisma.staffAvailability.delete({
+      where: { staffId },
     });
 
-    return NextResponse.json({ message: 'Schedule deleted successfully' });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting schedule:', error);
+    console.error('Error deleting staff availability:', error);
     return NextResponse.json(
-      { error: 'Failed to delete schedule' },
+      { error: 'Failed to delete staff availability' },
       { status: 500 }
     );
   }

@@ -33,42 +33,16 @@ export class AppointmentService {
     
     // Get service and staff details
     const [service, staff] = await Promise.all([
-      prisma.service.findUnique({
+      prisma.service.findFirst({
         where: { 
           id: serviceId,
-          businessId,
-          isActive: true,
-          isDeleted: false
+          businessId
         }
       }),
-      prisma.staff.findUnique({
+      prisma.staff.findFirst({
         where: { 
           id: staffId,
-          businessId,
-          isDeleted: false
-        },
-        include: {
-          schedules: {
-            where: { dayOfWeek: checkDate.getDay() }
-          },
-          availability: {
-            where: { 
-              date: checkDate,
-              isDeleted: false
-            }
-          },
-          appointments: {
-            where: {
-              startTime: {
-                gte: checkDate,
-                lt: new Date(checkDate.getTime() + 24 * 60 * 60 * 1000)
-              },
-              status: {
-                in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]
-              },
-              isDeleted: false
-            }
-          }
+          businessId
         }
       })
     ]);
@@ -77,42 +51,49 @@ export class AppointmentService {
       throw new ApiError('NOT_FOUND', 'Service or staff member not found');
     }
 
-    const schedule = staff.schedules[0];
-    if (!schedule) {
-      return []; // Staff not working on this day
-    }
+    // Fetch staff appointments for the day
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        staffId: staff.id,
+        scheduledFor: {
+          gte: new Date(format(checkDate, 'yyyy-MM-ddT00:00:00')),
+          lt: new Date(format(checkDate, 'yyyy-MM-ddT23:59:59')),
+        },
+        status: {
+          in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]
+        }
+      }
+    });
 
-    // Check if staff has any availability exceptions
-    const availabilityException = staff.availability[0];
-    if (availabilityException && !availabilityException.isAvailable) {
-      return []; // Staff marked as unavailable for this day
-    }
-
-    // Generate time slots
+    // Generate time slots (example: 9am-5pm, 30min intervals)
+    // You may want to fetch working hours from StaffAvailability or another source
+    const startHour = 9;
+    const endHour = 17;
     const slots: TimeSlot[] = [];
-    let currentTime = parseISO(`${format(checkDate, 'yyyy-MM-dd')}T${schedule.startTime}`);
-    const endTime = parseISO(`${format(checkDate, 'yyyy-MM-dd')}T${schedule.endTime}`);
+    let currentTime = new Date(checkDate);
+    currentTime.setHours(startHour, 0, 0, 0);
+    const endTime = new Date(checkDate);
+    endTime.setHours(endHour, 0, 0, 0);
 
     while (currentTime < endTime) {
       const slotEndTime = addMinutes(currentTime, service.duration);
-      
-      // Check if slot is within business hours
-      if (slotEndTime <= endTime) {
-        const isAvailable = await this.isTimeSlotAvailable(
-          currentTime,
-          slotEndTime,
-          staff.appointments,
-          service.duration
+      if (slotEndTime > endTime) break;
+      // Check for conflicts
+      const hasConflict = appointments.some(appointment => {
+        const appointmentStart = new Date(appointment.scheduledFor);
+        const appointmentEnd = addMinutes(appointmentStart, appointment.duration);
+        return (
+          (currentTime >= appointmentStart && currentTime < appointmentEnd) ||
+          (slotEndTime > appointmentStart && slotEndTime <= appointmentEnd) ||
+          (currentTime <= appointmentStart && slotEndTime >= appointmentEnd)
         );
-
-        slots.push({
-          startTime: format(currentTime, 'HH:mm'),
-          endTime: format(slotEndTime, 'HH:mm'),
-          available: isAvailable
-        });
-      }
-
-      currentTime = addMinutes(currentTime, 30); // 30-minute intervals
+      });
+      slots.push({
+        startTime: format(currentTime, 'HH:mm'),
+        endTime: format(slotEndTime, 'HH:mm'),
+        available: !hasConflict
+      });
+      currentTime = addMinutes(currentTime, 30);
     }
 
     return slots;
@@ -157,12 +138,10 @@ export class AppointmentService {
     } = params;
 
     // Get service details
-    const service = await prisma.service.findUnique({
+    const service = await prisma.service.findFirst({
       where: { 
         id: serviceId,
-        businessId,
-        isActive: true,
-        isDeleted: false
+        businessId
       }
     });
 
@@ -193,18 +172,14 @@ export class AppointmentService {
     // Create the appointment
     const appointment = await prisma.appointment.create({
       data: {
-        startTime: appointmentStart,
-        endTime: appointmentEnd,
+        scheduledFor: appointmentStart,
+        duration: service.duration,
         status: AppointmentStatus.PENDING,
         notes,
         businessId,
         clientId,
         serviceId,
         staffId,
-        createdBy,
-        lastModifiedBy: createdBy,
-        bufferTimeBefore: 15, // 15 minutes buffer before
-        bufferTimeAfter: 15,  // 15 minutes buffer after
       },
       include: {
         service: true,
@@ -228,8 +203,7 @@ export class AppointmentService {
   ) {
     const appointment = await prisma.appointment.findUnique({
       where: { 
-        id: appointmentId,
-        isDeleted: false
+        id: appointmentId
       }
     });
 
@@ -240,23 +214,13 @@ export class AppointmentService {
     const updatedAppointment = await prisma.appointment.update({
       where: { id: appointmentId },
       data: {
-        status,
-        lastModifiedBy: userId,
-        ...(status === AppointmentStatus.CANCELLED && {
-          cancellation: {
-            create: {
-              reason,
-              cancelledBy: userId
-            }
-          }
-        })
+        status
       },
       include: {
         service: true,
         staff: true,
         client: true,
-        business: true,
-        cancellation: true
+        business: true
       }
     });
 

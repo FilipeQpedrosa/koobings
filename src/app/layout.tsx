@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: 'Professional beauty and wellness service scheduling platform',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: ReactNode;
@@ -25,8 +25,11 @@ export default function RootLayout({
   }
 
   // In production, initialize services only on the server side
-  if (process.env.NODE_ENV === 'production' && !headers().get('x-powered-by')) {
-    initializeServices();
+  if (process.env.NODE_ENV === 'production') {
+    const hdrs = await headers();
+    if (!hdrs.get('x-powered-by')) {
+      initializeServices();
+    }
   }
 
   return (

@@ -70,7 +70,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Apply rate limiting
-  const ip = request.ip || 'unknown'
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   if (isRateLimited(ip)) {
     return new NextResponse('Too Many Requests', { status: 429 })
   }
