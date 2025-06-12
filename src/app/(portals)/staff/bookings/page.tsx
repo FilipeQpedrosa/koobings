@@ -414,29 +414,37 @@ export default function StaffBookingsPage() {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('all');
   const [selectedStaff, setSelectedStaff] = useState<string>('all');
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
-  // Refactored fetchBookings function
-  function fetchBookings() {
+  function fetchBookings(append = false) {
     setLoading(true);
     setError("");
-    let url = `/api/business/appointments`;
+    let url = `/api/business/appointments?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
     if (selectedDate && selectedDate !== 'all') {
-      url += `?date=${selectedDate}`;
-      if (selectedStaff && selectedStaff !== 'all') {
-        url += `&staffId=${selectedStaff}`;
-      }
-    } else if (selectedStaff && selectedStaff !== 'all') {
-      url += `?staffId=${selectedStaff}`;
+      url += `&date=${selectedDate}`;
+    }
+    if (selectedStaff && selectedStaff !== 'all') {
+      url += `&staffId=${selectedStaff}`;
     }
     fetch(url)
       .then(res => res.json())
-      .then(data => setBookings(data))
+      .then(data => {
+        setTotal(data.total || 0);
+        if (append) {
+          setBookings(prev => [...prev, ...(data.appointments || [])]);
+        } else {
+          setBookings(data.appointments || []);
+        }
+      })
       .catch(err => setError("Failed to fetch bookings"))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
-    fetchBookings();
+    setPage(0);
+    fetchBookings(false);
   }, [selectedDate, selectedStaff]);
 
   useEffect(() => {
@@ -465,6 +473,14 @@ export default function StaffBookingsPage() {
     fetchClients();
     fetchStaff();
   }, []);
+
+  function handleShowMore() {
+    setPage(prev => {
+      const nextPage = prev + 1;
+      fetchBookings(true);
+      return nextPage;
+    });
+  }
 
   function openAddModal() {
     setEditBooking(null);
@@ -527,6 +543,7 @@ export default function StaffBookingsPage() {
           ) : sortedBookings.length === 0 ? (
             <div className="text-gray-500">No bookings for this date.</div>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
@@ -556,6 +573,10 @@ export default function StaffBookingsPage() {
                 </tbody>
               </table>
             </div>
+            {bookings.length < total && (
+              <Button onClick={handleShowMore} className="mt-4">Show More</Button>
+            )}
+            </>
           )}
         </div>
         {/* Mobile Card/List View */}
@@ -567,6 +588,7 @@ export default function StaffBookingsPage() {
           ) : sortedBookings.length === 0 ? (
             <div className="text-gray-500">No bookings for this date.</div>
           ) : (
+            <>
             <ul className="space-y-4">
               {sortedBookings.map((booking) => (
                 <li key={booking.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 border border-gray-100">
@@ -584,6 +606,10 @@ export default function StaffBookingsPage() {
                 </li>
               ))}
             </ul>
+            {bookings.length < total && (
+              <Button onClick={handleShowMore} className="mt-4 w-full">Show More</Button>
+            )}
+            </>
           )}
         </div>
       </div>

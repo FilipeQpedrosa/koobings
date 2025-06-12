@@ -8,7 +8,8 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -28,12 +29,21 @@ export async function POST(request: Request) {
     }
 
     // Update business status to ACTIVE
-    const updatedBusiness = await prisma.business.update({
-      where: { id: business.id },
-      data: {
-        status: BusinessStatus.ACTIVE,
-      },
-    });
+    let updatedBusiness;
+    try {
+      updatedBusiness = await prisma.business.update({
+        where: { id: business.id },
+        data: {
+          status: BusinessStatus.ACTIVE,
+        },
+      });
+    } catch (updateError) {
+      console.error('Database update error:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to complete onboarding' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -43,10 +53,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error('Error completing onboarding:', error);
+    console.error('POST /business/complete-onboarding error:', error);
     return NextResponse.json(
       { error: 'Failed to complete onboarding' },
       { status: 500 }
     );
   }
-} 
+}
+
+// TODO: Add rate limiting middleware for abuse protection in the future. 

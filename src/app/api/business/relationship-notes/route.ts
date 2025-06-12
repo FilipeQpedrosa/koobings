@@ -2,21 +2,26 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+import { NoteType } from '@prisma/client'
 
 // GET: List notes for a client relationship
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 })
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const notes = await prisma.relationshipNote.findMany({
       include: {
         createdBy: true,
-        patientRelationship: {
+        clientRelationship: {
           include: {
-            patient: true
+            client: true,
+            business: true,
+            staff: true
           }
         }
       }
@@ -24,8 +29,8 @@ export async function GET() {
 
     return NextResponse.json(notes)
   } catch (error) {
-    console.error('Error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    console.error('GET /business/relationship-notes error:', error)
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
   }
 }
 
@@ -33,18 +38,48 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 })
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
+    // Input validation
+    const schema = z.object({
+      noteType: z.enum(['GENERAL', 'PREFERENCE', 'INCIDENT', 'FEEDBACK', 'FOLLOW_UP', 'SPECIAL_REQUEST']),
+      content: z.string().min(1),
+      createdById: z.string().min(1),
+      businessId: z.string().min(1),
+      clientId: z.string().min(1),
+      clientRelationshipId: z.string().optional(),
+      appointmentId: z.string().optional()
+    })
+    let body
+    try {
+      body = await request.json()
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
+    let validatedData
+    try {
+      validatedData = schema.parse(body)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Invalid note data', details: error.errors }, { status: 400 })
+      }
+      throw error
+    }
     const note = await prisma.relationshipNote.create({
-      data: body,
+      data: {
+        ...validatedData,
+        noteType: validatedData.noteType as NoteType,
+      },
       include: {
         createdBy: true,
-        patientRelationship: {
+        clientRelationship: {
           include: {
-            patient: true
+            client: true,
+            business: true,
+            staff: true
           }
         }
       }
@@ -52,7 +87,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(note)
   } catch (error) {
-    console.error('Error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    console.error('POST /business/relationship-notes error:', error)
+    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
   }
 }
+
+// TODO: Add rate limiting middleware for abuse protection in the future.

@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 // GET /api/staff/clients/[id] - Get client details, history, and notes
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -57,7 +58,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // PUT /api/staff/clients/[id] - Update client info
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

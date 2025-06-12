@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     });
     
     // Convert settings array to object
-    const settingsObject = settings.reduce<Partial<SystemSettings>>((acc, setting) => {
+    const settingsObject = settings.reduce((acc: Partial<SystemSettings>, setting: any) => {
       const [category, key] = setting.key.split('.');
       if (!acc[category as keyof SystemSettings]) {
         acc[category as keyof SystemSettings] = {} as any;
@@ -92,7 +92,7 @@ export async function PUT(request: Request) {
     const data = await request.json() as SystemSettings;
 
     // Update settings in database
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Flatten settings object into key-value pairs
       const flattenedSettings = Object.entries(data).flatMap(([category, values]) =>
         Object.entries(values).map(([key, value]) => ({
@@ -106,13 +106,13 @@ export async function PUT(request: Request) {
         await tx.systemSettings.upsert({
           where: { key: setting.key },
           update: {
-            value: setting.value,
+            value: setting.value as any,
             lastModifiedBy: admin.id,
             updatedAt: new Date()
           },
           create: {
             key: setting.key,
-            value: setting.value,
+            value: setting.value as any,
             lastModifiedBy: admin.id
           }
         });
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx: any) => {
           await tx.adminActivity.deleteMany({
             where: {
               createdAt: {

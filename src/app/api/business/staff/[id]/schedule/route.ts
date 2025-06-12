@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { parseISO, startOfWeek, endOfWeek } from 'date-fns';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: {
+    id: string;
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -20,18 +25,42 @@ export async function GET(
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
 
+    const url = new URL(request.url);
+    const weekParam = url.searchParams.get('week');
+    let weekStart, weekEnd;
+    if (weekParam) {
+      const weekDate = parseISO(weekParam);
+      weekStart = startOfWeek(weekDate, { weekStartsOn: 0 });
+      weekEnd = endOfWeek(weekDate, { weekStartsOn: 0 });
+    } else {
+      // Default to current week
+      const now = new Date();
+      weekStart = startOfWeek(now, { weekStartsOn: 0 });
+      weekEnd = endOfWeek(now, { weekStartsOn: 0 });
+    }
+
     const staff = await prisma.staff.findFirst({
       where: {
         id: params.id,
         businessId
       },
       include: {
-        schedules: {
+        availability: true,
+        appointments: {
+          where: {
+            scheduledFor: {
+              gte: weekStart,
+              lte: weekEnd
+            },
+            status: { in: ['PENDING', 'CONFIRMED'] }
+          },
           select: {
             id: true,
-            dayOfWeek: true,
-            startTime: true,
-            endTime: true
+            scheduledFor: true,
+            duration: true,
+            status: true,
+            client: { select: { id: true, name: true } },
+            service: { select: { id: true, name: true } }
           }
         }
       }
@@ -41,7 +70,10 @@ export async function GET(
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
     }
 
-    return NextResponse.json(staff);
+    return NextResponse.json({
+      availability: staff.availability?.schedule || {},
+      appointments: staff.appointments
+    });
   } catch (error) {
     console.error('Error fetching staff schedule:', error);
     return NextResponse.json(
@@ -51,10 +83,8 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -79,42 +109,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
     }
 
-    const { schedules } = await request.json();
+    const { schedule } = await request.json();
 
-    // Delete existing schedules
-    await prisma.staffSchedule.deleteMany({
-      where: {
-        staffId: params.id
-      }
+    // Update the schedule JSON for the staff member
+    const updated = await prisma.staffAvailability.update({
+      where: { staffId: params.id },
+      data: { schedule }
     });
 
-    // Create new schedules
-    await prisma.staffSchedule.createMany({
-      data: schedules.map((schedule: any) => ({
-        staffId: params.id,
-        dayOfWeek: schedule.dayOfWeek,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime
-      }))
-    });
-
-    const updatedStaff = await prisma.staff.findFirst({
-      where: {
-        id: params.id
-      },
-      include: {
-        schedules: {
-          select: {
-            id: true,
-            dayOfWeek: true,
-            startTime: true,
-            endTime: true
-          }
-        }
-      }
-    });
-
-    return NextResponse.json(updatedStaff);
+    return NextResponse.json({ schedule: updated.schedule });
   } catch (error) {
     console.error('Error updating staff schedule:', error);
     return NextResponse.json(

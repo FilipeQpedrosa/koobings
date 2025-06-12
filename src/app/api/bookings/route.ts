@@ -13,17 +13,26 @@ export async function POST(request: Request) {
       return new NextResponse('Missing required fields', { status: 400 });
     }
 
-    // Get or create patient record
-    let patient = await prisma.patient.findFirst({
+    // Get or create client record
+    let client = await prisma.client.findFirst({
       where: { email },
     });
 
-    if (!patient) {
-      patient = await prisma.patient.create({
+    if (!client) {
+      // Get the service to access businessId
+      const service = await prisma.service.findUnique({
+        where: { id: serviceId },
+        select: { businessId: true },
+      });
+      if (!service) {
+        return new NextResponse('Service not found', { status: 404 });
+      }
+      client = await prisma.client.create({
         data: {
           email,
           name,
           status: 'ACTIVE',
+          business: { connect: { id: service.businessId } },
         },
       });
     }
@@ -35,7 +44,7 @@ export async function POST(request: Request) {
         business: {
           include: {
             staff: {
-              where: { role: 'PROVIDER' },
+              where: { role: 'STANDARD' },
               take: 1,
             },
           },
@@ -51,27 +60,18 @@ export async function POST(request: Request) {
       return new NextResponse('No available provider', { status: 400 });
     }
 
-    // Calculate end time based on service duration
-    const startDateTime = new Date(startTime);
-    const endDateTime = addMinutes(startDateTime, service.duration);
+    // Calculate scheduledFor based on startTime
+    const scheduledFor = new Date(startTime);
+    const duration = service.duration;
 
     // Check for conflicting appointments
     const conflictingAppointment = await prisma.appointment.findFirst({
       where: {
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: startDateTime } },
-              { endTime: { gt: startDateTime } },
-            ],
-          },
-          {
-            AND: [
-              { startTime: { lt: endDateTime } },
-              { endTime: { gte: endDateTime } },
-            ],
-          },
-        ],
+        staffId: service.business.staff[0].id,
+        scheduledFor: {
+          gte: scheduledFor,
+          lt: addMinutes(scheduledFor, duration),
+        },
         status: {
           in: ['PENDING', 'CONFIRMED'],
         },
@@ -85,11 +85,11 @@ export async function POST(request: Request) {
     // Create the appointment
     const appointment = await prisma.appointment.create({
       data: {
-        startTime: startDateTime,
-        endTime: endDateTime,
+        scheduledFor,
+        duration,
         status: 'PENDING',
         businessId: service.business.id,
-        patientId: patient.id,
+        clientId: client.id,
         serviceId: service.id,
         staffId: service.business.staff[0].id,
       },

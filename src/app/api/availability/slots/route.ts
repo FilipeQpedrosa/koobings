@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Get business hours for the given date
     const dayOfWeek = new Date(date).getDay();
     const businessHours = service.business.businessHours.find(
-      (hours) => hours.dayOfWeek === dayOfWeek
+      (hours: { dayOfWeek: number }) => hours.dayOfWeek === dayOfWeek
     );
 
     if (!businessHours || !businessHours.isOpen) {
@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
 
     // Generate time slots
     const slots: { time: string; available: boolean }[] = [];
-    let currentTime = parse(businessHours.openTime, 'HH:mm:ss', new Date());
-    const closeTime = parse(businessHours.closeTime, 'HH:mm:ss', new Date());
+    let currentTime = businessHours.startTime ? parse(businessHours.startTime, 'HH:mm', new Date()) : setHours(setMinutes(new Date(), 0), 9);
+    const closeTime = businessHours.endTime ? parse(businessHours.endTime, 'HH:mm', new Date()) : setHours(setMinutes(new Date(), 0), 17);
 
     while (currentTime < closeTime) {
       const timeSlot = format(currentTime, 'HH:mm:ss');
@@ -85,12 +85,12 @@ export async function GET(request: NextRequest) {
 
 async function checkStaffAvailability(
   staff: any[],
-  date: string,
+  date: Date,
   time: string,
   duration: number
 ) {
   // Convert appointment time to Date object
-  const appointmentStart = new Date(`${date}T${time}`);
+  const appointmentStart = new Date(`${format(date, 'yyyy-MM-dd')}T${time}`);
   const appointmentEnd = addMinutes(appointmentStart, duration);
 
   // Check existing appointments for each staff member
@@ -99,22 +99,30 @@ async function checkStaffAvailability(
       staffId: {
         in: staff.map((s) => s.id),
       },
-      date: new Date(date),
+      scheduledFor: {
+        gte: new Date(format(date, 'yyyy-MM-ddT00:00:00')),
+        lt: new Date(format(date, 'yyyy-MM-ddT23:59:59')),
+      },
       NOT: {
         status: 'CANCELLED',
       },
+    },
+    select: {
+      staffId: true,
+      scheduledFor: true,
+      duration: true,
     },
   });
 
   // Check if at least one staff member is available
   return staff.some((staffMember) => {
     const staffAppointments = existingAppointments.filter(
-      (apt) => apt.staffId === staffMember.id
+      (apt: { staffId: string }) => apt.staffId === staffMember.id
     );
 
     // Check if the staff member has any conflicting appointments
-    const hasConflict = staffAppointments.some((apt) => {
-      const existingStart = new Date(`${date}T${apt.time}`);
+    const hasConflict = staffAppointments.some((apt: { scheduledFor: Date | string; duration: number }) => {
+      const existingStart = new Date(apt.scheduledFor);
       const existingEnd = addMinutes(existingStart, apt.duration);
 
       return (

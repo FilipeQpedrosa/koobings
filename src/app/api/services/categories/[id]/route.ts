@@ -10,7 +10,8 @@ interface RouteParams {
 }
 
 // GET /api/services/categories/[id] - Get a single category
-export async function GET(request: Request, { params }: RouteParams) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -41,7 +42,8 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 // PUT /api/services/categories/[id] - Update a category
-export async function PUT(request: Request, { params }: RouteParams) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -87,7 +89,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
 }
 
 // DELETE /api/services/categories/[id] - Delete a category
-export async function DELETE(request: Request, { params }: RouteParams) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {

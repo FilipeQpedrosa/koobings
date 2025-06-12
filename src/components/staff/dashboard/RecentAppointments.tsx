@@ -78,7 +78,7 @@ export default function RecentAppointments({ appointments = [] }: RecentAppointm
       </div>
       {/* Mobile: Card/List view */}
       <div className="sm:hidden space-y-4">
-        {filtered.length === 0 && <div className="text-gray-500 text-center">No appointments found.</div>}
+        {filtered.length === 0 && <div className="text-gray-500 text-center">No appointments found.<br />Reference: #{new Date().getTime()}</div>}
         {filtered.map((apt) => (
           <div key={apt.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 border border-gray-100">
             <div className="flex items-center justify-between">
@@ -122,7 +122,7 @@ export default function RecentAppointments({ appointments = [] }: RecentAppointm
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400 text-lg">No appointments found.</td>
+                <td colSpan={6} className="text-center py-8 text-gray-400 text-lg">No appointments found.<br />Reference: #{new Date().getTime()}</td>
               </tr>
             )}
             {filtered.map((apt) => (

@@ -37,7 +37,7 @@ export default function StaffProfilePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to change password');
-      toast({ title: 'Password changed successfully', variant: 'success' });
+      toast({ title: 'Password changed successfully', variant: 'default' });
       setShowModal(false);
       setCurrentPassword('');
       setNewPassword('');

@@ -39,7 +39,7 @@ export default function StaffDashboardPage() {
         if (!res.ok) throw new Error('Failed to fetch appointments');
         const data = await res.json();
         setAppointments(
-          (data || []).map((apt: any) => ({
+          (data.appointments || []).map((apt: any) => ({
             id: apt.id,
             clientName: apt.client?.name || '',
             serviceName: apt.services?.[0]?.name || '',
@@ -48,7 +48,24 @@ export default function StaffDashboardPage() {
             duration: apt.services?.[0]?.duration || 0,
           }))
         );
-        setBusiness({ name: data.businessName });
+        setBusiness({ name: data.businessName, logo: data.businessLogo });
+
+        // Calculate and set stats
+        const appointmentsArr = data.appointments || [];
+        const now = new Date();
+        const upcomingAppointments = appointmentsArr.filter(
+          (apt: any) => new Date(apt.scheduledFor) > now
+        ).length;
+        const totalAppointments = appointmentsArr.length;
+        const totalClients = new Set(appointmentsArr.map((apt: any) => apt.client?.id)).size;
+        const completed = appointmentsArr.filter((apt: any) => apt.status === 'COMPLETED').length;
+        const completionRate = totalAppointments > 0 ? Math.round((completed / totalAppointments) * 100) : 0;
+        setStats({
+          totalAppointments,
+          upcomingAppointments,
+          totalClients,
+          completionRate,
+        });
       } catch (err: any) {
         setError(err.message || 'Unknown error');
       } finally {

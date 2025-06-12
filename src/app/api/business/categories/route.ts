@@ -2,15 +2,15 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
-import * as yup from 'yup';
+import { z } from 'zod';
 
-const categorySchema = yup.object({
-  name: yup.string().required(),
-  description: yup.string(),
-  color: yup.string(),
+const categorySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  color: z.string().optional(),
 });
 
-type CategoryInput = yup.InferType<typeof categorySchema>;
+type CategoryInput = z.infer<typeof categorySchema>;
 
 function getPaginationParams(url: URL) {
   const page = Number(url.searchParams.get('page')) || 1;
@@ -28,7 +28,7 @@ async function getBusinessId(session: any) {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const businessId = await getBusinessId(session);
     const url = new URL(request.url);
     const { page, limit, skip } = getPaginationParams(url);
@@ -65,10 +65,23 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const businessId = await getBusinessId(session);
-    const body = await request.json();
-    const validatedData = await categorySchema.validate(body);
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    let validatedData;
+    try {
+      validatedData = categorySchema.parse(body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
+      }
+      throw error;
+    }
     const category = await prisma.serviceCategory.create({
       data: {
         ...validatedData,
@@ -79,9 +92,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, data: category });
   } catch (error) {
     console.error('Error in POST /business/categories:', error);
-    if (error instanceof yup.ValidationError) {
-      return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
-    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -89,15 +99,28 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const businessId = await getBusinessId(session);
     const url = new URL(request.url);
     const categoryId = url.searchParams.get('id');
     if (!categoryId) {
       return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
     }
-    const body = await request.json();
-    const validatedData = await categorySchema.validate(body);
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    let validatedData;
+    try {
+      validatedData = categorySchema.parse(body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
+      }
+      throw error;
+    }
     const existingCategory = await prisma.serviceCategory.findFirst({
       where: { id: categoryId, businessId, isDeleted: false },
     });
@@ -112,9 +135,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: true, data: category });
   } catch (error) {
     console.error('Error in PUT /business/categories:', error);
-    if (error instanceof yup.ValidationError) {
-      return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
-    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -122,7 +142,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const businessId = await getBusinessId(session);
     const url = new URL(request.url);
     const categoryId = url.searchParams.get('id');
@@ -145,3 +165,5 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+// TODO: Add rate limiting middleware for abuse protection in the future.

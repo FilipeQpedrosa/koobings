@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient, BackupStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { logger } from '@/lib/logger'
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     const [backups, total] = await Promise.all([
       prisma.backupStatus.findMany({
         where,
-        orderBy: { startedAt: 'desc' },
+        orderBy: { timestamp: 'desc' },
         take: limit,
         skip: offset
       }),
@@ -40,12 +40,12 @@ export async function GET(request: Request) {
 
     // Calculate success rate
     const successRate = backups.length > 0
-      ? (backups.filter((b: BackupStatus) => b.status === 'completed').length / backups.length) * 100
+      ? (backups.filter((b: any) => b.status === 'completed').length / backups.length) * 100
       : 0
 
     // Get latest backup status
     const latestBackup = backups[0]
-    const lastSuccessfulBackup = backups.find((b: BackupStatus) => b.status === 'completed')
+    const lastSuccessfulBackup = backups.find((b: any) => b.status === 'completed')
 
     return NextResponse.json({
       backups,
@@ -54,15 +54,11 @@ export async function GET(request: Request) {
         successRate,
         latestBackup: latestBackup ? {
           id: latestBackup.id,
-          type: latestBackup.type,
           status: latestBackup.status,
-          startedAt: latestBackup.startedAt,
-          completedAt: latestBackup.completedAt
+          startedAt: latestBackup.timestamp
         } : null,
         lastSuccessfulBackup: lastSuccessfulBackup ? {
-          id: lastSuccessfulBackup.id,
-          type: lastSuccessfulBackup.type,
-          completedAt: lastSuccessfulBackup.completedAt
+          id: lastSuccessfulBackup.id
         } : null
       }
     })

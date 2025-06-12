@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-
-const prisma = new PrismaClient();
 
 // GET /api/business/verify - Verify if user is a business staff member
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session || !session.user) {
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -36,7 +35,8 @@ export async function GET(request: Request) {
       businessStatus: staff.business.status
     });
   } catch (error) {
-    console.error('Error verifying business staff:', error);
+    console.error('GET /business/verify error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-} 
+}
+// TODO: Add rate limiting middleware for abuse protection in the future. 

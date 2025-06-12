@@ -3,28 +3,32 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, parseISO, addMinutes } from 'date-fns';
+import { z } from 'zod';
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get the staff member and their business
     const staff = await prisma.staff.findUnique({
-      where: { email: session.user?.email },
+      where: { email: session.user.email },
       include: { business: true }
     });
 
     if (!staff) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get date from query params
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
     const staffId = searchParams.get('staffId');
+    const limit = parseInt(searchParams.get('limit') || '0', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     let where: any = {
       businessId: staff.businessId,
@@ -55,6 +59,9 @@ export async function GET(request: Request) {
       }
     }
 
+    // Fetch total count for pagination
+    const total = await prisma.appointment.count({ where });
+
     // Fetch appointments for the business (optionally filtered by date and/or staff)
     const appointments = await prisma.appointment.findMany({
       where,
@@ -77,6 +84,8 @@ export async function GET(request: Request) {
       orderBy: {
         scheduledFor: 'asc',
       },
+      ...(limit ? { take: limit } : {}),
+      ...(offset ? { skip: offset } : {}),
     });
 
     // Transform the data to match the frontend interface
@@ -101,7 +110,12 @@ export async function GET(request: Request) {
       }] : [],
     }));
 
-    return NextResponse.json(formattedAppointments);
+    return NextResponse.json({
+      appointments: formattedAppointments,
+      businessName: staff.business?.name ?? '',
+      businessLogo: staff.business?.logo ?? null,
+      total,
+    });
   } catch (error: any) {
     console.error('Error fetching appointments:', error);
     if (process.env.NODE_ENV === 'development') {
@@ -114,27 +128,45 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    if (!session || !session.user || !session.user.email) {
+      console.error('Unauthorized: No session or user.');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const staff = await prisma.staff.findUnique({
-      where: { email: session.user?.email },
+      where: { email: session.user.email },
       include: { business: true }
     });
 
     if (!staff) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Input validation
+    const schema = z.object({
+      clientId: z.string().min(1),
+      serviceId: z.string().min(1),
+      startTime: z.string().min(1),
+      notes: z.string().optional(),
+      staffId: z.string().optional()
+    });
     let body;
     try {
       body = await request.json();
     } catch (err) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
-    const { clientId, serviceId, startTime, notes, staffId: staffIdFromPayload } = body;
-    console.log('[POST /api/business/appointments] body:', body, 'staffId used:', staffIdFromPayload || staff.id);
+    let parsed;
+    try {
+      parsed = schema.parse(body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+      }
+      throw error;
+    }
+    const { clientId, serviceId, startTime, notes, staffId: staffIdFromPayload } = parsed;
+    console.log('[POST /api/business/appointments] body:', parsed, 'staffId used:', staffIdFromPayload || staff.id);
 
     if (!clientId || !serviceId || !startTime) {
       return NextResponse.json({ error: 'Missing required fields: clientId, serviceId, startTime' }, { status: 400 });
@@ -209,11 +241,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json(formattedAppointment);
   } catch (error: any) {
-    console.error('Error creating appointment:', error);
+    console.error('POST /business/appointments error:', error);
     if (process.env.NODE_ENV === 'development') {
       return NextResponse.json({ error: 'Internal Server Error', details: error.message, stack: error.stack }, { status: 500 });
     }
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -273,4 +305,6 @@ export async function PUT(request: Request) {
     console.error('Error checking staff availability:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
-} 
+}
+
+// TODO: Add rate limiting middleware for abuse protection in the future. 

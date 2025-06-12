@@ -3,20 +3,18 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { hash } from 'bcryptjs';
+import { z } from 'zod';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user) {
+    if (!session?.user || !session.user.businessId) {
+      console.error('Unauthorized: No session or user.');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
-
-    if (!businessId) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
-    }
 
     const staff = await prisma.staff.findMany({
       where: {
@@ -34,7 +32,7 @@ export async function GET() {
 
     return NextResponse.json(staff);
   } catch (error) {
-    console.error('Error fetching staff:', error);
+    console.error('GET /business/staff error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -46,25 +44,31 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user) {
+    if (!session?.user || !session.user.businessId) {
+      console.error('Unauthorized: No session or user.');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
 
-    if (!businessId) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+    // Input validation
+    const schema = z.object({
+      email: z.string().email(),
+      name: z.string().min(1),
+      role: z.enum(['ADMIN', 'MANAGER', 'STANDARD']),
+      password: z.string().min(6),
+      services: z.array(z.string()).optional()
+    });
+    let data;
+    try {
+      data = schema.parse(await request.json());
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+      }
+      throw error;
     }
-
-    const data = await request.json();
     const { email, name, role, password, services = [] } = data;
-
-    if (!email || !name || !role || !password) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
 
     const passwordHash = await hash(password, 10);
 
@@ -91,10 +95,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(staff);
   } catch (error) {
-    console.error('Error creating staff member:', error);
+    console.error('POST /business/staff error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
-} 
+}
+
+// TODO: Add rate limiting middleware for abuse protection in the future. 

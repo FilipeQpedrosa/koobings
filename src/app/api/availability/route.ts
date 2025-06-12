@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     // Get existing appointments for the date
     const appointments = await prisma.appointment.findMany({
       where: {
-        startTime: {
+        scheduledFor: {
           gte: new Date(`${date}T00:00:00Z`),
           lt: new Date(`${date}T23:59:59Z`),
         },
@@ -38,8 +38,8 @@ export async function GET(request: Request) {
         },
       },
       select: {
-        startTime: true,
-        endTime: true,
+        scheduledFor: true,
+        duration: true,
       },
     });
 
@@ -53,9 +53,9 @@ export async function GET(request: Request) {
       const slotEnd = addMinutes(currentSlot, service.duration);
       
       // Check if slot overlaps with any existing appointment
-      const isAvailable = !appointments.some(apt => {
-        const appointmentStart = new Date(apt.startTime);
-        const appointmentEnd = new Date(apt.endTime);
+      const isAvailable = !appointments.some((apt: { scheduledFor: Date | string; duration: number }) => {
+        const appointmentStart = new Date(apt.scheduledFor);
+        const appointmentEnd = addMinutes(appointmentStart, apt.duration);
         return (
           (currentSlot >= appointmentStart && currentSlot < appointmentEnd) ||
           (slotEnd > appointmentStart && slotEnd <= appointmentEnd)

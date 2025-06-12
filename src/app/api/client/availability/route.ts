@@ -34,21 +34,17 @@ export async function GET(request: Request) {
       prisma.staff.findUnique({
         where: { id: staffId },
         include: {
-          schedules: {
-            where: {
-              dayOfWeek: bookingDate.getDay()
-            }
-          },
+          availability: true,
           appointments: {
             where: {
-              startTime: {
+              scheduledFor: {
                 gte: dayStart,
                 lte: dayEnd
               }
             },
             select: {
-              startTime: true,
-              endTime: true
+              scheduledFor: true,
+              duration: true
             }
           }
         }
@@ -62,8 +58,13 @@ export async function GET(request: Request) {
       );
     }
 
-    const schedule = staff.schedules[0];
-    if (!schedule) {
+    // Type the schedule JSON for safe access
+    type DaySchedule = { start: string; end: string; [key: string]: any };
+    type ScheduleJson = Record<string, DaySchedule>;
+    const schedule = staff.availability?.schedule as ScheduleJson | undefined;
+    const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const daySchedule = schedule?.[dayOfWeek];
+    if (!daySchedule || !daySchedule.start || !daySchedule.end) {
       return NextResponse.json(
         { error: 'Staff member is not available on this day' },
         { status: 400 }
@@ -72,8 +73,8 @@ export async function GET(request: Request) {
 
     // Generate all possible time slots for the day
     const timeSlots: TimeSlot[] = [];
-    const startTime = parse(schedule.startTime, 'HH:mm', dayStart);
-    const endTime = parse(schedule.endTime, 'HH:mm', dayStart);
+    const startTime = parse(daySchedule.start, 'HH:mm', dayStart);
+    const endTime = parse(daySchedule.end, 'HH:mm', dayStart);
     let currentTime = startTime;
 
     while (currentTime < endTime) {
@@ -81,9 +82,9 @@ export async function GET(request: Request) {
       const slotEndTime = addMinutes(currentTime, service.duration);
 
       // Check if the time slot conflicts with any existing appointments
-      const isConflicting = staff.appointments.some(appointment => {
-        const appointmentStart = new Date(appointment.startTime);
-        const appointmentEnd = new Date(appointment.endTime);
+      const isConflicting = staff.appointments.some((appointment: { scheduledFor: Date | string; duration: number }) => {
+        const appointmentStart = new Date(appointment.scheduledFor);
+        const appointmentEnd = addMinutes(appointmentStart, appointment.duration);
         return (
           (currentTime >= appointmentStart && currentTime < appointmentEnd) ||
           (slotEndTime > appointmentStart && slotEndTime <= appointmentEnd)

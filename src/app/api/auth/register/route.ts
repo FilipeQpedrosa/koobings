@@ -9,6 +9,7 @@ const registrationSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   name: z.string().min(2, 'Name must be at least 2 characters'),
   role: z.enum(['staff', 'business']),
+  businessId: z.string().optional(), // Required for staff
 });
 
 export async function POST(request: Request) {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     
     // Validate input
     const validatedData = registrationSchema.parse(body);
-    const { email, password, name, role } = validatedData;
+    const { email, password, name, role, businessId } = validatedData;
 
     // Check if user already exists in either staff or business table (case-insensitive)
     const emailLower = email.toLowerCase();
@@ -38,13 +39,19 @@ export async function POST(request: Request) {
 
     // Create user based on role
     if (role === 'staff') {
+      if (!businessId) {
+        return NextResponse.json(
+          { error: 'Business ID is required to register staff.' },
+          { status: 400 }
+        );
+      }
       const staff = await prisma.staff.create({
         data: {
           name,
           email: emailLower,
-          hashedPassword,
-          status: 'PENDING', // Staff needs to be approved
+          password: hashedPassword,
           role: 'STANDARD',
+          business: { connect: { id: businessId } },
         },
         select: {
           id: true,
@@ -66,7 +73,7 @@ export async function POST(request: Request) {
         data: {
           name,
           email: emailLower,
-          hashedPassword,
+          passwordHash: hashedPassword,
           status: 'ACTIVE',
           settings: {
             create: {

@@ -2,121 +2,129 @@ import { supabase } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { ApiError, handleApiError } from '@/lib/utils/api/error'
+import { z } from 'zod'
 
 // GET: Get a specific visit history entry
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session) {
+  if (!session || !session.user || !session.user.email) {
+    console.error('Unauthorized: No session or user.');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    // Step 1: Fetch the record for ownership check
-    const record = await prisma.visitHistory.findUnique({
-      where: { id: params.id }
-    }) as { businessId: string } | null;
-    if (!record) throw new ApiError(404, 'Visit history entry not found')
-    const business = await prisma.business.findFirst({
-      where: { id: record.businessId, email: session.user.email }
-    })
-    if (!business) throw new ApiError(401, 'Unauthorized')
-
-    // Step 2: Fetch the full record with relations for response
+    // Fetch the record with relations for ownership check and response
     const visitHistory = await prisma.visitHistory.findUnique({
       where: { id: params.id },
       include: {
-        client: { select: { id: true, name: true } }
+        client: { select: { id: true, name: true } },
+        business: true
       }
     })
+    if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
+    if (visitHistory.business?.email !== session.user.email) {
+      throw new ApiError(401, 'Unauthorized')
+    }
     return NextResponse.json(visitHistory)
   } catch (error) {
+    console.error('GET /business/visit-history/[id] error:', error)
     return handleApiError(error)
   }
 }
 
 // PATCH: Update a visit history entry
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: any
 ) {
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session) {
+  if (!session || !session.user || !session.user.email) {
+    console.error('Unauthorized: No session or user.');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const json = await request.json()
-    const { 
-      visitDate,
-      serviceType,
-      staffNotes,
-      patientFeedback,
-      followUpRequired
-    } = json
-
-    // Step 1: Fetch the record for ownership check
-    const record = await prisma.visitHistory.findUnique({
-      where: { id: params.id }
-    }) as { businessId: string } | null;
-    if (!record) throw new ApiError(404, 'Visit history entry not found')
-    const business = await prisma.business.findFirst({
-      where: { id: record.businessId, email: session.user.email }
+    // Input validation
+    const schema = z.object({
+      visitDate: z.string().optional(),
+      serviceType: z.string().optional(),
+      staffNotes: z.string().optional(),
+      clientFeedback: z.string().optional(),
+      followUpRequired: z.boolean().optional()
     })
-    if (!business) throw new ApiError(401, 'Unauthorized')
+    const json = await request.json()
+    const { visitDate, serviceType, staffNotes, clientFeedback, followUpRequired } = schema.parse(json)
 
-    // Step 2: Update and return the full record with relations
-    const visitHistory = await prisma.visitHistory.update({
+    // Fetch the record with relations for ownership check
+    const visitHistory = await prisma.visitHistory.findUnique({
+      where: { id: params.id },
+      include: { business: true }
+    })
+    if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
+    if (visitHistory.business?.email !== session.user.email) {
+      throw new ApiError(401, 'Unauthorized')
+    }
+
+    // Update and return the full record with relations
+    const updatedVisitHistory = await prisma.visitHistory.update({
       where: { id: params.id },
       data: {
         visitDate: visitDate ? new Date(visitDate) : undefined,
         serviceType,
         staffNotes,
-        patientFeedback,
+        clientFeedback,
         followUpRequired
       },
       include: {
-        client: { select: { id: true, name: true } }
+        client: { select: { id: true, name: true } },
+        business: true
       }
     })
-    return NextResponse.json(visitHistory)
+    return NextResponse.json(updatedVisitHistory)
   } catch (error) {
+    console.error('PATCH /business/visit-history/[id] error:', error)
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+    }
     return handleApiError(error)
   }
 }
 
 // DELETE: Delete a visit history entry
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: Request, { params }: any) {
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (!session) {
+  if (!session || !session.user || !session.user.email) {
+    console.error('Unauthorized: No session or user.');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    // Step 1: Fetch the record for ownership check
-    const record = await prisma.visitHistory.findUnique({
-      where: { id: params.id }
-    }) as { businessId: string } | null;
-    if (!record) throw new ApiError(404, 'Visit history entry not found')
-    const business = await prisma.business.findFirst({
-      where: { id: record.businessId, email: session.user.email }
+    // Fetch the record with relations for ownership check
+    const visitHistory = await prisma.visitHistory.findUnique({
+      where: { id: params.id },
+      include: { business: true }
     })
-    if (!business) throw new ApiError(401, 'Unauthorized')
+    if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
+    if (visitHistory.business?.email !== session.user.email) {
+      throw new ApiError(401, 'Unauthorized')
+    }
 
-    // Step 2: Delete the record
+    // Delete the record
     await prisma.visitHistory.delete({
       where: { id: params.id }
     })
+    console.info(`Visit history ${params.id} deleted by user ${session.user.email}`)
     return new NextResponse(null, { status: 204 })
   } catch (error) {
+    console.error('DELETE /business/visit-history/[id] error:', error)
     return handleApiError(error)
   }
 }
+
+// TODO: Add rate limiting middleware for abuse protection in the future.

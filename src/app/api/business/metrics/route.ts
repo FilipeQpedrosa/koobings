@@ -6,9 +6,9 @@ import { authOptions } from '@/lib/auth'
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    
-    if (!session || !session.user?.id) {
-      return new NextResponse('Unauthorized', { status: 401 })
+    if (!session || !session.user || !session.user.id) {
+      console.error('Unauthorized: No session or user.');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const businessId = session.user.id
@@ -16,8 +16,7 @@ export async function GET() {
     // Get total appointments
     const totalAppointments = await prisma.appointment.count({
       where: {
-        businessId,
-        isDeleted: false
+        businessId
       }
     })
 
@@ -25,7 +24,6 @@ export async function GET() {
     const appointments = await prisma.appointment.findMany({
       where: {
         businessId,
-        isDeleted: false,
         status: 'COMPLETED'
       },
       select: {
@@ -37,15 +35,14 @@ export async function GET() {
       }
     })
     
-    const totalRevenue = appointments.reduce((sum, appointment) => {
+    const totalRevenue = appointments.reduce((sum: number, appointment: { service?: { price?: number } }) => {
       return sum + (appointment.service?.price ? Number(appointment.service.price) : 0)
     }, 0)
 
     // Get active staff count
     const activeStaff = await prisma.staff.count({
       where: {
-        businessId,
-        isDeleted: false
+        businessId
       }
     })
 
@@ -55,7 +52,9 @@ export async function GET() {
       activeStaff
     })
   } catch (error) {
-    console.error('Error fetching business metrics:', error)
-    return new NextResponse('Internal Server Error', { status: 500 })
+    console.error('GET /business/metrics error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
-} 
+}
+
+// TODO: Add rate limiting middleware for abuse protection in the future. 

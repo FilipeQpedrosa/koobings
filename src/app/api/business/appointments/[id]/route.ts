@@ -3,10 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PATCH(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -25,7 +23,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { status, scheduledFor, notes } = body;
+    const { status, scheduledFor, notes, staffId } = body;
     console.log('PATCH /api/business/appointments/[id]', {
       params,
       body,
@@ -58,6 +56,7 @@ export async function PATCH(
     if (status) updateData.status = status;
     if (scheduledFor) updateData.scheduledFor = new Date(scheduledFor);
     if (notes !== undefined) updateData.notes = notes;
+    if (staffId) updateData.staffId = staffId;
 
     // Update the appointment
     let updatedAppointment;

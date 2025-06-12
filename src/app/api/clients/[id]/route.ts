@@ -7,13 +7,11 @@ interface RouteParams {
   };
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function GET(request: Request, { params }: any) {
   try {
     const client = await prisma.client.findUnique({
       where: { id: params.id },
-      include: {
-        preferredProvider: true,
-      },
     });
 
     if (!client) {
@@ -33,7 +31,8 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function PUT(request: Request, { params }: RouteParams) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function PUT(request: Request, { params }: any) {
   try {
     const data = await request.json();
     const client = await prisma.client.update({
@@ -44,10 +43,6 @@ export async function PUT(request: Request, { params }: RouteParams) {
         phone: data.phone,
         status: data.status,
         notes: data.notes,
-        providerId: data.preferredProvider,
-      },
-      include: {
-        preferredProvider: true,
       },
     });
     return NextResponse.json(client);
@@ -60,7 +55,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function DELETE(request: Request, { params }: any) {
   try {
     await prisma.client.delete({
       where: { id: params.id },
