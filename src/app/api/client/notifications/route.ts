@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -26,11 +26,11 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(notifications);
+    return NextResponse.json({ success: true, data: notifications });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch notifications' },
+      { success: false, error: { code: 'NOTIFICATIONS_FETCH_ERROR', message: 'Failed to fetch notifications' } },
       { status: 500 }
     );
   }
@@ -41,7 +41,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -52,13 +52,13 @@ export async function PATCH(request: Request) {
         data: { preferences: body.preferences },
         select: { preferences: true }
       });
-      return NextResponse.json(updatedClient.preferences);
+      return NextResponse.json({ success: true, data: updatedClient.preferences });
     }
 
     const { notificationIds } = body;
     if (!notificationIds || !Array.isArray(notificationIds)) {
       return NextResponse.json(
-        { error: 'Notification IDs array is required' },
+        { success: false, error: { code: 'NOTIFICATION_IDS_REQUIRED', message: 'Notification IDs array is required' } },
         { status: 400 }
       );
     }
@@ -73,7 +73,7 @@ export async function PATCH(request: Request) {
 
     if (notifications.length !== notificationIds.length) {
       return NextResponse.json(
-        { error: 'Some notifications not found or not accessible' },
+        { success: false, error: { code: 'NOTIFICATIONS_NOT_FOUND', message: 'Some notifications not found or not accessible' } },
         { status: 404 }
       );
     }
@@ -94,7 +94,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error('Error updating notifications:', error);
     return NextResponse.json(
-      { error: 'Failed to update notifications' },
+      { success: false, error: { code: 'NOTIFICATIONS_UPDATE_ERROR', message: 'Failed to update notifications' } },
       { status: 500 }
     );
   }

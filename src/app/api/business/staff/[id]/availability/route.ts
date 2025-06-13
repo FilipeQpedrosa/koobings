@@ -20,20 +20,20 @@ export async function GET(request: Request, { params }: any) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
 
     if (!businessId) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
 
     const url = new URL(request.url);
     const weekParam = url.searchParams.get('week');
     
     if (!weekParam) {
-      return NextResponse.json({ error: 'Week parameter is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'WEEK_PARAM_REQUIRED', message: 'Week parameter is required' } }, { status: 400 });
     }
 
     const weekDate = parseISO(weekParam);
@@ -44,13 +44,10 @@ export async function GET(request: Request, { params }: any) {
       where: { staffId: params.id }
     });
 
-    return NextResponse.json(availability?.schedule || {});
+    return NextResponse.json({ success: true, data: availability?.schedule || {} });
   } catch (error) {
     console.error('Error fetching staff availability:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_AVAILABILITY_FETCH_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 }
 
@@ -60,13 +57,13 @@ export async function PUT(request: Request, { params }: any) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
 
     if (!businessId) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
 
     const staff = await prisma.staff.findFirst({
@@ -77,7 +74,7 @@ export async function PUT(request: Request, { params }: any) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
     }
 
     const { schedule } = await request.json();
@@ -88,12 +85,9 @@ export async function PUT(request: Request, { params }: any) {
       data: { schedule }
     });
 
-    return NextResponse.json(updated.schedule);
+    return NextResponse.json({ success: true, data: updated.schedule });
   } catch (error) {
     console.error('Error updating staff availability:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_AVAILABILITY_UPDATE_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 } 

@@ -11,7 +11,7 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     const notes = await prisma.relationshipNote.findMany({
@@ -27,10 +27,10 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json(notes)
+    return NextResponse.json({ success: true, data: notes })
   } catch (error) {
     console.error('GET /business/relationship-notes error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
   }
 }
 
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Input validation
@@ -57,14 +57,14 @@ export async function POST(request: Request) {
     try {
       body = await request.json()
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 })
     }
     let validatedData
     try {
       validatedData = schema.parse(body)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Invalid note data', details: error.errors }, { status: 400 })
+        return NextResponse.json({ success: false, error: { code: 'INVALID_NOTE_DATA', message: 'Invalid note data', details: error.errors } }, { status: 400 })
       }
       throw error
     }
@@ -85,10 +85,10 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json(note)
+    return NextResponse.json({ success: true, data: note })
   } catch (error) {
     console.error('POST /business/relationship-notes error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
   }
 }
 

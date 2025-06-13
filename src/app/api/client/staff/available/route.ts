@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
     if (!serviceId || !date) {
       return NextResponse.json(
-        { error: 'Service ID and date are required' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Service ID and date are required' } },
         { status: 400 }
       );
     }
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
 
     if (!service) {
       return NextResponse.json(
-        { error: 'Service not found' },
+        { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
         { status: 404 }
       );
     }
@@ -113,11 +113,11 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json(availableStaff);
+    return NextResponse.json({ success: true, data: availableStaff });
   } catch (error) {
     console.error('Error checking staff availability:', error);
     return NextResponse.json(
-      { error: 'Failed to check availability' },
+      { success: false, error: { code: 'STAFF_AVAILABILITY_ERROR', message: 'Failed to check availability' } },
       { status: 500 }
     );
   }

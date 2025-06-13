@@ -58,7 +58,7 @@ export async function GET(request: Request) {
 
     // If no services found, return empty array instead of empty object
     if (!services || services.length === 0) {
-      return NextResponse.json([]);
+      return NextResponse.json({ success: true, data: [] });
     }
 
     // Group services by category
@@ -71,11 +71,11 @@ export async function GET(request: Request) {
       return acc;
     }, {} as Record<string, typeof services>);
 
-    return NextResponse.json(groupedServices);
+    return NextResponse.json({ success: true, data: groupedServices });
   } catch (error) {
     console.error('Error fetching services:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch services' },
+      { success: false, error: { code: 'SERVICES_FETCH_ERROR', message: 'Failed to fetch services' } },
       { status: 500 }
     );
   }

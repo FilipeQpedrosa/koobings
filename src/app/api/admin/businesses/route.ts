@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     // Verify if the user is a system admin
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     });
 
     if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     const businesses = await prisma.business.findMany({
@@ -36,10 +36,10 @@ export async function GET(request: Request) {
       }
     });
 
-    return NextResponse.json(businesses);
+    return NextResponse.json({ success: true, data: businesses });
   } catch (error) {
     console.error('Error fetching businesses:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'BUSINESSES_FETCH_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     // Verify if the user is a system admin
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     });
 
     if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     const body = await request.json();
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       prisma.staff.findUnique({ where: { email: emailLower } }),
     ]);
     if (existingBusiness || existingStaff) {
-      return NextResponse.json({ error: 'Email is already in use by another business or staff member.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'EMAIL_IN_USE', message: 'Email is already in use by another business or staff member.' } }, { status: 400 });
     }
 
     // Use a transaction for atomicity
@@ -125,9 +125,9 @@ export async function POST(request: Request) {
       return { business, ownerStaff };
     });
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error) {
     console.error('Error creating business:', error);
-    return NextResponse.json({ error: 'Failed to create business and admin staff. Please try again.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'BUSINESS_CREATE_ERROR', message: 'Failed to create business and admin staff. Please try again.' } }, { status: 500 });
   }
 } 

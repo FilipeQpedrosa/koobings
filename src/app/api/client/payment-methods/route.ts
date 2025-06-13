@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const paymentMethods = await prisma.paymentMethod.findMany({
@@ -23,11 +23,11 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(paymentMethods);
+    return NextResponse.json({ success: true, data: paymentMethods });
   } catch (error) {
     console.error('Error fetching payment methods:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch payment methods' },
+      { success: false, error: { code: 'PAYMENT_METHODS_FETCH_ERROR', message: 'Failed to fetch payment methods' } },
       { status: 500 }
     );
   }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     if (!type || !details) {
       return NextResponse.json(
-        { error: 'Payment method type and details are required' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Payment method type and details are required' } },
         { status: 400 }
       );
     }
@@ -75,11 +75,11 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(paymentMethod);
+    return NextResponse.json({ success: true, data: paymentMethod });
   } catch (error) {
     console.error('Error adding payment method:', error);
     return NextResponse.json(
-      { error: 'Failed to add payment method' },
+      { success: false, error: { code: 'PAYMENT_METHOD_CREATE_ERROR', message: 'Failed to add payment method' } },
       { status: 500 }
     );
   }
@@ -90,7 +90,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -98,7 +98,7 @@ export async function PATCH(request: Request) {
 
     if (!paymentMethodId) {
       return NextResponse.json(
-        { error: 'Payment method ID is required' },
+        { success: false, error: { code: 'PAYMENT_METHOD_ID_REQUIRED', message: 'Payment method ID is required' } },
         { status: 400 }
       );
     }
@@ -113,7 +113,7 @@ export async function PATCH(request: Request) {
 
     if (!existingPaymentMethod) {
       return NextResponse.json(
-        { error: 'Payment method not found' },
+        { success: false, error: { code: 'PAYMENT_METHOD_NOT_FOUND', message: 'Payment method not found' } },
         { status: 404 }
       );
     }
@@ -141,11 +141,11 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json(paymentMethod);
+    return NextResponse.json({ success: true, data: paymentMethod });
   } catch (error) {
     console.error('Error updating payment method:', error);
     return NextResponse.json(
-      { error: 'Failed to update payment method' },
+      { success: false, error: { code: 'PAYMENT_METHOD_UPDATE_ERROR', message: 'Failed to update payment method' } },
       { status: 500 }
     );
   }

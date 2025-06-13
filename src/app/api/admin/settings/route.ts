@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const admin = await prisma.systemAdmin.findUnique({
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     });
 
     if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     // Get settings from database
@@ -66,10 +66,10 @@ export async function GET(request: Request) {
       ...settingsObject
     };
 
-    return NextResponse.json(mergedSettings);
+    return NextResponse.json({ success: true, data: mergedSettings });
   } catch (error) {
     console.error('Error fetching settings:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'SETTINGS_FETCH_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -78,7 +78,7 @@ export async function PUT(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const admin = await prisma.systemAdmin.findUnique({
@@ -86,7 +86,7 @@ export async function PUT(request: Request) {
     });
 
     if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     const data = await request.json() as SystemSettings;
@@ -131,7 +131,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating settings:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'SETTINGS_UPDATE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const admin = await prisma.systemAdmin.findUnique({
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     });
 
     if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     const { action } = await request.json() as { action: 'CLEAR_CACHE' | 'PURGE_LOGS' | 'BACKUP_DB' };
@@ -201,12 +201,12 @@ export async function POST(request: Request) {
         break;
 
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return NextResponse.json({ success: false, error: { code: 'INVALID_ACTION', message: 'Invalid action' } }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error performing maintenance action:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'SETTINGS_MAINTENANCE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

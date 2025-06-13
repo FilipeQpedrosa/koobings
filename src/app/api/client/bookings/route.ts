@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
     if (!serviceId || !staffId || !date || !time) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } },
         { status: 400 }
       );
     }
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     if (!service) {
       return NextResponse.json(
-        { error: 'Service not found' },
+        { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
         { status: 404 }
       );
     }
@@ -91,11 +91,11 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(appointment);
+    return NextResponse.json({ success: true, data: appointment });
   } catch (error) {
     console.error('Error creating booking:', error);
     return NextResponse.json(
-      { error: 'Failed to create booking' },
+      { success: false, error: { code: 'BOOKING_CREATE_ERROR', message: 'Failed to create booking' } },
       { status: 500 }
     );
   }

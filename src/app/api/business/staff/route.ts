@@ -11,7 +11,7 @@ export async function GET() {
 
     if (!session?.user || !session.user.businessId) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
@@ -30,11 +30,11 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(staff);
+    return NextResponse.json({ success: true, data: staff });
   } catch (error) {
     console.error('GET /business/staff error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     if (!session?.user || !session.user.businessId) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       data = schema.parse(await request.json());
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+        return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 });
       }
       throw error;
     }
@@ -93,11 +93,11 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(staff);
+    return NextResponse.json({ success: true, data: staff });
   } catch (error) {
     console.error('POST /business/staff error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : String(error) } },
       { status: 500 }
     );
   }

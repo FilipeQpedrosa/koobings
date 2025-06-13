@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const categories = await prisma.serviceCategory.findMany({
@@ -22,11 +22,11 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ categories });
+    return NextResponse.json({ success: true, data: categories });
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(
-      { error: "Failed to fetch categories" },
+      { success: false, error: { code: 'CATEGORIES_FETCH_ERROR', message: 'Failed to fetch categories' } },
       { status: 500 }
     );
   }
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -56,11 +56,11 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(category);
+    return NextResponse.json({ success: true, data: category });
   } catch (error) {
     console.error("Error creating category:", error);
     return NextResponse.json(
-      { error: "Failed to create category" },
+      { success: false, error: { code: 'CATEGORY_CREATE_ERROR', message: 'Failed to create category' } },
       { status: 500 }
     );
   }

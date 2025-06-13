@@ -98,8 +98,19 @@ export async function GET() {
   const headers = new Headers()
   headers.set('X-Response-Time', `${Date.now() - startTime}ms`)
 
-  return NextResponse.json(healthStatus, {
-    status: healthStatus.status === 'unhealthy' ? 503 : 200,
-    headers
-  })
+  try {
+    return NextResponse.json(
+      { success: true, data: healthStatus },
+      {
+        status: healthStatus.status === 'unhealthy' ? 503 : 200,
+        headers
+      }
+    )
+  } catch (error) {
+    logger.error('Health endpoint error', { error })
+    return NextResponse.json(
+      { success: false, error: { code: 'HEALTH_ERROR', message: 'Failed to get health status' } },
+      { status: 500, headers }
+    )
+  }
 } 

@@ -10,11 +10,11 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(providers);
+    return NextResponse.json({ success: true, data: providers });
   } catch (error) {
     console.error('Error fetching providers:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch providers' },
+      { success: false, error: { code: 'PROVIDERS_FETCH_ERROR', message: 'Failed to fetch providers' } },
       { status: 500 }
     );
   }

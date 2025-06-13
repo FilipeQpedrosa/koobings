@@ -8,7 +8,7 @@ import prisma from '@/lib/prisma';
 export async function POST(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
 
   const staffId = session.user.id;
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: any) {
   const { content, noteType = 'GENERAL', appointmentId } = data;
 
   if (!content) {
-    return NextResponse.json({ error: 'Content is required' }, { status: 400 });
+    return NextResponse.json({ success: false, error: { code: 'CONTENT_REQUIRED', message: 'Content is required' } }, { status: 400 });
   }
   // Get staff's business
   const staff = await prisma.staff.findUnique({
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: any) {
     select: { businessId: true },
   });
   if (!staff) {
-    return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
   }
 
   // Ensure client belongs to the same business
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: any) {
     select: { businessId: true },
   });
   if (!client || client.businessId !== staff.businessId) {
-    return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
   }
 
   // Only require appointmentId validation if provided
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, { params }: any) {
       select: { clientId: true, businessId: true },
     });
     if (!appointment || appointment.clientId !== clientId || appointment.businessId !== staff.businessId) {
-      return NextResponse.json({ error: 'Invalid appointment' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_APPOINTMENT', message: 'Invalid appointment' } }, { status: 400 });
     }
     appointmentData.appointmentId = appointmentId;
   }
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest, { params }: any) {
         ...appointmentData,
       },
     });
-    return NextResponse.json(note, { status: 201 });
+    return NextResponse.json({ success: true, data: note }, { status: 201 });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'NOTE_CREATE_ERROR', message: err.message } }, { status: 500 });
   }
 } 

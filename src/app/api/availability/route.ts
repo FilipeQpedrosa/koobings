@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const serviceId = searchParams.get('serviceId');
 
     if (!date || !serviceId) {
-      return new NextResponse('Missing required parameters', { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'MISSING_PARAMETERS', message: 'Missing required parameters' } }, { status: 400 });
     }
 
     // Get service details
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     });
 
     if (!service) {
-      return new NextResponse('Service not found', { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 });
     }
 
     // Get business hours (assuming 9 AM to 5 PM for now)
@@ -70,9 +70,9 @@ export async function GET(request: Request) {
       currentSlot = addMinutes(currentSlot, 30); // 30-minute intervals
     }
 
-    return NextResponse.json(timeSlots);
+    return NextResponse.json({ success: true, data: timeSlots });
   } catch (error) {
     console.error('Error checking availability:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'AVAILABILITY_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

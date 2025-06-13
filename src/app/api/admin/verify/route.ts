@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const admin = await prisma.systemAdmin.findUnique({
@@ -19,12 +19,12 @@ export async function GET(request: Request) {
     });
 
     if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
-    return NextResponse.json({ role: admin.role });
+    return NextResponse.json({ success: true, data: { role: admin.role } });
   } catch (error) {
     console.error('Error verifying admin:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

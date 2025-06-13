@@ -16,13 +16,13 @@ export async function GET(request: Request, { params }: any) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
 
     if (!businessId) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
 
     const url = new URL(request.url);
@@ -67,19 +67,16 @@ export async function GET(request: Request, { params }: any) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
     }
 
-    return NextResponse.json({
+    return NextResponse.json({ success: true, data: {
       availability: staff.availability?.schedule || {},
       appointments: staff.appointments
-    });
+    }});
   } catch (error) {
     console.error('Error fetching staff schedule:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_SCHEDULE_FETCH_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 }
 
@@ -89,13 +86,13 @@ export async function PUT(request: Request, { params }: any) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
 
     if (!businessId) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
 
     const staff = await prisma.staff.findFirst({
@@ -106,7 +103,7 @@ export async function PUT(request: Request, { params }: any) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
     }
 
     const { schedule } = await request.json();
@@ -117,12 +114,9 @@ export async function PUT(request: Request, { params }: any) {
       data: { schedule }
     });
 
-    return NextResponse.json({ schedule: updated.schedule });
+    return NextResponse.json({ success: true, data: { schedule: updated.schedule } });
   } catch (error) {
     console.error('Error updating staff schedule:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_SCHEDULE_UPDATE_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 } 

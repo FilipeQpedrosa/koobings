@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (!validation.success) {
       console.error('Validation error:', validation.error);
       return NextResponse.json(
-        { error: 'Invalid input', details: validation.error.errors },
+        { success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: validation.error.errors } },
         { status: 400 }
       );
     }
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     if (!business) {
       return NextResponse.json(
-        { error: 'Business not found' },
+        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
         { status: 404 }
       );
     }
@@ -83,14 +83,14 @@ export async function POST(request: Request) {
     } catch (updateError) {
       console.error('Database update error:', updateError);
       return NextResponse.json(
-        { error: 'Failed to update business information' },
+        { success: false, error: { code: 'BUSINESS_UPDATE_ERROR', message: 'Failed to update business information' } },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      business: {
+      data: {
         id: updatedBusiness.id,
         description: updatedBusiness.description,
         logo: updatedBusiness.logo,
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('POST /business/info error:', error);
     return NextResponse.json(
-      { error: 'Failed to update business information' },
+      { success: false, error: { code: 'BUSINESS_UPDATE_ERROR', message: 'Failed to update business information' } },
       { status: 500 }
     );
   }

@@ -8,7 +8,7 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.id) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     const businessId = session.user.id
@@ -47,13 +47,16 @@ export async function GET() {
     })
 
     return NextResponse.json({
-      totalAppointments,
-      totalRevenue,
-      activeStaff
+      success: true,
+      data: {
+        totalAppointments,
+        totalRevenue,
+        activeStaff
+      }
     })
   } catch (error) {
     console.error('GET /business/metrics error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'METRICS_FETCH_ERROR', message: 'Internal Server Error' } }, { status: 500 })
   }
 }
 

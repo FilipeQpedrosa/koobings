@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     const service = await prisma.service.findUnique({
@@ -31,18 +31,18 @@ export async function GET(request: Request) {
     })
 
     if (!service) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 })
     }
 
     // Ownership check: service.business.email === session.user.email
     if (service.business?.email !== session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
-    return NextResponse.json(service)
+    return NextResponse.json({ success: true, data: service })
   } catch (error) {
     console.error('GET /business/services/[id] error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'SERVICE_FETCH_ERROR', message: 'Failed to fetch service' } }, { status: 500 })
   }
 }
 
@@ -55,7 +55,7 @@ export async function PATCH(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Ownership check
@@ -64,10 +64,10 @@ export async function PATCH(request: Request) {
       include: { business: true }
     })
     if (!service) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 })
     }
     if (service.business?.email !== session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Input validation
@@ -98,13 +98,13 @@ export async function PATCH(request: Request) {
       }
     })
 
-    return NextResponse.json(updatedService)
+    return NextResponse.json({ success: true, data: updatedService })
   } catch (error) {
     console.error('PATCH /business/services/[id] error:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 })
     }
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'SERVICE_UPDATE_ERROR', message: 'Failed to update service' } }, { status: 500 })
   }
 }
 
@@ -117,7 +117,7 @@ export async function DELETE(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Ownership check
@@ -126,20 +126,20 @@ export async function DELETE(request: Request) {
       include: { business: true }
     })
     if (!service) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 })
     }
     if (service.business?.email !== session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     await prisma.service.delete({
       where: { id: id }
     })
     console.info(`Service ${id} deleted by user ${session.user.email}`)
-    return new NextResponse(null, { status: 204 })
+    return NextResponse.json({ success: true, data: null }, { status: 200 })
   } catch (error) {
     console.error('DELETE /business/services/[id] error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'SERVICE_DELETE_ERROR', message: 'Failed to delete service' } }, { status: 500 })
   }
 }
 

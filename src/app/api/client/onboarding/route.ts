@@ -45,11 +45,11 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(client);
+    return NextResponse.json({ success: true, data: client });
   } catch (error) {
     console.error('Error in client onboarding:', error);
     return NextResponse.json(
-      { error: 'Failed to complete onboarding' },
+      { success: false, error: { code: 'ONBOARDING_ERROR', message: 'Failed to complete onboarding' } },
       { status: 500 }
     );
   }
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 
     if (!businessId) {
       return NextResponse.json(
-        { error: 'Business ID is required' },
+        { success: false, error: { code: 'BUSINESS_ID_REQUIRED', message: 'Business ID is required' } },
         { status: 400 }
       );
     }
@@ -92,29 +92,32 @@ export async function GET(request: Request) {
 
     if (!business) {
       return NextResponse.json(
-        { error: 'Business not found' },
+        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
         { status: 404 }
       );
     }
 
     // Return onboarding requirements and available services
     return NextResponse.json({
-      business: {
-        name: business.name,
-        type: business.type,
-      },
-      features: business.featureConfiguration?.features || [],
-      services: business.services,
-      requirements: {
-        requireMedicalInfo: business.type === 'PSYCHOLOGY',
-        requirePreferences: true,
-        requireContactMethod: true,
-      },
+      success: true,
+      data: {
+        business: {
+          name: business.name,
+          type: business.type,
+        },
+        features: business.featureConfiguration?.features || [],
+        services: business.services,
+        requirements: {
+          requireMedicalInfo: business.type === 'PSYCHOLOGY',
+          requirePreferences: true,
+          requireContactMethod: true,
+        },
+      }
     });
   } catch (error) {
     console.error('Error fetching onboarding requirements:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch onboarding requirements' },
+      { success: false, error: { code: 'ONBOARDING_FETCH_ERROR', message: 'Failed to fetch onboarding requirements' } },
       { status: 500 }
     );
   }

@@ -8,11 +8,11 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
     const businessId = session.user.businessId;
     if (!businessId) {
-      return NextResponse.json({ error: 'No business context' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'NO_BUSINESS_CONTEXT', message: 'No business context' } }, { status: 400 });
     }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
@@ -56,11 +56,11 @@ export async function GET(request: Request) {
       })()
     });
 
-    return NextResponse.json(services);
+    return NextResponse.json({ success: true, data: services });
   } catch (error) {
     console.error('Error fetching services:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch services' },
+      { success: false, error: { code: 'SERVICES_FETCH_ERROR', message: 'Failed to fetch services' } },
       { status: 500 }
     );
   }
@@ -70,16 +70,16 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
     const businessId = session.user.businessId;
     if (!businessId) {
-      return NextResponse.json({ error: 'No business context' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'NO_BUSINESS_CONTEXT', message: 'No business context' } }, { status: 400 });
     }
     const body = await request.json();
     const { name, duration, price, categoryId, description } = body;
     if (!name || !duration || !price) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } }, { status: 400 });
     }
     const service = await prisma.service.create({
       data: {
@@ -92,9 +92,9 @@ export async function POST(request: Request) {
       },
       include: { category: true, staff: true },
     });
-    return NextResponse.json(service, { status: 201 });
+    return NextResponse.json({ success: true, data: service }, { status: 201 });
   } catch (error) {
     console.error('Error creating service:', error);
-    return NextResponse.json({ error: 'Failed to create service' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'SERVICE_CREATE_ERROR', message: 'Failed to create service' } }, { status: 500 });
   }
 } 

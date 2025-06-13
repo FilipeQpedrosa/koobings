@@ -16,16 +16,16 @@ export async function GET(request: Request, { params }: any) {
 
     if (!service) {
       return NextResponse.json(
-        { error: 'Service not found' },
+        { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(service);
+    return NextResponse.json({ success: true, data: service });
   } catch (error) {
     console.error('Error fetching service:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'SERVICE_FETCH_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }

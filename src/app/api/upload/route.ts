@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     if (!session?.user?.email) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     if (!file) {
       return NextResponse.json(
-        { error: 'No file provided' },
+        { success: false, error: { code: 'NO_FILE', message: 'No file provided' } },
         { status: 400 }
       );
     }
@@ -51,13 +51,16 @@ export async function POST(request: Request) {
 
     // Return the signed URL and the final URL where the file will be accessible
     return NextResponse.json({
-      uploadUrl: signedUrl,
-      url: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+      success: true,
+      data: {
+        uploadUrl: signedUrl,
+        url: `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+      }
     });
   } catch (error) {
     console.error('Error handling file upload:', error);
     return NextResponse.json(
-      { error: 'Failed to process file upload' },
+      { success: false, error: { code: 'UPLOAD_ERROR', message: 'Failed to process file upload' } },
       { status: 500 }
     );
   }

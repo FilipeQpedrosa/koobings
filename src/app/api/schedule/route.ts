@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     if (!session) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-      return NextResponse.json(availability);
+      return NextResponse.json({ success: true, data: availability });
     } else {
       const availabilities = await prisma.staffAvailability.findMany({
         include: {
@@ -50,12 +50,12 @@ export async function GET(request: NextRequest) {
           },
         },
       });
-      return NextResponse.json(availabilities);
+      return NextResponse.json({ success: true, data: availabilities });
     }
   } catch (error) {
     console.error('Error fetching staff availabilities:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch staff availabilities' },
+      { success: false, error: { code: 'AVAILABILITY_FETCH_ERROR', message: 'Failed to fetch staff availabilities' } },
       { status: 500 }
     );
   }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     // If staff member, can only modify own schedule
     if (session.user.role === 'STAFF' && validatedData.staffId !== session.user.id) {
       return NextResponse.json(
-        { error: 'Unauthorized to modify other staff schedules' },
+        { success: false, error: { code: 'UNAUTHORIZED_MODIFY', message: 'Unauthorized to modify other staff schedules' } },
         { status: 403 }
       );
     }
@@ -102,11 +102,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(availability);
+    return NextResponse.json({ success: true, data: availability });
   } catch (error) {
     console.error('Error creating/updating staff availability:', error);
     return NextResponse.json(
-      { error: 'Failed to create/update staff availability' },
+      { success: false, error: { code: 'AVAILABILITY_CREATE_UPDATE_ERROR', message: 'Failed to create/update staff availability' } },
       { status: 500 }
     );
   }
@@ -118,7 +118,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -128,7 +128,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!staffId) {
       return NextResponse.json(
-        { error: 'Staff ID is required' },
+        { success: false, error: { code: 'STAFF_ID_REQUIRED', message: 'Staff ID is required' } },
         { status: 400 }
       );
     }
@@ -136,7 +136,7 @@ export async function PATCH(request: NextRequest) {
     // Verify access
     if (session.user.role === 'STAFF' && staffId !== session.user.id) {
       return NextResponse.json(
-        { error: 'Unauthorized to update this schedule' },
+        { success: false, error: { code: 'UNAUTHORIZED_UPDATE', message: 'Unauthorized to update this schedule' } },
         { status: 403 }
       );
     }
@@ -155,11 +155,11 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(availability);
+    return NextResponse.json({ success: true, data: availability });
   } catch (error) {
     console.error('Error updating staff availability:', error);
     return NextResponse.json(
-      { error: 'Failed to update staff availability' },
+      { success: false, error: { code: 'AVAILABILITY_UPDATE_ERROR', message: 'Failed to update staff availability' } },
       { status: 500 }
     );
   }
@@ -171,7 +171,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -181,7 +181,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!staffId) {
       return NextResponse.json(
-        { error: 'Staff ID is required' },
+        { success: false, error: { code: 'STAFF_ID_REQUIRED', message: 'Staff ID is required' } },
         { status: 400 }
       );
     }
@@ -189,7 +189,7 @@ export async function DELETE(request: NextRequest) {
     // Verify access
     if (session.user.role === 'STAFF' && staffId !== session.user.id) {
       return NextResponse.json(
-        { error: 'Unauthorized to delete this schedule' },
+        { success: false, error: { code: 'UNAUTHORIZED_DELETE', message: 'Unauthorized to delete this schedule' } },
         { status: 403 }
       );
     }
@@ -198,11 +198,11 @@ export async function DELETE(request: NextRequest) {
       where: { staffId },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: { message: 'Staff availability deleted successfully' } });
   } catch (error) {
     console.error('Error deleting staff availability:', error);
     return NextResponse.json(
-      { error: 'Failed to delete staff availability' },
+      { success: false, error: { code: 'AVAILABILITY_DELETE_ERROR', message: 'Failed to delete staff availability' } },
       { status: 500 }
     );
   }

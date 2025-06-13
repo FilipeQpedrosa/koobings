@@ -8,11 +8,11 @@ export async function PATCH(request: NextRequest, { params }: any) {
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {
-      return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_SUBDOMAIN_MISSING', message: 'Business subdomain missing' } }, { status: 400 });
     }
     const business = await prisma.business.findFirst({ where: { name: businessName } });
     if (!business) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
     const body = await request.json();
     const { name, description, color } = body;
@@ -21,16 +21,16 @@ export async function PATCH(request: NextRequest, { params }: any) {
       where: { id: params.id, businessId: business.id },
     });
     if (!category) {
-      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found' } }, { status: 404 });
     }
     const updated = await prisma.serviceCategory.update({
       where: { id: params.id },
       data: { name, description, color },
     });
-    return NextResponse.json(updated);
+    return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error('Error updating category:', error);
-    return NextResponse.json({ error: 'Failed to update category' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'CATEGORY_UPDATE_ERROR', message: 'Failed to update category' } }, { status: 500 });
   }
 }
 
@@ -39,11 +39,11 @@ export async function DELETE(request: NextRequest, { params }: any) {
   try {
     const businessName = request.headers.get('x-business');
     if (!businessName) {
-      return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_SUBDOMAIN_MISSING', message: 'Business subdomain missing' } }, { status: 400 });
     }
     const business = await prisma.business.findFirst({ where: { name: businessName } });
     if (!business) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
     // Check if category exists and belongs to business
     const category = await prisma.serviceCategory.findFirst({
@@ -51,15 +51,15 @@ export async function DELETE(request: NextRequest, { params }: any) {
       include: { services: { select: { id: true } } },
     });
     if (!category) {
-      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found' } }, { status: 404 });
     }
     if (category.services.length > 0) {
-      return NextResponse.json({ error: 'Cannot delete category with existing services' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_HAS_SERVICES', message: 'Cannot delete category with existing services' } }, { status: 400 });
     }
     await prisma.serviceCategory.delete({ where: { id: params.id } });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: null });
   } catch (error) {
     console.error('Error deleting category:', error);
-    return NextResponse.json({ error: 'Failed to delete category' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'CATEGORY_DELETE_ERROR', message: 'Failed to delete category' } }, { status: 500 });
   }
 } 

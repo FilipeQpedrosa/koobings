@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
     if (!business) {
       return NextResponse.json(
-        { error: 'Business not found' },
+        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
         { status: 404 }
       );
     }
@@ -40,14 +40,14 @@ export async function POST(request: Request) {
     } catch (updateError) {
       console.error('Database update error:', updateError);
       return NextResponse.json(
-        { error: 'Failed to complete onboarding' },
+        { success: false, error: { code: 'ONBOARDING_UPDATE_ERROR', message: 'Failed to complete onboarding' } },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      business: {
+      data: {
         id: updatedBusiness.id,
         status: updatedBusiness.status,
       },
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('POST /business/complete-onboarding error:', error);
     return NextResponse.json(
-      { error: 'Failed to complete onboarding' },
+      { success: false, error: { code: 'ONBOARDING_ERROR', message: 'Failed to complete onboarding' } },
       { status: 500 }
     );
   }

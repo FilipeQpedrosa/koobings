@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     // Validate required fields
     if (!frequency || !interval || !startDate || !appointmentDetails) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } },
         { status: 400 }
       );
     }
@@ -80,13 +80,16 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      recurringPattern,
-      appointmentsCreated: createdAppointments.count,
+      success: true,
+      data: {
+        recurringPattern,
+        appointmentsCreated: createdAppointments.count,
+      },
     });
   } catch (error) {
     console.error('Error creating recurring appointments:', error);
     return NextResponse.json(
-      { error: 'Failed to create recurring appointments' },
+      { success: false, error: { code: 'RECURRING_CREATE_ERROR', message: 'Failed to create recurring appointments' } },
       { status: 500 }
     );
   }
@@ -97,7 +100,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -105,7 +108,7 @@ export async function GET(request: Request) {
 
     if (!patternId) {
       return NextResponse.json(
-        { error: 'Missing pattern ID' },
+        { success: false, error: { code: 'MISSING_PATTERN_ID', message: 'Missing pattern ID' } },
         { status: 400 }
       );
     }
@@ -119,16 +122,16 @@ export async function GET(request: Request) {
 
     if (!recurringPattern) {
       return NextResponse.json(
-        { error: 'Recurring pattern not found' },
+        { success: false, error: { code: 'PATTERN_NOT_FOUND', message: 'Recurring pattern not found' } },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(recurringPattern);
+    return NextResponse.json({ success: true, data: recurringPattern });
   } catch (error) {
     console.error('Error fetching recurring appointments:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch recurring appointments' },
+      { success: false, error: { code: 'RECURRING_FETCH_ERROR', message: 'Failed to fetch recurring appointments' } },
       { status: 500 }
     );
   }
@@ -139,7 +142,7 @@ export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -147,7 +150,7 @@ export async function DELETE(request: Request) {
 
     if (!patternId) {
       return NextResponse.json(
-        { error: 'Missing pattern ID' },
+        { success: false, error: { code: 'MISSING_PATTERN_ID', message: 'Missing pattern ID' } },
         { status: 400 }
       );
     }
@@ -166,7 +169,7 @@ export async function DELETE(request: Request) {
   } catch (error) {
     console.error('Error deleting recurring appointments:', error);
     return NextResponse.json(
-      { error: 'Failed to delete recurring appointments' },
+      { success: false, error: { code: 'RECURRING_DELETE_ERROR', message: 'Failed to delete recurring appointments' } },
       { status: 500 }
     );
   }

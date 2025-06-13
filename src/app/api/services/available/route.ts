@@ -31,11 +31,11 @@ export async function GET() {
       return acc;
     }, {} as Record<string, ServiceWithCategory[]>);
 
-    return NextResponse.json(groupedServices);
+    return NextResponse.json({ success: true, data: groupedServices });
   } catch (error) {
     console.error('Error fetching services:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch services' },
+      { success: false, error: { code: 'SERVICES_FETCH_ERROR', message: 'Failed to fetch services' } },
       { status: 500 }
     );
   }

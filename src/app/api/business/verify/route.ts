@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const staff = await prisma.staff.findFirst({
@@ -26,17 +26,20 @@ export async function GET(request: Request) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     return NextResponse.json({ 
-      role: staff.role,
-      businessId: staff.businessId,
-      businessStatus: staff.business.status
+      success: true,
+      data: {
+        role: staff.role,
+        businessId: staff.businessId,
+        businessStatus: staff.business.status
+      }
     });
   } catch (error) {
     console.error('GET /business/verify error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 // TODO: Add rate limiting middleware for abuse protection in the future. 

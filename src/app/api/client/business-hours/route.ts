@@ -8,7 +8,7 @@ export async function GET(request: Request) {
 
     if (!dayOfWeek) {
       return NextResponse.json(
-        { error: 'Day of week is required' },
+        { success: false, error: { code: 'DAY_OF_WEEK_REQUIRED', message: 'Day of week is required' } },
         { status: 400 }
       );
     }
@@ -21,16 +21,16 @@ export async function GET(request: Request) {
 
     if (!businessHours) {
       return NextResponse.json(
-        { error: 'Business hours not found' },
+        { success: false, error: { code: 'BUSINESS_HOURS_NOT_FOUND', message: 'Business hours not found' } },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(businessHours);
+    return NextResponse.json({ success: true, data: businessHours });
   } catch (error) {
     console.error('Error fetching business hours:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'BUSINESS_HOURS_FETCH_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }

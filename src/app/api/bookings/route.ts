@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const { serviceId, startTime, email, name } = body;
 
     if (!serviceId || !startTime || !email || !name) {
-      return new NextResponse('Missing required fields', { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } }, { status: 400 });
     }
 
     // Get or create client record
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
         select: { businessId: true },
       });
       if (!service) {
-        return new NextResponse('Service not found', { status: 404 });
+        return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 });
       }
       client = await prisma.client.create({
         data: {
@@ -53,11 +53,11 @@ export async function POST(request: Request) {
     });
 
     if (!service) {
-      return new NextResponse('Service not found', { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 });
     }
 
     if (!service.business.staff[0]) {
-      return new NextResponse('No available provider', { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'NO_PROVIDER', message: 'No available provider' } }, { status: 400 });
     }
 
     // Calculate scheduledFor based on startTime
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     });
 
     if (conflictingAppointment) {
-      return new NextResponse('Time slot no longer available', { status: 409 });
+      return NextResponse.json({ success: false, error: { code: 'TIME_SLOT_UNAVAILABLE', message: 'Time slot no longer available' } }, { status: 409 });
     }
 
     // Create the appointment
@@ -103,9 +103,9 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(appointment);
+    return NextResponse.json({ success: true, data: appointment });
   } catch (error) {
     console.error('Error creating booking:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'BOOKING_CREATE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 
