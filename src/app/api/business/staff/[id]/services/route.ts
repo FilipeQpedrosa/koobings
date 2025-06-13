@@ -9,13 +9,13 @@ export async function PUT(request: Request, { params }: any) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
 
     if (!businessId) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
 
     const staff = await prisma.staff.findFirst({
@@ -26,7 +26,7 @@ export async function PUT(request: Request, { params }: any) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
     }
 
     const { serviceIds } = await request.json();
@@ -41,7 +41,7 @@ export async function PUT(request: Request, { params }: any) {
 
     if (services.length !== serviceIds.length) {
       return NextResponse.json(
-        { error: 'One or more services are invalid' },
+        { success: false, error: { code: 'INVALID_SERVICES', message: 'One or more services are invalid' } },
         { status: 400 }
       );
     }
@@ -72,11 +72,11 @@ export async function PUT(request: Request, { params }: any) {
       }
     });
 
-    return NextResponse.json(updatedStaff);
+    return NextResponse.json({ success: true, data: updatedStaff });
   } catch (error) {
     console.error('Error updating staff services:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'STAFF_SERVICES_UPDATE_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }

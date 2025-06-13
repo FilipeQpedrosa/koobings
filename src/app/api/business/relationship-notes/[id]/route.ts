@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -25,12 +25,12 @@ export async function GET(request: Request) {
         createdBy: { select: { id: true, name: true } }
       }
     })
-    if (!note) throw new ApiError(404, 'Note not found')
+    if (!note) return NextResponse.json({ success: false, error: { code: 'NOTE_NOT_FOUND', message: 'Note not found' } }, { status: 404 })
     const business = await prisma.business.findFirst({
       where: { id: note.businessId, email: session.user.email }
     })
-    if (!business) throw new ApiError(401, 'Unauthorized')
-    return NextResponse.json(note)
+    if (!business) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
+    return NextResponse.json({ success: true, data: note })
   } catch (error) {
     console.error('GET /relationship-notes/[id] error:', error);
     return handleApiError(error)
@@ -46,7 +46,7 @@ export async function PATCH(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -62,11 +62,11 @@ export async function PATCH(request: Request) {
     const record = await prisma.relationshipNote.findUnique({
       where: { id: id }
     }) as { businessId: string } | null;
-    if (!record) throw new ApiError(404, 'Note not found')
+    if (!record) return NextResponse.json({ success: false, error: { code: 'NOTE_NOT_FOUND', message: 'Note not found' } }, { status: 404 })
     const business = await prisma.business.findFirst({
       where: { id: record.businessId, email: session.user.email }
     })
-    if (!business) throw new ApiError(401, 'Unauthorized')
+    if (!business) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
 
     // Update and return the full record with relations
     const note = await prisma.relationshipNote.update({
@@ -79,13 +79,13 @@ export async function PATCH(request: Request) {
         createdBy: { select: { id: true, name: true } }
       }
     })
-    return NextResponse.json(note)
+    return NextResponse.json({ success: true, data: note })
   } catch (error) {
     console.error('PATCH /relationship-notes/[id] error:', error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 })
     }
-    return handleApiError(error)
+    return NextResponse.json({ success: false, error: { code: 'NOTE_UPDATE_ERROR', message: 'Failed to update note' } }, { status: 500 })
   }
 }
 
@@ -98,7 +98,7 @@ export async function DELETE(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -106,11 +106,11 @@ export async function DELETE(request: Request) {
     const record = await prisma.relationshipNote.findUnique({
       where: { id: id }
     }) as { businessId: string } | null;
-    if (!record) throw new ApiError(404, 'Note not found')
+    if (!record) return NextResponse.json({ success: false, error: { code: 'NOTE_NOT_FOUND', message: 'Note not found' } }, { status: 404 })
     const business = await prisma.business.findFirst({
       where: { id: record.businessId, email: session.user.email }
     })
-    if (!business) throw new ApiError(401, 'Unauthorized')
+    if (!business) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
 
     // Delete the record
     await prisma.relationshipNote.delete({
@@ -119,10 +119,10 @@ export async function DELETE(request: Request) {
     // Logging
     console.info(`Note ${id} deleted by user ${session.user.email}`)
     // 204 No Content should not return a body
-    return new NextResponse(null, { status: 204 })
+    return NextResponse.json({ success: true, data: null }, { status: 204 })
   } catch (error) {
     console.error('DELETE /relationship-notes/[id] error:', error);
-    return handleApiError(error)
+    return NextResponse.json({ success: false, error: { code: 'NOTE_DELETE_ERROR', message: 'Failed to delete note' } }, { status: 500 })
   }
 }
 

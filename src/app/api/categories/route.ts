@@ -9,11 +9,11 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(categories);
+    return NextResponse.json({ success: true, data: categories });
   } catch (error) {
     console.error('Error fetching categories:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch categories' },
+      { success: false, error: { code: 'CATEGORIES_FETCH_ERROR', message: 'Failed to fetch categories' } },
       { status: 500 }
     );
   }

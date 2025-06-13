@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     const relationship = await prisma.clientRelationship.findUnique({
@@ -22,13 +22,13 @@ export async function GET(request: Request, { params }: any) {
     })
 
     if (!relationship) {
-      return new NextResponse('Relationship not found', { status: 404 })
+      return NextResponse.json({ success: false, error: { code: 'RELATIONSHIP_NOT_FOUND', message: 'Relationship not found' } }, { status: 404 })
     }
 
-    return NextResponse.json(relationship)
+    return NextResponse.json({ success: true, data: relationship })
   } catch (error) {
     console.error('Error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'RELATIONSHIP_FETCH_ERROR', message: 'Failed to fetch relationship' } }, { status: 500 })
   }
 }
 
@@ -38,7 +38,7 @@ export async function PUT(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     const body = await request.json()
@@ -52,10 +52,10 @@ export async function PUT(request: Request, { params }: any) {
       }
     })
 
-    return NextResponse.json(relationship)
+    return NextResponse.json({ success: true, data: relationship })
   } catch (error) {
     console.error('Error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'RELATIONSHIP_UPDATE_ERROR', message: 'Failed to update relationship' } }, { status: 500 })
   }
 }
 
@@ -65,16 +65,16 @@ export async function DELETE(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     await prisma.clientRelationship.delete({
       where: { id: params.id }
     })
 
-    return new NextResponse(null, { status: 204 })
+    return NextResponse.json({ success: true, data: null }, { status: 200 })
   } catch (error) {
     console.error('Error:', error)
-    return new NextResponse('Internal Error', { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'RELATIONSHIP_DELETE_ERROR', message: 'Failed to delete relationship' } }, { status: 500 })
   }
 }

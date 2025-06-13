@@ -22,9 +22,9 @@ function getPaginationParams(url: URL) {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'STAFF') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || session.user.role !== 'STAFF') return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     const businessId = session.user.businessId;
-    if (!businessId) return NextResponse.json({ error: 'Missing businessId' }, { status: 400 });
+    if (!businessId) return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing businessId' } }, { status: 400 });
     const url = new URL(request.url);
     const { page, limit, skip } = getPaginationParams(url);
 
@@ -53,16 +53,16 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Error in GET /staff/categories:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'STAFF') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || session.user.role !== 'STAFF') return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     const businessId = session.user.businessId;
-    if (!businessId) return NextResponse.json({ error: 'Missing businessId' }, { status: 400 });
+    if (!businessId) return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing businessId' } }, { status: 400 });
     const body = await request.json();
     const validatedData = await categorySchema.validate(body);
     const category = await prisma.serviceCategory.create({
@@ -76,8 +76,8 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error in POST /staff/categories:', error);
     if (error instanceof yup.ValidationError) {
-      return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_CATEGORY_DATA', message: 'Invalid category data', details: error.errors } }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

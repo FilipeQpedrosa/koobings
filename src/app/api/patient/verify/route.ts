@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const client = await prisma.client.findFirst({
@@ -25,16 +25,19 @@ export async function GET(request: Request) {
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     return NextResponse.json({ 
-      id: client.id,
-      businessId: client.businessId,
-      status: client.status
+      success: true,
+      data: {
+        id: client.id,
+        businessId: client.businessId,
+        status: client.status
+      }
     });
   } catch (error) {
     console.error('Error verifying client:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'VERIFY_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

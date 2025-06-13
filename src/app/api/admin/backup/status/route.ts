@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     // Check authentication
     const session = await getServerSession(authOptions)
     if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Get query parameters
@@ -48,24 +48,27 @@ export async function GET(request: Request) {
     const lastSuccessfulBackup = backups.find((b: any) => b.status === 'completed')
 
     return NextResponse.json({
-      backups,
-      total,
-      metadata: {
-        successRate,
-        latestBackup: latestBackup ? {
-          id: latestBackup.id,
-          status: latestBackup.status,
-          startedAt: latestBackup.timestamp
-        } : null,
-        lastSuccessfulBackup: lastSuccessfulBackup ? {
-          id: lastSuccessfulBackup.id
-        } : null
+      success: true,
+      data: {
+        backups,
+        total,
+        metadata: {
+          successRate,
+          latestBackup: latestBackup ? {
+            id: latestBackup.id,
+            status: latestBackup.status,
+            startedAt: latestBackup.timestamp
+          } : null,
+          lastSuccessfulBackup: lastSuccessfulBackup ? {
+            id: lastSuccessfulBackup.id
+          } : null
+        }
       }
     })
   } catch (error) {
     logger.error('Error fetching backup status', error as Error)
     return NextResponse.json(
-      { error: 'Failed to fetch backup status' },
+      { success: false, error: { code: 'BACKUP_STATUS_FETCH_ERROR', message: 'Failed to fetch backup status' } },
       { status: 500 }
     )
   }

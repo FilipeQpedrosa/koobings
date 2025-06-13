@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
     if (!business) {
       return NextResponse.json(
-        { error: 'Business not found' },
+        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
         { status: 404 }
       );
     }
@@ -75,12 +75,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      tasks,
+      data: tasks,
     });
   } catch (error) {
     console.error('GET /business/setup-status error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch setup status' },
+      { success: false, error: { code: 'SETUP_STATUS_ERROR', message: 'Failed to fetch setup status' } },
       { status: 500 }
     );
   }

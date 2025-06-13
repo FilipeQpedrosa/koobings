@@ -8,7 +8,7 @@ import prisma from '@/lib/prisma';
 export async function GET(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
 
   const staffId = session.user.id;
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest, { params }: any) {
     },
   });
   if (!staff) {
-    return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
   }
 
   const businessId = staff.businessId;
@@ -51,10 +51,10 @@ export async function GET(req: NextRequest, { params }: any) {
   });
 
   if (!client || client.businessId !== businessId) {
-    return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
   }
 
-  return NextResponse.json(client);
+  return NextResponse.json({ success: true, data: client });
 }
 
 // PUT /api/staff/clients/[id] - Update client info
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest, { params }: any) {
 export async function PUT(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
 
   const staffId = session.user.id;
@@ -76,7 +76,7 @@ export async function PUT(req: NextRequest, { params }: any) {
     select: { businessId: true },
   });
   if (!staff) {
-    return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
   }
 
   // Ensure client belongs to the same business
@@ -85,7 +85,7 @@ export async function PUT(req: NextRequest, { params }: any) {
     select: { businessId: true },
   });
   if (!client || client.businessId !== staff.businessId) {
-    return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
   }
 
   try {
@@ -93,8 +93,8 @@ export async function PUT(req: NextRequest, { params }: any) {
       where: { id: clientId },
       data: { name, email, phone },
     });
-    return NextResponse.json(updated);
+    return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'CLIENT_UPDATE_ERROR', message: err.message } }, { status: 500 });
   }
 } 

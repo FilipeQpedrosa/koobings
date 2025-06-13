@@ -28,7 +28,7 @@ async function getBusinessId(session: any) {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     const businessId = await getBusinessId(session);
     const url = new URL(request.url);
     const { page, limit, skip } = getPaginationParams(url);
@@ -58,27 +58,27 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Error in GET /business/categories:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     const businessId = await getBusinessId(session);
     let body;
     try {
       body = await request.json();
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
     let validatedData;
     try {
       validatedData = categorySchema.parse(body);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
+        return NextResponse.json({ success: false, error: { code: 'INVALID_CATEGORY_DATA', message: 'Invalid category data', details: error.errors } }, { status: 400 });
       }
       throw error;
     }
@@ -92,32 +92,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, data: category });
   } catch (error) {
     console.error('Error in POST /business/categories:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     const businessId = await getBusinessId(session);
     const url = new URL(request.url);
     const categoryId = url.searchParams.get('id');
     if (!categoryId) {
-      return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_ID_REQUIRED', message: 'Category ID is required' } }, { status: 400 });
     }
     let body;
     try {
       body = await request.json();
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
     let validatedData;
     try {
       validatedData = categorySchema.parse(body);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Invalid category data', details: error.errors }, { status: 400 });
+        return NextResponse.json({ success: false, error: { code: 'INVALID_CATEGORY_DATA', message: 'Invalid category data', details: error.errors } }, { status: 400 });
       }
       throw error;
     }
@@ -125,7 +125,7 @@ export async function PUT(request: Request) {
       where: { id: categoryId, businessId, isDeleted: false },
     });
     if (!existingCategory) {
-      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found' } }, { status: 404 });
     }
     const category = await prisma.serviceCategory.update({
       where: { id: categoryId },
@@ -135,25 +135,25 @@ export async function PUT(request: Request) {
     return NextResponse.json({ success: true, data: category });
   } catch (error) {
     console.error('Error in PUT /business/categories:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || !session.user.email) return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     const businessId = await getBusinessId(session);
     const url = new URL(request.url);
     const categoryId = url.searchParams.get('id');
     if (!categoryId) {
-      return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_ID_REQUIRED', message: 'Category ID is required' } }, { status: 400 });
     }
     const existingCategory = await prisma.serviceCategory.findFirst({
       where: { id: categoryId, businessId, isDeleted: false },
     });
     if (!existingCategory) {
-      return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found' } }, { status: 404 });
     }
     await prisma.serviceCategory.update({
       where: { id: categoryId },
@@ -162,7 +162,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE /business/categories:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 

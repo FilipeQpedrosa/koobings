@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -33,11 +33,11 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(reviews);
+    return NextResponse.json({ success: true, data: reviews });
   } catch (error) {
     console.error('Error fetching reviews:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch reviews' },
+      { success: false, error: { code: 'REVIEWS_FETCH_ERROR', message: 'Failed to fetch reviews' } },
       { status: 500 }
     );
   }
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
     if (!appointmentId || !rating) {
       return NextResponse.json(
-        { error: 'Appointment ID and rating are required' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Appointment ID and rating are required' } },
         { status: 400 }
       );
     }
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
     if (!appointment) {
       return NextResponse.json(
-        { error: 'Appointment not found or not completed' },
+        { success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found or not completed' } },
         { status: 404 }
       );
     }
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
     if (existingReview) {
       return NextResponse.json(
-        { error: 'Review already exists for this appointment' },
+        { success: false, error: { code: 'REVIEW_EXISTS', message: 'Review already exists for this appointment' } },
         { status: 400 }
       );
     }
@@ -109,11 +109,11 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(review);
+    return NextResponse.json({ success: true, data: review });
   } catch (error) {
     console.error('Error creating review:', error);
     return NextResponse.json(
-      { error: 'Failed to create review' },
+      { success: false, error: { code: 'REVIEW_CREATE_ERROR', message: 'Failed to create review' } },
       { status: 500 }
     );
   }
@@ -124,7 +124,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -132,7 +132,7 @@ export async function PATCH(request: Request) {
 
     if (!reviewId || !rating) {
       return NextResponse.json(
-        { error: 'Review ID and rating are required' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Review ID and rating are required' } },
         { status: 400 }
       );
     }
@@ -147,7 +147,7 @@ export async function PATCH(request: Request) {
 
     if (!existingReview) {
       return NextResponse.json(
-        { error: 'Review not found' },
+        { success: false, error: { code: 'REVIEW_NOT_FOUND', message: 'Review not found' } },
         { status: 404 }
       );
     }
@@ -171,11 +171,11 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json(review);
+    return NextResponse.json({ success: true, data: review });
   } catch (error) {
     console.error('Error updating review:', error);
     return NextResponse.json(
-      { error: 'Failed to update review' },
+      { success: false, error: { code: 'REVIEW_UPDATE_ERROR', message: 'Failed to update review' } },
       { status: 500 }
     );
   }

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -25,11 +25,11 @@ export async function GET(request: Request) {
         business: true
       }
     })
-    if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
+    if (!visitHistory) return NextResponse.json({ success: false, error: { code: 'VISIT_HISTORY_NOT_FOUND', message: 'Visit history entry not found' } }, { status: 404 })
     if (visitHistory.business?.email !== session.user.email) {
-      throw new ApiError(401, 'Unauthorized')
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
-    return NextResponse.json(visitHistory)
+    return NextResponse.json({ success: true, data: visitHistory })
   } catch (error) {
     console.error('GET /business/visit-history/[id] error:', error)
     return handleApiError(error)
@@ -45,7 +45,7 @@ export async function PATCH(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -65,9 +65,9 @@ export async function PATCH(request: Request) {
       where: { id: id },
       include: { business: true }
     })
-    if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
+    if (!visitHistory) return NextResponse.json({ success: false, error: { code: 'VISIT_HISTORY_NOT_FOUND', message: 'Visit history entry not found' } }, { status: 404 })
     if (visitHistory.business?.email !== session.user.email) {
-      throw new ApiError(401, 'Unauthorized')
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Update and return the full record with relations
@@ -85,13 +85,13 @@ export async function PATCH(request: Request) {
         business: true
       }
     })
-    return NextResponse.json(updatedVisitHistory)
+    return NextResponse.json({ success: true, data: updatedVisitHistory })
   } catch (error) {
     console.error('PATCH /business/visit-history/[id] error:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 })
     }
-    return handleApiError(error)
+    return NextResponse.json({ success: false, error: { code: 'VISIT_HISTORY_UPDATE_ERROR', message: 'Failed to update visit history entry' } }, { status: 500 })
   }
 }
 
@@ -104,7 +104,7 @@ export async function DELETE(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -113,9 +113,9 @@ export async function DELETE(request: Request) {
       where: { id: id },
       include: { business: true }
     })
-    if (!visitHistory) throw new ApiError(404, 'Visit history entry not found')
+    if (!visitHistory) return NextResponse.json({ success: false, error: { code: 'VISIT_HISTORY_NOT_FOUND', message: 'Visit history entry not found' } }, { status: 404 })
     if (visitHistory.business?.email !== session.user.email) {
-      throw new ApiError(401, 'Unauthorized')
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Delete the record
@@ -123,10 +123,10 @@ export async function DELETE(request: Request) {
       where: { id: id }
     })
     console.info(`Visit history ${id} deleted by user ${session.user.email}`)
-    return new NextResponse(null, { status: 204 })
+    return NextResponse.json({ success: true, data: null }, { status: 200 })
   } catch (error) {
     console.error('DELETE /business/visit-history/[id] error:', error)
-    return handleApiError(error)
+    return NextResponse.json({ success: false, error: { code: 'VISIT_HISTORY_DELETE_ERROR', message: 'Failed to delete visit history entry' } }, { status: 500 })
   }
 }
 

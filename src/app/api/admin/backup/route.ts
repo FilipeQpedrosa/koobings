@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     // Check authentication
     const session = await getServerSession(authOptions)
     if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Start backup
@@ -19,13 +19,16 @@ export async function POST(request: Request) {
     const result = await runBackup()
 
     return NextResponse.json({
-      message: 'Backup completed successfully',
-      result
+      success: true,
+      data: {
+        message: 'Backup completed successfully',
+        result
+      }
     })
   } catch (error) {
     loggerInstance.error('Backup API error', error as Error)
     return NextResponse.json(
-      { error: 'Failed to run backup' },
+      { success: false, error: { code: 'BACKUP_ERROR', message: 'Failed to run backup' } },
       { status: 500 }
     )
   }
@@ -36,7 +39,7 @@ export async function GET(request: Request) {
     // Check authentication
     const session = await getServerSession(authOptions)
     if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // List recent backups
@@ -44,13 +47,16 @@ export async function GET(request: Request) {
     // Add S3 list logic here
 
     return NextResponse.json({
-      message: 'Recent backups retrieved',
-      backups: []
+      success: true,
+      data: {
+        message: 'Recent backups retrieved',
+        backups: []
+      }
     })
   } catch (error) {
     loggerInstance.error('Backup list API error', error as Error)
     return NextResponse.json(
-      { error: 'Failed to list backups' },
+      { success: false, error: { code: 'BACKUP_LIST_ERROR', message: 'Failed to list backups' } },
       { status: 500 }
     )
   }

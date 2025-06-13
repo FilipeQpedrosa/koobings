@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: any) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     // Verify if the user is a system admin
@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: any) {
     });
 
     if (!admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     const body = await request.json();
@@ -40,7 +40,7 @@ export async function POST(request: Request, { params }: any) {
     });
 
     if (!business) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
 
     // Update business verification status
@@ -79,9 +79,9 @@ export async function POST(request: Request, { params }: any) {
       );
     }
 
-    return NextResponse.json(verification);
+    return NextResponse.json({ success: true, data: verification });
   } catch (error) {
     console.error('Error verifying business:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'BUSINESS_VERIFY_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     if (!serviceId || !dateStr) {
       return NextResponse.json(
-        { error: 'Service ID and date are required' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Service ID and date are required' } },
         { status: 400 }
       );
     }
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     if (!service) {
       return NextResponse.json(
-        { error: 'Service not found' },
+        { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
         { status: 404 }
       );
     }
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     );
 
     if (!businessHours || !businessHours.isOpen) {
-      return NextResponse.json([]);
+      return NextResponse.json({ success: true, data: [] });
     }
 
     // Generate time slots
@@ -73,11 +73,11 @@ export async function GET(request: NextRequest) {
       currentTime = addMinutes(currentTime, 30); // 30-minute intervals
     }
 
-    return NextResponse.json(slots);
+    return NextResponse.json({ success: true, data: slots });
   } catch (error) {
     console.error('Error fetching time slots:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch time slots' },
+      { success: false, error: { code: 'SLOTS_FETCH_ERROR', message: 'Failed to fetch time slots' } },
       { status: 500 }
     );
   }

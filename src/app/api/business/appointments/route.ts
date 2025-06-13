@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     // Get the staff member and their business
@@ -111,17 +111,17 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json({
-      appointments: formattedAppointments,
-      businessName: staff.business?.name ?? '',
-      businessLogo: staff.business?.logo ?? null,
-      total,
+      success: true,
+      data: {
+        appointments: formattedAppointments,
+        businessName: staff.business?.name ?? '',
+        businessLogo: staff.business?.logo ?? null,
+        total,
+      }
     });
   } catch (error: any) {
     console.error('Error fetching appointments:', error);
-    if (process.env.NODE_ENV === 'development') {
-      return NextResponse.json({ error: 'Internal Server Error', details: error.message, stack: error.stack }, { status: 500 });
-    }
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'APPOINTMENTS_FETCH_ERROR', message: error.message || 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const staff = await prisma.staff.findUnique({
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
     console.log('[POST /api/business/appointments] body:', parsed, 'staffId used:', staffIdFromPayload || staff.id);
 
     if (!clientId || !serviceId || !startTime) {
-      return NextResponse.json({ error: 'Missing required fields: clientId, serviceId, startTime' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields: clientId, serviceId, startTime' } }, { status: 400 });
     }
 
     // Get service to calculate endTime
@@ -178,7 +178,7 @@ export async function POST(request: Request) {
     });
 
     if (!service) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 });
     }
 
     let start;
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
       start = new Date(startTime);
       if (isNaN(start.getTime())) throw new Error('Invalid startTime');
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid startTime format' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_STARTTIME', message: 'Invalid startTime format' } }, { status: 400 });
     }
 
     const appointment = await prisma.appointment.create({
@@ -239,13 +239,10 @@ export async function POST(request: Request) {
       }] : [],
     };
 
-    return NextResponse.json(formattedAppointment);
+    return NextResponse.json({ success: true, data: formattedAppointment });
   } catch (error: any) {
     console.error('POST /business/appointments error:', error);
-    if (process.env.NODE_ENV === 'development') {
-      return NextResponse.json({ error: 'Internal Server Error', details: error.message, stack: error.stack }, { status: 500 });
-    }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_CREATE_ERROR', message: error.message || 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -256,7 +253,7 @@ export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const staff = await prisma.staff.findUnique({
@@ -265,18 +262,18 @@ export async function PUT(request: Request) {
     });
 
     if (!staff) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     let body;
     try {
       body = await request.json();
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
     const { staffId, date, startTime, duration } = body;
     if (!staffId || !date || !startTime || !duration) {
-      return NextResponse.json({ error: 'Missing required fields: staffId, date, startTime, duration' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields: staffId, date, startTime, duration' } }, { status: 400 });
     }
     const start = new Date(startTime);
     const end = new Date(start.getTime() + duration * 60000);
@@ -300,10 +297,10 @@ export async function PUT(request: Request) {
         isAvailable = false;
       }
     }
-    return NextResponse.json({ available: isAvailable });
+    return NextResponse.json({ success: true, data: { available: isAvailable } });
   } catch (error) {
     console.error('Error checking staff availability:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'AVAILABILITY_CHECK_ERROR', message: error instanceof Error ? error.message : 'Internal Server Error' } }, { status: 500 });
   }
 }
 

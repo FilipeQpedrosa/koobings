@@ -36,19 +36,22 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      latest: latestBackup,
-      statistics: {
-        total: totalBackups,
-        successful: successfulBackups,
-        failed: failedBackups,
-        successRate: totalBackups > 0 ? (successfulBackups / totalBackups) * 100 : 0
-      },
-      recentHistory: recentBackups
+      success: true,
+      data: {
+        latest: latestBackup,
+        statistics: {
+          total: totalBackups,
+          successful: successfulBackups,
+          failed: failedBackups,
+          successRate: totalBackups > 0 ? (successfulBackups / totalBackups) * 100 : 0
+        },
+        recentHistory: recentBackups
+      }
     });
   } catch (error) {
     console.error('Failed to fetch backup status:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch backup status' },
+      { success: false, error: { code: 'BACKUP_STATUS_ERROR', message: 'Failed to fetch backup status' } },
       { status: 500 }
     );
   } finally {

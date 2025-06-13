@@ -10,7 +10,7 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     const relationships = await prisma.clientRelationship.findMany({
@@ -21,10 +21,10 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json(relationships)
+    return NextResponse.json({ success: true, data: relationships })
   } catch (error) {
     console.error('GET /business/client-relationships error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
   }
 }
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Input validation
@@ -50,14 +50,14 @@ export async function POST(request: Request) {
     try {
       body = await request.json()
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 })
     }
     let validatedData
     try {
       validatedData = schema.parse(body)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Invalid relationship data', details: error.errors }, { status: 400 })
+        return NextResponse.json({ success: false, error: { code: 'INVALID_RELATIONSHIP_DATA', message: 'Invalid relationship data', details: error.errors } }, { status: 400 })
       }
       throw error
     }
@@ -70,10 +70,10 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json(relationship)
+    return NextResponse.json({ success: true, data: relationship })
   } catch (error) {
     console.error('POST /business/client-relationships error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
   }
 }
 

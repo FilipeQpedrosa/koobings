@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     // Fetch category and business in one go
@@ -29,16 +29,16 @@ export async function GET(request: Request) {
     })
 
     if (!category) {
-      return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+      return NextResponse.json({ success: false, error: { code: 'CATEGORY_NOT_FOUND', message: 'Category not found' } }, { status: 404 })
     }
     if (category.business?.email !== session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
-    return NextResponse.json(category)
+    return NextResponse.json({ success: true, data: category })
   } catch (error) {
     console.error('GET /business/categories/[id] error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'CATEGORY_FETCH_ERROR', message: 'Failed to fetch category' } }, { status: 500 })
   }
 }
 
@@ -51,7 +51,7 @@ export async function PATCH(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -70,7 +70,7 @@ export async function PATCH(request: Request) {
       include: { business: true }
     })
     if (!category || category.business?.email !== session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     const updatedCategory = await prisma.serviceCategory.update({
@@ -78,13 +78,13 @@ export async function PATCH(request: Request) {
       data: { name, description, color }
     })
 
-    return NextResponse.json(updatedCategory)
+    return NextResponse.json({ success: true, data: updatedCategory })
   } catch (error) {
     console.error('PATCH /business/categories/[id] error:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 })
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'CATEGORY_UPDATE_ERROR', message: 'Failed to update category' } }, { status: 500 })
   }
 }
 
@@ -97,7 +97,7 @@ export async function DELETE(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -107,17 +107,17 @@ export async function DELETE(request: Request) {
       include: { business: true }
     })
     if (!category || category.business?.email !== session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
     }
 
     await prisma.serviceCategory.delete({
       where: { id }
     })
     console.info(`Category ${id} deleted by user ${session.user.email}`)
-    return new NextResponse(null, { status: 204 })
+    return NextResponse.json({ success: true, data: null }, { status: 200 })
   } catch (error) {
     console.error('DELETE /business/categories/[id] error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'CATEGORY_DELETE_ERROR', message: 'Failed to delete category' } }, { status: 500 })
   }
 }
 

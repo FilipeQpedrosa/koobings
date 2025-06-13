@@ -21,13 +21,13 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.businessId) {
-      return NextResponse.json({ error: 'Business not found in session' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found in session' } }, { status: 404 });
     }
     const businessId = session.user.businessId;
     // Find business by ID
     const business = await prisma.business.findUnique({ where: { id: businessId } });
     if (!business) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
     // Optionally: add permission checks here if needed
     const staff = await prisma.staff.findMany({
@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
         businessId: true,
       },
     });
-    return NextResponse.json(staff);
+    return NextResponse.json({ success: true, data: staff });
   } catch (error) {
     console.error('Error fetching staff:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch staff' },
+      { success: false, error: { code: 'STAFF_FETCH_ERROR', message: 'Failed to fetch staff' } },
       { status: 500 }
     );
   }
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Allow staff with staffRole 'ADMIN' to manage staff
     if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (!data.password || data.password.length < 8) {
       return NextResponse.json(
-        { error: 'Password is required and must be at least 8 characters.' },
+        { success: false, error: { code: 'INVALID_PASSWORD', message: 'Password is required and must be at least 8 characters.' } },
         { status: 400 }
       );
     }
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     ]);
     if (existingStaff || existingBusiness) {
       return NextResponse.json(
-        { error: 'Email is already in use by another staff member or business.' },
+        { success: false, error: { code: 'EMAIL_IN_USE', message: 'Email is already in use by another staff member or business.' } },
         { status: 400 }
       );
     }
@@ -101,11 +101,11 @@ export async function POST(request: NextRequest) {
           businessId: true,
         },
       });
-      return NextResponse.json(staff);
+      return NextResponse.json({ success: true, data: staff });
     } catch (error: any) {
       if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
         return NextResponse.json(
-          { error: 'Email is already in use by another staff member or business.' },
+          { success: false, error: { code: 'EMAIL_IN_USE', message: 'Email is already in use by another staff member or business.' } },
           { status: 400 }
         );
       }
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating staff:', error);
     return NextResponse.json(
-      { error: 'Failed to create staff' },
+      { success: false, error: { code: 'STAFF_CREATE_ERROR', message: 'Failed to create staff' } },
       { status: 500 }
     );
   }
@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -136,7 +136,7 @@ export async function PATCH(request: NextRequest) {
       session.user.staffRole !== 'ADMIN' &&
       !(session.user.permissions && session.user.permissions.includes('canViewSettings'))
     ) {
-      return NextResponse.json({ error: 'Not authorized to access settings' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Not authorized to access settings' } }, { status: 403 });
     }
 
     const data = await request.json();
@@ -144,7 +144,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Staff ID is required' },
+        { success: false, error: { code: 'STAFF_ID_REQUIRED', message: 'Staff ID is required' } },
         { status: 400 }
       );
     }
@@ -159,7 +159,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!existingStaff) {
       return NextResponse.json(
-        { error: 'Staff not found' },
+        { success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } },
         { status: 404 }
       );
     }
@@ -167,7 +167,7 @@ export async function PATCH(request: NextRequest) {
     // Check if user has permission to update
     if (existingStaff.businessId !== session.user.businessId) {
       return NextResponse.json(
-        { error: 'Unauthorized to update this staff member' },
+        { success: false, error: { code: 'UNAUTHORIZED_UPDATE', message: 'Unauthorized to update this staff member' } },
         { status: 403 }
       );
     }
@@ -184,11 +184,11 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(staff);
+    return NextResponse.json({ success: true, data: staff });
   } catch (error) {
     console.error('Error updating staff:', error);
     return NextResponse.json(
-      { error: 'Failed to update staff' },
+      { success: false, error: { code: 'STAFF_UPDATE_ERROR', message: 'Failed to update staff' } },
       { status: 500 }
     );
   }
@@ -200,7 +200,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!session?.user?.role || session.user.role !== 'STAFF' || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -210,7 +210,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Staff ID is required' },
+        { success: false, error: { code: 'STAFF_ID_REQUIRED', message: 'Staff ID is required' } },
         { status: 400 }
       );
     }
@@ -225,7 +225,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!existingStaff) {
       return NextResponse.json(
-        { error: 'Staff not found' },
+        { success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } },
         { status: 404 }
       );
     }
@@ -233,7 +233,7 @@ export async function DELETE(request: NextRequest) {
     // Check if user has permission to delete
     if (existingStaff.businessId !== session.user.businessId) {
       return NextResponse.json(
-        { error: 'Unauthorized to delete this staff member' },
+        { success: false, error: { code: 'UNAUTHORIZED_DELETE', message: 'Unauthorized to delete this staff member' } },
         { status: 403 }
       );
     }
@@ -242,11 +242,11 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     });
 
-    return NextResponse.json({ message: 'Staff deleted successfully' });
+    return NextResponse.json({ success: true, data: { message: 'Staff deleted successfully' } });
   } catch (error) {
     console.error('Error deleting staff:', error);
     return NextResponse.json(
-      { error: 'Failed to delete staff' },
+      { success: false, error: { code: 'STAFF_DELETE_ERROR', message: 'Failed to delete staff' } },
       { status: 500 }
     );
   }

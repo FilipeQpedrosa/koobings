@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: any) {
 
     if (!session?.user || !session.user.businessId) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
@@ -41,16 +41,13 @@ export async function GET(request: Request, { params }: any) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
     }
 
-    return NextResponse.json(staff);
+    return NextResponse.json({ success: true, data: staff });
   } catch (error) {
     console.error('GET /business/staff/[id] error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_FETCH_ERROR', message: error instanceof Error ? error.message : String(error) } }, { status: 500 });
   }
 }
 
@@ -61,7 +58,7 @@ export async function PUT(request: Request, { params }: any) {
 
     if (!session?.user || !session.user.businessId) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
@@ -74,7 +71,7 @@ export async function PUT(request: Request, { params }: any) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
     }
 
     // Input validation
@@ -108,16 +105,13 @@ export async function PUT(request: Request, { params }: any) {
       }
     });
 
-    return NextResponse.json(updatedStaff);
+    return NextResponse.json({ success: true, data: updatedStaff });
   } catch (error) {
     console.error('PUT /business/staff/[id] error:', error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 });
     }
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_UPDATE_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 }
 
@@ -128,7 +122,7 @@ export async function DELETE(request: Request, { params }: any) {
 
     if (!session?.user || !session.user.businessId) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const businessId = session.user.businessId;
@@ -141,7 +135,7 @@ export async function DELETE(request: Request, { params }: any) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
     }
 
     // Delete staff record
@@ -149,13 +143,10 @@ export async function DELETE(request: Request, { params }: any) {
       where: { id: params.id }
     });
     console.info(`Staff member ${params.id} deleted by business ${businessId}`);
-    return new NextResponse(null, { status: 204 });
+    return NextResponse.json({ success: true, data: null }, { status: 200 });
   } catch (error) {
     console.error('DELETE /business/staff/[id] error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_DELETE_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 }
 

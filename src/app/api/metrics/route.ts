@@ -11,6 +11,6 @@ export async function GET() {
     });
   } catch (err) {
     console.error('Error generating metrics:', err);
-    return new NextResponse('Error generating metrics', { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'METRICS_ERROR', message: 'Error generating metrics' } }, { status: 500 });
   }
 } 

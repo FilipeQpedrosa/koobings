@@ -9,7 +9,7 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.businessId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const featureConfig = await prisma.featureConfiguration.findUnique({
@@ -26,14 +26,14 @@ export async function GET() {
     });
 
     if (!featureConfig) {
-      return NextResponse.json({ error: 'Feature configuration not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'NOT_FOUND', message: 'Feature configuration not found' } }, { status: 404 });
     }
 
-    return NextResponse.json(featureConfig);
+    return NextResponse.json({ success: true, data: featureConfig });
   } catch (error) {
     console.error('Error fetching feature configuration:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'FEATURES_FETCH_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }
@@ -45,7 +45,7 @@ export async function PUT(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.businessId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -54,7 +54,7 @@ export async function PUT(request: Request) {
     // Validate the request body
     if (!features || !Array.isArray(features)) {
       return NextResponse.json(
-        { error: 'Invalid request body' },
+        { success: false, error: { code: 'INVALID_BODY', message: 'Invalid request body' } },
         { status: 400 }
       );
     }
@@ -111,11 +111,11 @@ export async function PUT(request: Request) {
       },
     });
 
-    return NextResponse.json(featureConfig);
+    return NextResponse.json({ success: true, data: featureConfig });
   } catch (error) {
     console.error('Error updating feature configuration:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'FEATURES_UPDATE_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }

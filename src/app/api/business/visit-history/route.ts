@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const relationshipId = searchParams.get('relationshipId')
 
     if (!relationshipId) {
-      return NextResponse.json({ error: 'relationshipId is required' }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'RELATIONSHIP_ID_REQUIRED', message: 'relationshipId is required' } }, { status: 400 })
     }
 
     // Verify ownership of the client
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     })
 
     if (!client) {
-      return NextResponse.json({ error: 'Client relationship not found' }, { status: 404 })
+      return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client relationship not found' } }, { status: 404 })
     }
 
     const visitHistory = await prisma.visitHistory.findMany({
@@ -52,10 +52,10 @@ export async function GET(request: Request) {
       }
     })
 
-    return NextResponse.json(visitHistory)
+    return NextResponse.json({ success: true, data: visitHistory })
   } catch (error) {
     console.error('GET /business/visit-history error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
   }
 }
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
   if (!session || !session.user || !session.user.email) {
     console.error('Unauthorized: No session or user.');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
   }
 
   try {
@@ -82,14 +82,14 @@ export async function POST(request: Request) {
     try {
       json = await request.json()
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 })
     }
     let parsed
     try {
       parsed = schema.parse(json)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+        return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 })
       }
       throw error
     }
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     })
 
     if (!client) {
-      return NextResponse.json({ error: 'Client relationship not found' }, { status: 404 })
+      return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client relationship not found' } }, { status: 404 })
     }
 
     const visitHistoryEntry = await prisma.visitHistory.create({
@@ -135,10 +135,10 @@ export async function POST(request: Request) {
       data: { lastVisit: new Date(visitDate) }
     })
 
-    return NextResponse.json(visitHistoryEntry)
+    return NextResponse.json({ success: true, data: visitHistoryEntry })
   } catch (error) {
     console.error('POST /business/visit-history error:', error)
-    return NextResponse.json({ error: 'Internal Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
   }
 }
 

@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     if (!date || !providerId || !businessId) {
       return NextResponse.json(
-        { error: 'Missing required parameters' },
+        { success: false, error: { code: 'MISSING_PARAMETERS', message: 'Missing required parameters' } },
         { status: 400 }
       );
     }
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
     if (!staffAvailability || !staffAvailability.schedule) {
       return NextResponse.json(
-        { error: 'Provider has no schedule set' },
+        { success: false, error: { code: 'NO_SCHEDULE', message: 'Provider has no schedule set' } },
         { status: 404 }
       );
     }
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
     if (!daySchedule || !daySchedule.isWorking) {
       return NextResponse.json(
-        { error: 'Provider is not available on this day' },
+        { success: false, error: { code: 'NOT_AVAILABLE', message: 'Provider is not available on this day' } },
         { status: 404 }
       );
     }
@@ -110,14 +110,17 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      schedule: daySchedule,
-      availability,
-      timeSlots,
+      success: true,
+      data: {
+        schedule: daySchedule,
+        availability,
+        timeSlots,
+      },
     });
   } catch (error) {
     console.error('Error checking availability:', error);
     return NextResponse.json(
-      { error: 'Failed to check availability' },
+      { success: false, error: { code: 'AVAILABILITY_ERROR', message: 'Failed to check availability' } },
       { status: 500 }
     );
   }

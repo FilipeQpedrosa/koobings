@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -30,30 +30,30 @@ export async function GET(request: Request) {
       });
 
       if (!services) {
-        return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+        return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
       }
 
-      return NextResponse.json(services.services);
+      return NextResponse.json({ success: true, data: services.services });
     } else {
       // Return all services for the staff's business
       if (session.user.role !== 'STAFF') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
       }
       const businessId = session.user.businessId;
       if (!businessId) {
-        return NextResponse.json({ error: 'Missing businessId' }, { status: 400 });
+        return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing businessId' } }, { status: 400 });
       }
       const services = await prisma.service.findMany({
         where: { businessId },
         include: { category: true },
         orderBy: { createdAt: 'desc' },
       });
-      return NextResponse.json(services);
+      return NextResponse.json({ success: true, data: services });
     }
   } catch (error) {
     console.error('Error fetching staff services:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch services' },
+      { success: false, error: { code: 'STAFF_SERVICES_FETCH_ERROR', message: 'Failed to fetch services' } },
       { status: 500 }
     );
   }
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
     if (!staffId || !serviceIds) {
       return NextResponse.json(
-        { error: 'Staff ID and service IDs are required' },
+        { success: false, error: { code: 'STAFF_ID_AND_SERVICE_IDS_REQUIRED', message: 'Staff ID and service IDs are required' } },
         { status: 400 }
       );
     }
@@ -89,12 +89,9 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(staff.services);
+    return NextResponse.json({ success: true, data: staff.services });
   } catch (error) {
     console.error('Error updating staff services:', error);
-    return NextResponse.json(
-      { error: 'Failed to update services' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: { code: 'STAFF_SERVICES_UPDATE_ERROR', message: 'Failed to update services' } }, { status: 500 });
   }
 } 

@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     if (!session) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -156,11 +156,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(appointments);
+    return NextResponse.json({ success: true, data: appointments });
   } catch (error) {
     console.error('Error fetching appointments:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch appointments' },
+      { success: false, error: { code: 'APPOINTMENTS_FETCH_ERROR', message: 'Failed to fetch appointments' } },
       { status: 500 }
     );
   }
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!data.clientId || !data.serviceId || !data.date || !data.time) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } },
         { status: 400 }
       );
     }
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     // Ensure businessId is present
     if (!session.user.businessId) {
       return NextResponse.json(
-        { error: 'Business ID is required to create an appointment.' },
+        { success: false, error: { code: 'BUSINESS_ID_REQUIRED', message: 'Business ID is required to create an appointment.' } },
         { status: 400 }
       );
     }
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
     });
     if (!service) {
       return NextResponse.json(
-        { error: 'Service not found' },
+        { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
         { status: 404 }
       );
     }
@@ -228,11 +228,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(appointment);
+    return NextResponse.json({ success: true, data: appointment });
   } catch (error) {
     console.error('Error creating appointment:', error);
     return NextResponse.json(
-      { error: 'Failed to create appointment' },
+      { success: false, error: { code: 'APPOINTMENT_CREATE_ERROR', message: 'Failed to create appointment' } },
       { status: 500 }
     );
   }
@@ -245,7 +245,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       );
     }
@@ -255,7 +255,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Appointment ID is required' },
+        { success: false, error: { code: 'APPOINTMENT_ID_REQUIRED', message: 'Appointment ID is required' } },
         { status: 400 }
       );
     }
@@ -271,7 +271,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!appointment) {
       return NextResponse.json(
-        { error: 'Appointment not found' },
+        { success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' } },
         { status: 404 }
       );
     }
@@ -282,7 +282,7 @@ export async function PATCH(request: NextRequest) {
       appointment.staffId !== session.user.id
     ) {
       return NextResponse.json(
-        { error: 'Unauthorized to update this appointment' },
+        { success: false, error: { code: 'UNAUTHORIZED_UPDATE', message: 'Unauthorized to update this appointment' } },
         { status: 403 }
       );
     }
@@ -298,11 +298,11 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(updatedAppointment);
+    return NextResponse.json({ success: true, data: updatedAppointment });
   } catch (error) {
     console.error('Error updating appointment:', error);
     return NextResponse.json(
-      { error: 'Failed to update appointment' },
+      { success: false, error: { code: 'APPOINTMENT_UPDATE_ERROR', message: 'Failed to update appointment' } },
       { status: 500 }
     );
   }
@@ -312,7 +312,7 @@ export async function DELETE(request: Request) {
   try {
     const session = await getServerSession();
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -320,18 +320,18 @@ export async function DELETE(request: Request) {
     const reason = searchParams.get('reason') || 'No reason provided';
     
     if (!id) {
-      return NextResponse.json({ error: 'Appointment ID is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_ID_REQUIRED', message: 'Appointment ID is required' } }, { status: 400 });
     }
 
     await prisma.appointment.update({
       where: { id },
       data: { status: 'CANCELLED', notes: reason },
     });
-    return NextResponse.json({ message: 'Appointment cancelled successfully' });
+    return NextResponse.json({ success: true, data: { message: 'Appointment cancelled successfully' } });
   } catch (error) {
     console.error('Failed to cancel appointment:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to cancel appointment' },
+      { success: false, error: { code: 'APPOINTMENT_CANCEL_ERROR', message: error instanceof Error ? error.message : 'Failed to cancel appointment' } },
       { status: 500 }
     );
   }

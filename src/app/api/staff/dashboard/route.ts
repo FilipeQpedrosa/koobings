@@ -5,11 +5,11 @@ import { addDays } from 'date-fns';
 export async function GET(request: NextRequest) {
   const businessId = request.headers.get('x-business');
   if (!businessId) {
-    return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+    return NextResponse.json({ success: false, error: { code: 'BUSINESS_ID_MISSING', message: 'Business subdomain missing' } }, { status: 400 });
   }
   const business = await prisma.business.findUnique({ where: { id: businessId } });
   if (!business) {
-    return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
   }
   // Get all staff for this business
   const staffList = await prisma.staff.findMany({ where: { businessId: business.id } });
@@ -36,20 +36,23 @@ export async function GET(request: NextRequest) {
   const totalClients = new Set(clientIds.map(c => c.clientId)).size;
   const completionRate = totalAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0;
   return NextResponse.json({
-    businessName: business.name,
-    stats: {
-      totalAppointments,
-      upcomingAppointments: upcomingAppointmentsCount,
-      totalClients,
-      completionRate,
+    success: true,
+    data: {
+      businessName: business.name,
+      stats: {
+        totalAppointments,
+        upcomingAppointments: upcomingAppointmentsCount,
+        totalClients,
+        completionRate,
+      },
+      appointments: recentAppointments.map(apt => ({
+        id: apt.id,
+        clientName: apt.client?.name || 'Unknown',
+        serviceName: apt.service?.name || 'Unknown',
+        dateTime: apt.scheduledFor,
+        status: apt.status,
+        duration: apt.duration,
+      })),
     },
-    appointments: recentAppointments.map(apt => ({
-      id: apt.id,
-      clientName: apt.client?.name || 'Unknown',
-      serviceName: apt.service?.name || 'Unknown',
-      dateTime: apt.scheduledFor,
-      status: apt.status,
-      duration: apt.duration,
-    })),
   });
 } 

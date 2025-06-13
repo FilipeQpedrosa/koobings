@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     // Get the business ID from the authenticated user's staff record
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     const clients = await prisma.client.findMany({
@@ -33,10 +33,10 @@ export async function GET(request: Request) {
       }
     });
 
-    return NextResponse.json(clients);
+    return NextResponse.json({ success: true, data: clients });
   } catch (error) {
     console.error('GET /business/patients error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'PATIENTS_FETCH_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.email) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     // Get the business ID from the authenticated user's staff record
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     });
 
     if (!staff) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
     }
 
     // Input validation
@@ -73,14 +73,14 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch (err) {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
     let validatedData;
     try {
       validatedData = schema.parse(body);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ error: 'Invalid client data', details: error.errors }, { status: 400 });
+        return NextResponse.json({ success: false, error: { code: 'INVALID_CLIENT_DATA', message: 'Invalid client data', details: error.errors } }, { status: 400 });
       }
       throw error;
     }
@@ -102,10 +102,10 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(client, { status: 201 });
+    return NextResponse.json({ success: true, data: client }, { status: 201 });
   } catch (error) {
     console.error('POST /business/patients error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'PATIENT_CREATE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 

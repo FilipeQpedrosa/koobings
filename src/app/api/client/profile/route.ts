@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const client = await prisma.client.findUnique({
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
     }
 
     // Optionally, parse preferences JSON for FE convenience
@@ -50,10 +50,10 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ ...client, preferences });
+    return NextResponse.json({ success: true, data: { ...client, preferences } });
   } catch (error) {
     console.error('Error fetching client profile:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'PROFILE_FETCH_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -63,7 +63,7 @@ export async function PATCH(request: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const client = await prisma.client.findUnique({
@@ -71,7 +71,7 @@ export async function PATCH(request: Request) {
     });
 
     if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
     }
 
     const body = await request.json();
@@ -109,9 +109,9 @@ export async function PATCH(request: Request) {
       }
     });
 
-    return NextResponse.json(updatedClient);
+    return NextResponse.json({ success: true, data: updatedClient });
   } catch (error) {
     console.error('Error updating client profile:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'PROFILE_UPDATE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

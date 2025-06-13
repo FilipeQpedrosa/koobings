@@ -8,7 +8,7 @@ import prisma from '@/lib/prisma';
 export async function PUT(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
 
   const staffId = session.user.id;
@@ -23,7 +23,7 @@ export async function PUT(req: NextRequest, { params }: any) {
     select: { businessId: true },
   });
   if (!staff) {
-    return NextResponse.json({ error: 'Staff not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
   }
 
   // Ensure client belongs to the same business
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: any) {
     select: { businessId: true },
   });
   if (!client || client.businessId !== staff.businessId) {
-    return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
   }
 
   // Ensure note belongs to the client and was authored by this staff
@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest, { params }: any) {
     select: { clientId: true, createdById: true },
   });
   if (!note || note.clientId !== clientId || note.createdById !== staffId) {
-    return NextResponse.json({ error: 'Not allowed to edit this note' }, { status: 403 });
+    return NextResponse.json({ success: false, error: { code: 'NOT_ALLOWED', message: 'Not allowed to edit this note' } }, { status: 403 });
   }
 
   // If appointmentId is provided, validate it
@@ -54,7 +54,7 @@ export async function PUT(req: NextRequest, { params }: any) {
       select: { clientId: true, businessId: true },
     });
     if (!appointment || appointment.clientId !== clientId || appointment.businessId !== staff.businessId) {
-      return NextResponse.json({ error: 'Invalid appointment' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_APPOINTMENT', message: 'Invalid appointment' } }, { status: 400 });
     }
     updateData.appointmentId = appointmentId;
   }
@@ -64,8 +64,8 @@ export async function PUT(req: NextRequest, { params }: any) {
       where: { id: noteId },
       data: updateData,
     });
-    return NextResponse.json(updated);
+    return NextResponse.json({ success: true, data: updated });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'NOTE_UPDATE_ERROR', message: err.message } }, { status: 500 });
   }
 } 

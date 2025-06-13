@@ -9,7 +9,7 @@ export async function PATCH(request: Request, { params }: any) {
     const session = await getServerSession(authOptions);
     if (!session) {
       console.error('No session');
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const staff = await prisma.staff.findUnique({
@@ -19,7 +19,7 @@ export async function PATCH(request: Request, { params }: any) {
 
     if (!staff) {
       console.error('No staff found for session', session.user?.email);
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: any) {
     const allowedStatuses = ['PENDING', 'COMPLETED', 'CANCELLED'];
     if (status && !allowedStatuses.includes(status)) {
       console.error('Invalid status value:', status);
-      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_STATUS', message: 'Invalid status value' } }, { status: 400 });
     }
 
     // Verify the appointment belongs to the staff's business
@@ -48,7 +48,7 @@ export async function PATCH(request: Request, { params }: any) {
 
     if (!appointment) {
       console.error('Appointment not found or does not belong to staff business', params.id, staff.businessId);
-      return new NextResponse('Appointment not found', { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' } }, { status: 404 });
     }
 
     // Prepare update data
@@ -83,7 +83,7 @@ export async function PATCH(request: Request, { params }: any) {
       });
     } catch (err) {
       console.error('Error updating appointment in Prisma:', err);
-      return NextResponse.json({ error: 'Failed to update appointment', details: String(err) }, { status: 500 });
+      return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_UPDATE_ERROR', message: 'Failed to update appointment', details: String(err) } }, { status: 500 });
     }
 
     const formattedAppointment = {
@@ -104,9 +104,9 @@ export async function PATCH(request: Request, { params }: any) {
       notes: updatedAppointment.notes || undefined,
     };
 
-    return NextResponse.json(formattedAppointment);
+    return NextResponse.json({ success: true, data: formattedAppointment });
   } catch (error) {
     console.error('Error updating appointment (outer catch):', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_UPDATE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 } 

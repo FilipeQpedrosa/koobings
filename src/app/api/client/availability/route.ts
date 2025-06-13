@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
     if (!serviceId || !staffId || !date) {
       return NextResponse.json(
-        { error: 'Service ID, staff ID, and date are required' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Service ID, staff ID, and date are required' } },
         { status: 400 }
       );
     }
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
     if (!service || !staff) {
       return NextResponse.json(
-        { error: 'Service or staff member not found' },
+        { success: false, error: { code: 'NOT_FOUND', message: 'Service or staff member not found' } },
         { status: 404 }
       );
     }
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const daySchedule = schedule?.[dayOfWeek];
     if (!daySchedule || !daySchedule.start || !daySchedule.end) {
       return NextResponse.json(
-        { error: 'Staff member is not available on this day' },
+        { success: false, error: { code: 'NOT_AVAILABLE', message: 'Staff member is not available on this day' } },
         { status: 400 }
       );
     }
@@ -99,11 +99,11 @@ export async function GET(request: Request) {
       currentTime = addMinutes(currentTime, 30); // 30-minute intervals
     }
 
-    return NextResponse.json(timeSlots);
+    return NextResponse.json({ success: true, data: timeSlots });
   } catch (error) {
     console.error('Error fetching available time slots:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'AVAILABILITY_ERROR', message: 'Internal server error' } },
       { status: 500 }
     );
   }

@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     if (!session || !session.user || !session.user.id) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const hours = await prisma.businessHours.findMany({
@@ -38,7 +38,8 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({
-      hours: hours.map(hour => ({
+      success: true,
+      data: hours.map(hour => ({
         day: hour.dayOfWeek,
         isOpen: hour.isOpen,
         start: hour.startTime,
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('GET /business/hours error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 
@@ -57,14 +58,14 @@ export async function POST(request: Request) {
 
     if (!session || !session.user || !session.user.id) {
       console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
     const validation = businessHoursSchema.safeParse(body);
     if (!validation.success) {
       console.error('Validation error:', validation.error);
-      return NextResponse.json({ errors: validation.error.errors }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_BUSINESS_HOURS', message: 'Validation error', details: validation.error.errors } }, { status: 400 });
     }
     const validatedData = validation.data;
 
@@ -87,10 +88,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ errors: error.errors }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_BUSINESS_HOURS', message: 'Validation error', details: error.errors } }, { status: 400 });
     }
     console.error('POST /business/hours error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
 }
 

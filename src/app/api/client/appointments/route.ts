@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const appointments = await prisma.appointment.findMany({
@@ -26,11 +26,11 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(appointments);
+    return NextResponse.json({ success: true, data: appointments });
   } catch (error) {
     console.error('Error fetching appointments:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch appointments' },
+      { success: false, error: { code: 'APPOINTMENTS_FETCH_ERROR', message: 'Failed to fetch appointments' } },
       { status: 500 }
     );
   }
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     // Validate required fields
     if (!serviceId || !staffId || !date || !startTime || !endTime) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } },
         { status: 400 }
       );
     }
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
     if (conflictingAppointment) {
       return NextResponse.json(
-        { error: 'Time slot is already booked' },
+        { success: false, error: { code: 'TIME_SLOT_BOOKED', message: 'Time slot is already booked' } },
         { status: 400 }
       );
     }
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       select: { businessId: true },
     });
     if (!service) {
-      return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 });
     }
 
     // Create the appointment
@@ -108,11 +108,11 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(appointment);
+    return NextResponse.json({ success: true, data: appointment });
   } catch (error) {
     console.error('Error creating appointment:', error);
     return NextResponse.json(
-      { error: 'Failed to create appointment' },
+      { success: false, error: { code: 'APPOINTMENT_CREATE_ERROR', message: 'Failed to create appointment' } },
       { status: 500 }
     );
   }
@@ -123,7 +123,7 @@ export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const body = await request.json();
@@ -131,7 +131,7 @@ export async function PATCH(request: Request) {
 
     if (!appointmentId || !status) {
       return NextResponse.json(
-        { error: 'Appointment ID and status are required' },
+        { success: false, error: { code: 'MISSING_FIELDS', message: 'Appointment ID and status are required' } },
         { status: 400 }
       );
     }
@@ -146,7 +146,7 @@ export async function PATCH(request: Request) {
 
     if (!existingAppointment) {
       return NextResponse.json(
-        { error: 'Appointment not found' },
+        { success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' } },
         { status: 404 }
       );
     }
@@ -165,11 +165,11 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json(appointment);
+    return NextResponse.json({ success: true, data: appointment });
   } catch (error) {
     console.error('Error updating appointment:', error);
     return NextResponse.json(
-      { error: 'Failed to update appointment' },
+      { success: false, error: { code: 'APPOINTMENT_UPDATE_ERROR', message: 'Failed to update appointment' } },
       { status: 500 }
     );
   }
