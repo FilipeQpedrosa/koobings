@@ -1,7 +1,6 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BusinessType } from '@prisma/client';
 import { hash } from 'bcryptjs';
 import { signIn, signOut } from 'next-auth/react';
 
@@ -20,8 +19,14 @@ export default function BusinessOnboardingForm() {
     setPasswordError('');
 
     const formData = new FormData(event.currentTarget);
-    const password = formData.get('password') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
+    const name = formData.get('name') as string;
+    const ownerName = formData.get('ownerName') as string;
+    const type = formData.get('type') as string;
+    const email = formData.get('businessEmail') as string;
+    const phone = formData.get('phone') as string;
+    const address = formData.get('address') as string;
+    const password = formData.get('businessPassword') as string;
+    const confirmPassword = formData.get('businessConfirmPassword') as string;
 
     // Validate password
     if (password !== confirmPassword) {
@@ -41,12 +46,12 @@ export default function BusinessOnboardingForm() {
       const passwordHash = await hash(password, 12);
 
       const data = {
-        name: formData.get('name'),
-        ownerName: formData.get('ownerName'),
-        type: formData.get('type'),
-        email: formData.get('email'),
-        phone: formData.get('phone'),
-        address: formData.get('address'),
+        name,
+        ownerName,
+        type,
+        email,
+        phone,
+        address,
         passwordHash,
         settings: {
           timezone: formData.get('timezone'),
@@ -72,8 +77,8 @@ export default function BusinessOnboardingForm() {
       // Refresh session: sign out and sign in as the new admin staff
       await signOut({ redirect: false });
       await signIn('credentials', {
-        email: formData.get('email'),
-        password: formData.get('password'),
+        email,
+        password,
         redirect: true,
         callbackUrl: '/staff/dashboard',
       });
@@ -131,12 +136,15 @@ export default function BusinessOnboardingForm() {
             required
             autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            defaultValue=""
           >
-            {Object.values(BusinessType).map((type) => (
-              <option key={type} value={type}>
-                {type.replace(/_/g, ' ')}
-              </option>
-            ))}
+            <option value="" disabled>Select a business type</option>
+            <option value="HAIR_SALON">Hair Salon</option>
+            <option value="BARBERSHOP">Barbershop</option>
+            <option value="NAIL_SALON">Nail Salon</option>
+            <option value="PHYSIOTHERAPY">Physiotherapy</option>
+            <option value="PSYCHOLOGY">Psychology</option>
+            <option value="OTHER">Other</option>
           </select>
         </div>
 
@@ -146,10 +154,10 @@ export default function BusinessOnboardingForm() {
           </label>
           <input
             type="email"
-            name="email"
-            id="email"
+            name="businessEmail"
+            id="businessEmail"
             required
-            autoComplete="off"
+            autoComplete="new-email"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -161,11 +169,11 @@ export default function BusinessOnboardingForm() {
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              name="password"
-              id="password"
+              name="businessPassword"
+              id="businessPassword"
               required
               minLength={8}
-              autoComplete="off"
+              autoComplete="new-password"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
             />
             <button
@@ -186,11 +194,11 @@ export default function BusinessOnboardingForm() {
           <div className="relative">
             <input
               type={showConfirmPassword ? "text" : "password"}
-              name="confirmPassword"
-              id="confirmPassword"
+              name="businessConfirmPassword"
+              id="businessConfirmPassword"
               required
               minLength={8}
-              autoComplete="off"
+              autoComplete="new-password"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pr-10"
             />
             <button
@@ -244,6 +252,7 @@ export default function BusinessOnboardingForm() {
             autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
+            <option value="" disabled selected>Select a timezone</option>
             <option value="UTC">UTC</option>
             <option value="America/New_York">Eastern Time</option>
             <option value="America/Chicago">Central Time</option>
@@ -263,6 +272,7 @@ export default function BusinessOnboardingForm() {
             autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
+            <option value="" disabled selected>Select a currency</option>
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
             <option value="GBP">GBP</option>
@@ -282,6 +292,7 @@ export default function BusinessOnboardingForm() {
             autoComplete="off"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
+            <option value="" disabled selected>Select a language</option>
             <option value="en">English</option>
             <option value="es">Spanish</option>
             <option value="fr">French</option>

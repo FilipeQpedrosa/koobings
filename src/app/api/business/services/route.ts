@@ -68,8 +68,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: service })
   } catch (error) {
-    console.error('POST /business/services error:', error)
-    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
+    console.error('POST /business/services error:', error);
+    return NextResponse.json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : 'Internal Error'
+      }
+    }, { status: 500 });
   }
 }
 

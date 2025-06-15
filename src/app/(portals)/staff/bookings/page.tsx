@@ -82,8 +82,8 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
 
   const filteredClients = localClients.filter(
     (c: any) =>
-      c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-      c.email.toLowerCase().includes(clientSearch.toLowerCase())
+      (c.name?.toLowerCase() || '').includes(clientSearch.toLowerCase()) ||
+      (c.email?.toLowerCase() || '').includes(clientSearch.toLowerCase())
   );
 
   function handleSelectClient(c: any) {
@@ -143,7 +143,14 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
       }
     }
     checkAvailability();
-  }, [staff, date, time, duration]);
+    let interval: NodeJS.Timeout | null = null;
+    if (open) {
+      interval = setInterval(checkAvailability, 15000); // every 15 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [staff, date, time, duration, open]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -224,7 +231,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
           <div className="mb-4">
             <div className="flex justify-between items-center relative">
               {stepLabels.map((label, idx) => (
-                <div key={label} className="flex flex-col items-center flex-1">
+                <div key={label + '-' + idx} className="flex flex-col items-center flex-1">
                   <div className={`w-8 h-8 flex items-center justify-center rounded-full text-white text-sm font-bold z-10 ${step === idx + 1 ? 'bg-blue-600' : idx + 1 < step ? 'bg-blue-400' : 'bg-gray-300'}`}>{idx + 1}</div>
                   <span className={`mt-2 text-xs font-medium ${step === idx + 1 ? 'text-blue-600' : 'text-gray-400'}`}>{label}</span>
                 </div>
@@ -256,8 +263,8 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
                   </button>
                 </div>
                 <div className="divide-y divide-gray-200">
-                  {filteredClients.map((c: any) => (
-                    <button type="button" key={c.id} className={`flex items-center gap-3 p-3 w-full text-left ${client?.id === c.id ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50 transition`} onClick={() => handleSelectClient(c)}>
+                  {filteredClients.map((c: any, idx: number) => (
+                    <button type="button" key={c.id || c.email || idx} className={`flex items-center gap-3 p-3 w-full text-left ${client?.id === c.id ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50 transition`} onClick={() => handleSelectClient(c)}>
                       <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
                         {c.name?.[0]?.toUpperCase() || '?'}
                       </div>
@@ -295,9 +302,9 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
                     .filter((svc: any) =>
                       (!serviceSearch || svc.name.toLowerCase().includes(serviceSearch.toLowerCase()) || (svc.description && svc.description.toLowerCase().includes(serviceSearch.toLowerCase())))
                     )
-                    .map((svc: any) => (
+                    .map((svc: any, idx: number) => (
                       <button
-                        key={svc.id}
+                        key={svc.id || idx}
                         type="button"
                         className={`flex flex-col items-start p-4 rounded-lg border transition shadow-sm relative text-left w-full ${selectedServices.includes(svc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
                         onClick={() => setServicesState([svc.id])}
@@ -431,11 +438,11 @@ export default function StaffBookingsPage() {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        setTotal(data.total || 0);
+        setTotal(data.data.total || 0);
         if (append) {
-          setBookings(prev => [...prev, ...(data.appointments || [])]);
+          setBookings(prev => [...prev, ...(data.data.appointments || [])]);
         } else {
-          setBookings(data.appointments || []);
+          setBookings(data.data.appointments || []);
         }
       })
       .catch(err => setError("Failed to fetch bookings"))
@@ -452,21 +459,21 @@ export default function StaffBookingsPage() {
       try {
         const res = await fetch("/api/business/services");
         const data = await res.json();
-        setServices(data);
+        setServices(data.data);
       } catch {}
     }
     async function fetchClients() {
       try {
         const res = await fetch("/api/business/patients");
         const data = await res.json();
-        setClients(data);
+        setClients(data.data);
       } catch {}
     }
     async function fetchStaff() {
       try {
         const res = await fetch("/api/business/staff");
         const data = await res.json();
-        setStaffList(data);
+        setStaffList(data.data);
       } catch {}
     }
     fetchServices();

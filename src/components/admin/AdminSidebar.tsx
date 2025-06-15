@@ -36,7 +36,7 @@ export default function AdminSidebar() {
                       ? 'bg-gray-100 text-gray-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
-                  legacyBehavior>
+                >
                   <span className="flex items-center">
                     <item.icon
                       className={cn(

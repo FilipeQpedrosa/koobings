@@ -38,8 +38,11 @@ export default function StaffDashboardPage() {
         const res = await fetch('/api/business/appointments');
         if (!res.ok) throw new Error('Failed to fetch appointments');
         const data = await res.json();
+        const apiData = data.data;
+        // Debug log for raw API data
+        console.log('API /api/business/appointments response:', data);
         setAppointments(
-          (data.appointments || []).map((apt: any) => ({
+          (apiData.appointments || []).map((apt: any) => ({
             id: apt.id,
             clientName: apt.client?.name || '',
             serviceName: apt.services?.[0]?.name || '',
@@ -48,10 +51,10 @@ export default function StaffDashboardPage() {
             duration: apt.services?.[0]?.duration || 0,
           }))
         );
-        setBusiness({ name: data.businessName, logo: data.businessLogo });
+        setBusiness({ name: apiData.businessName, logo: apiData.businessLogo });
 
         // Calculate and set stats
-        const appointmentsArr = data.appointments || [];
+        const appointmentsArr = apiData.appointments || [];
         const now = new Date();
         const upcomingAppointments = appointmentsArr.filter(
           (apt: any) => new Date(apt.scheduledFor) > now
@@ -66,8 +69,24 @@ export default function StaffDashboardPage() {
           totalClients,
           completionRate,
         });
+        // Debug logs for stats and appointments
+        console.log('Stats:', {
+          totalAppointments,
+          upcomingAppointments,
+          totalClients,
+          completionRate,
+        });
+        console.log('Appointments (mapped):', (apiData.appointments || []).map((apt: any) => ({
+          id: apt.id,
+          clientName: apt.client?.name || '',
+          serviceName: apt.services?.[0]?.name || '',
+          dateTime: apt.scheduledFor,
+          status: apt.status,
+          duration: apt.services?.[0]?.duration || 0,
+        })));
       } catch (err: any) {
         setError(err.message || 'Unknown error');
+        console.error('Dashboard error:', err);
       } finally {
         setLoading(false);
       }

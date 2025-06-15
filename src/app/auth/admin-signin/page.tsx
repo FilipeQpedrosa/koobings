@@ -1,5 +1,4 @@
 'use client';
-
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
@@ -9,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 
-export default function SignInPage() {
+export default function AdminSignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -29,7 +28,7 @@ export default function SignInPage() {
       const result = await signIn('credentials', {
         email,
         password,
-        role: 'staff',
+        role: 'ADMIN',
         redirect: false,
       });
 
@@ -42,7 +41,7 @@ export default function SignInPage() {
         return;
       }
 
-      router.push('/staff/dashboard');
+      router.push('/admin/dashboard');
     } catch (error) {
       toast({
         title: 'Error',
@@ -58,24 +57,24 @@ export default function SignInPage() {
     <div className="container mx-auto flex h-screen items-center justify-center px-4">
       <Card className="w-full max-w-lg p-6 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Welcome Back</h1>
-          <p className="text-gray-500">Sign in to your staff account</p>
+          <h1 className="text-2xl font-bold">Admin Login</h1>
+          <p className="text-gray-500">Sign in to your admin account</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="staff-email">Email</Label>
+            <Label htmlFor="admin-email">Admin Email</Label>
             <Input
-              id="staff-email"
+              id="admin-email"
               name="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="admin@example.com"
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="staff-password">Password</Label>
+            <Label htmlFor="admin-password">Password</Label>
             <Input
-              id="staff-password"
+              id="admin-password"
               name="password"
               type="password"
               required
@@ -89,18 +88,6 @@ export default function SignInPage() {
             {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
-        <div className="text-center text-sm">
-          <p className="text-gray-500">
-            Don't have an account?{' '}
-            <Button
-              variant="link"
-              className="p-0 h-auto font-semibold"
-              onClick={() => router.push('/auth/signup')}
-            >
-              Sign up
-            </Button>
-          </p>
-        </div>
       </Card>
     </div>
   );

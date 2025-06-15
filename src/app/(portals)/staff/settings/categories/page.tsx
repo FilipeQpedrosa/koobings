@@ -250,9 +250,7 @@ export default function StaffSettingsCategoriesPage() {
       <h1 className="text-2xl font-bold mb-4">Categories Management</h1>
       <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
-          <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
-          </Link>
+          <Link key={tab.href} href={tab.href} className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</Link>
         ))}
       </div>
       <div className="flex justify-between items-center mb-6">
