@@ -69,7 +69,7 @@ export default function StaffSettingsStaffPage() {
       const response = await fetch('/api/staff');
       if (!response.ok) throw new Error('Failed to fetch staff');
       const data = await response.json();
-      setStaff(data);
+      setStaff(data.data);
     } catch (err) {
       setStaff([]);
     } finally {
@@ -82,7 +82,7 @@ export default function StaffSettingsStaffPage() {
       const response = await fetch('/api/services');
       if (!response.ok) throw new Error('Failed to fetch services');
       const data = await response.json();
-      setServices(data);
+      setServices(data.data);
     } catch (err) {
       setServices([]);
     }
@@ -92,6 +92,7 @@ export default function StaffSettingsStaffPage() {
     setEditId(null);
     setForm({ name: '', email: '', role: 'PROVIDER', password: '' });
     setSelectedServices([]);
+    setCanViewAllBookings(false);
     setShowModal(true);
     fetchServices();
   }
@@ -179,9 +180,7 @@ export default function StaffSettingsStaffPage() {
       <h1 className="text-2xl font-bold mb-4">Staff Management</h1>
       <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
-          <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
-          </Link>
+          <Link key={tab.href} href={tab.href} className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</Link>
         ))}
       </div>
       <div className="flex justify-between items-center mb-6">
@@ -218,8 +217,8 @@ export default function StaffSettingsStaffPage() {
                 <div className="text-gray-500 text-xs mb-2">Role: {member.role}</div>
                 <div className="flex gap-2 mt-2">
                   <Button variant="ghost" size="sm" onClick={() => openEditModal(member)}>Edit</Button>
-                  <Link href={`/staff/settings/staff/${member.id}/availability`} passHref legacyBehavior>
-                    <Button variant="ghost" size="sm" className="text-blue-600 ml-2">Availability</Button>
+                  <Link href={`/staff/settings/staff/${member.id}/availability`} className="text-blue-600 ml-2">
+                    <Button variant="ghost" size="sm">Availability</Button>
                   </Link>
                   <Button variant="ghost" size="sm" className="text-red-600" onClick={() => { console.log('Remove button clicked for', member.id); setShowDeleteId(member.id); }}>Remove</Button>
                 </div>
@@ -244,8 +243,8 @@ export default function StaffSettingsStaffPage() {
                   <td className="px-6 py-4 whitespace-nowrap">{member.role}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <Button variant="ghost" size="sm" onClick={() => openEditModal(member)}>Edit</Button>
-                    <Link href={`/staff/settings/staff/${member.id}/availability`} passHref legacyBehavior>
-                      <Button variant="ghost" size="sm" className="text-blue-600 ml-2">Availability</Button>
+                    <Link href={`/staff/settings/staff/${member.id}/availability`} className="text-blue-600 ml-2">
+                      <Button variant="ghost" size="sm">Availability</Button>
                     </Link>
                     <Button variant="ghost" size="sm" className="text-red-600" onClick={() => { console.log('Remove button clicked for', member.id); setShowDeleteId(member.id); }}>Remove</Button>
                   </td>

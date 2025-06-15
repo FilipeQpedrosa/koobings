@@ -21,14 +21,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Search, Plus } from 'lucide-react';
-import { BusinessStatus, BusinessType } from '@prisma/client';
 
 interface Business {
   id: string;
   name: string;
-  type: BusinessType;
+  type: string;
   email: string;
-  status: BusinessStatus;
+  status: string;
   createdAt: string;
   verification: {
     status: string;
@@ -59,7 +58,7 @@ export default function BusinessesPage() {
       try {
         const response = await fetch('/api/admin/businesses');
         const data = await response.json();
-        setBusinesses(data);
+        setBusinesses(data.data);
       } catch (error) {
         console.error('Error fetching businesses:', error);
       } finally {
@@ -90,7 +89,7 @@ export default function BusinessesPage() {
     return matchesSearch && matchesStatus;
   }) : [];
 
-  const getStatusColor = (status: BusinessStatus) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'ACTIVE':
         return 'text-green-600 bg-green-100';

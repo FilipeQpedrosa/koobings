@@ -90,7 +90,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
-              legacyBehavior>
+            >
               {item.icon}
               <span className="ml-3">{item.title}</span>
             </Link>

@@ -19,6 +19,13 @@ interface ClientNavbarProps {
   client: Client;
 }
 
+function isActive(path: string) {
+  if (typeof window !== 'undefined') {
+    return window.location.pathname === path;
+  }
+  return false;
+}
+
 export default function ClientNavbar({ client }: ClientNavbarProps) {
   return (
     <nav className="bg-white shadow-sm">
@@ -28,8 +35,8 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
             <div className="flex-shrink-0 flex items-center">
               <Link
                 href="/client/dashboard"
-                className="text-xl font-bold text-gray-800"
-                legacyBehavior>
+                className={isActive('/client/dashboard') ? 'active' : ''}
+              >
                 {client.business.name}
               </Link>
             </div>
@@ -38,7 +45,7 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
             <Link
               href="/client/messages"
               className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none"
-              legacyBehavior>
+            >
               <span className="sr-only">Messages</span>
               <MessageSquare className="h-6 w-6" />
               {client.unreadMessages && client.unreadMessages > 0 && (
@@ -48,7 +55,7 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
             <Link
               href="/client/notifications"
               className="relative p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none"
-              legacyBehavior>
+            >
               <span className="sr-only">Notifications</span>
               <Bell className="h-6 w-6" />
               {client.unreadNotifications && client.unreadNotifications > 0 && (
@@ -58,17 +65,12 @@ export default function ClientNavbar({ client }: ClientNavbarProps) {
             <div className="flex items-center space-x-3">
               <Link
                 href="/client/profile"
-                className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-800"
-                legacyBehavior>
+                className={isActive('/client/profile') ? 'active' : ''}
+              >
                 <User className="h-6 w-6" />
                 <span>{client.name}</span>
               </Link>
-              <button
-                onClick={() => signOut()}
-                className="text-sm font-medium text-gray-500 hover:text-gray-700"
-              >
-                Sign out
-              </button>
+              <Link href="/auth/signout">Sign Out</Link>
             </div>
           </div>
         </div>

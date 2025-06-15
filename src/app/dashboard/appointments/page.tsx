@@ -44,6 +44,11 @@ export default function AppointmentsPage() {
     search: searchQuery || undefined,
   });
 
+  // Debug logs
+  console.log('Session:', session);
+  console.log('isLoading:', isLoading);
+  console.log('Appointments:', appointments);
+
   if (isLoading) {
     return (
       <div className="space-y-4">

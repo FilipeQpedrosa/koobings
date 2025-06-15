@@ -140,7 +140,7 @@ export default function StaffSettingsServicesPage() {
         const res = await fetch("/api/staff/services");
         if (!res.ok) throw new Error("Failed to fetch services");
         const data = await res.json();
-        setServices(data);
+        setServices(data.data);
       } catch (err: any) {
         setError(err.message || "Error fetching services");
       } finally {
@@ -199,7 +199,7 @@ export default function StaffSettingsServicesPage() {
       setDeleteService(null);
       // Refresh list
       const updated = await fetch("/api/staff/services");
-      setServices(await updated.json());
+      setServices((await updated.json()).data);
     } catch (err: any) {
       setDeleteError(err.message || "Failed to delete service");
     } finally {
@@ -210,11 +210,19 @@ export default function StaffSettingsServicesPage() {
   async function handleAddOrEditService(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
+    if (!form.name || !form.duration || !form.price) {
+      setFormError("Name, duration, and price are required.");
+      return;
+    }
+    if (isNaN(Number(form.duration)) || Number(form.duration) <= 0) {
+      setFormError("Duration must be a positive number.");
+      return;
+    }
+    if (isNaN(Number(form.price)) || Number(form.price) < 0) {
+      setFormError("Price must be a non-negative number.");
+      return;
+    }
     try {
-      if (!form.name || !form.duration || !form.price) {
-        setFormError("Name, duration, and price are required.");
-        return;
-      }
       const payload: any = {
         name: form.name,
         duration: Number(form.duration),
@@ -243,13 +251,14 @@ export default function StaffSettingsServicesPage() {
         const createdService = await createRes.json();
         // 2. Assign the new service to this staff member
         const staffId = session?.user?.id;
-        if (!staffId) {
-          throw new Error("Staff ID not found in session");
+        const newServiceId = createdService.data?.id;
+        if (!staffId || !newServiceId) {
+          throw new Error("Staff ID or new service ID not found");
         }
         const assignRes = await fetch("/api/staff/services", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ staffId, serviceIds: [createdService.id] }),
+          body: JSON.stringify({ staffId, serviceIds: [newServiceId] }),
         });
         if (!assignRes.ok) {
           const err = await assignRes.json().catch(() => ({}));
@@ -264,9 +273,21 @@ export default function StaffSettingsServicesPage() {
       setShowModal(false);
       // Refresh list
       const updated = await fetch("/api/staff/services");
-      setServices(await updated.json());
+      setServices((await updated.json()).data);
     } catch (err: any) {
-      setFormError(err.message || "Failed to save service");
+      // Try to extract a readable error message from the API response
+      if (err && err instanceof Response) {
+        try {
+          const data = await err.json();
+          setFormError(data?.error?.message || data?.error || "Failed to save service");
+        } catch {
+          setFormError("Failed to save service");
+        }
+      } else if (err && err.message) {
+        setFormError(err.message);
+      } else {
+        setFormError("Failed to save service");
+      }
     }
   }
 
@@ -275,9 +296,7 @@ export default function StaffSettingsServicesPage() {
       <h1 className="text-2xl font-bold mb-4">Services Management</h1>
       <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
         {settingsTabs.map(tab => (
-          <Link key={tab.href} href={tab.href} legacyBehavior>
-            <a className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</a>
-          </Link>
+          <Link key={tab.href} href={tab.href} className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</Link>
         ))}
       </div>
       <Button onClick={openAddModal} className="mb-4">Add Service</Button>

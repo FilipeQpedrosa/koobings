@@ -53,11 +53,21 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const businessName = req.headers.get('x-business');
+  let businessName = req.headers.get('x-business');
+  if (!businessName && process.env.NODE_ENV === 'development') {
+    // Fallback: get business from session in development only
+    const session = await getServerSession(authOptions);
+    businessName = session?.user?.businessId;
+  }
   if (!businessName) {
     return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
   }
-  const business = await prisma.business.findFirst({ where: { name: businessName } });
+  // Ensure businessName is a string (not undefined)
+  const businessNameStr = businessName as string;
+  const businessLookup = process.env.NODE_ENV === 'development'
+    ? { id: businessNameStr }
+    : { name: businessNameStr };
+  const business = await prisma.business.findFirst({ where: businessLookup });
   if (!business) {
     return NextResponse.json({ error: 'Business not found' }, { status: 404 });
   }

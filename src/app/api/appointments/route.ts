@@ -94,7 +94,11 @@ export async function GET(request: NextRequest) {
 
     // Add date filter
     if (date) {
-      where.date = new Date(date);
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
+      where.scheduledFor = { gte: start, lte: end };
     }
 
     // Add status filter
@@ -156,7 +160,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, data: appointments });
+    // Map scheduledFor to date and time for dashboard compatibility
+    const mappedAppointments = appointments.map((apt) => {
+      const scheduled = apt.scheduledFor instanceof Date ? apt.scheduledFor : new Date(apt.scheduledFor);
+      return {
+        ...apt,
+        customer: apt.client,
+        date: scheduled.toISOString().slice(0, 10),
+        time: scheduled.toISOString().slice(11, 16),
+      };
+    });
+    return NextResponse.json({ success: true, data: mappedAppointments });
   } catch (error) {
     console.error('Error fetching appointments:', error);
     return NextResponse.json(
