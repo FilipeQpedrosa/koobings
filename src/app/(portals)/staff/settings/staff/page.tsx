@@ -38,7 +38,7 @@ export default function StaffSettingsStaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', role: 'PROVIDER', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', role: 'STANDARD', password: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
@@ -46,8 +46,6 @@ export default function StaffSettingsStaffPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const pathname = usePathname();
-  const [canViewAllBookings, setCanViewAllBookings] = useState(false);
-  const [requireAdminCancelApproval, setRequireAdminCancelApproval] = useState(false);
 
   useEffect(() => {
     if (status === 'loading' || !session) return;
@@ -90,9 +88,8 @@ export default function StaffSettingsStaffPage() {
 
   function openAddModal() {
     setEditId(null);
-    setForm({ name: '', email: '', role: 'PROVIDER', password: '' });
+    setForm({ name: '', email: '', role: 'STANDARD', password: '' });
     setSelectedServices([]);
-    setCanViewAllBookings(false);
     setShowModal(true);
     fetchServices();
   }
@@ -101,7 +98,6 @@ export default function StaffSettingsStaffPage() {
     setEditId(member.id);
     setForm({ name: member.name, email: member.email, role: member.role, password: '' });
     setSelectedServices(member.services ? member.services.map(s => s.id) : []);
-    setCanViewAllBookings(member.permissions?.includes('canViewAllBookings') ?? false);
     setShowModal(true);
     fetchServices();
   }
@@ -112,22 +108,15 @@ export default function StaffSettingsStaffPage() {
     setError('');
     try {
       let response;
-      const payload = { ...form, services: selectedServices, permissions: (form as any).permissions || [] };
-      if (canViewAllBookings) {
-        if (!payload.permissions.includes('canViewAllBookings')) {
-          payload.permissions.push('canViewAllBookings');
-        }
-      } else {
-        payload.permissions = payload.permissions.filter((p: string) => p !== 'canViewAllBookings');
-      }
+      const payload = { ...form, services: selectedServices };
       if (editId) {
-        response = await fetch(`/api/staff/${editId}`, {
+        response = await fetch(`/api/business/staff/${editId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        response = await fetch('/api/staff', {
+        response = await fetch('/api/business/staff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -138,7 +127,7 @@ export default function StaffSettingsStaffPage() {
         throw new Error(err.error || 'Failed to save staff');
       }
       setShowModal(false);
-      setForm({ name: '', email: '', role: 'PROVIDER', password: '' });
+      setForm({ name: '', email: '', role: 'STANDARD', password: '' });
       setEditId(null);
       setSelectedServices([]);
       fetchStaff();
@@ -154,7 +143,7 @@ export default function StaffSettingsStaffPage() {
     setIsSubmitting(true);
     setError('');
     try {
-      const response = await fetch(`/api/staff/${id}`, {
+      const response = await fetch(`/api/business/staff/${id}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -189,19 +178,6 @@ export default function StaffSettingsStaffPage() {
           Add Staff Member
         </Button>
       </div>
-      {session?.user?.staffRole === 'ADMIN' && (
-        <div className="mb-6 flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="requireAdminCancelApproval"
-            checked={requireAdminCancelApproval}
-            onChange={e => setRequireAdminCancelApproval(e.target.checked)}
-          />
-          <label htmlFor="requireAdminCancelApproval" className="text-sm font-medium">
-            Require admin approval for staff appointment cancellations
-          </label>
-        </div>
-      )}
       {isLoading ? (
         <div>Loading staff...</div>
       ) : staff.length === 0 ? (
@@ -312,17 +288,6 @@ export default function StaffSettingsStaffPage() {
                   onChange={setSelectedServices}
                 />
               </div>
-              {session?.user?.staffRole === 'ADMIN' && (
-                <div className="flex items-center gap-2 mt-2">
-                  <input
-                    type="checkbox"
-                    id="canViewAllBookings"
-                    checked={canViewAllBookings}
-                    onChange={e => setCanViewAllBookings(e.target.checked)}
-                  />
-                  <label htmlFor="canViewAllBookings" className="text-sm">Allow this staff member to view all bookings</label>
-                </div>
-              )}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={isSubmitting}>
                   Cancel

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 export async function GET() {
   try {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
       name: z.string().min(1),
       role: z.enum(['ADMIN', 'MANAGER', 'STANDARD']),
       password: z.string().min(6),
-      services: z.array(z.string()).optional()
+      services: z.array(z.string()).optional(),
     });
     let data;
     try {
@@ -72,25 +73,39 @@ export async function POST(request: Request) {
 
     const passwordHash = await hash(password, 10);
 
-    const staff = await prisma.staff.create({
-      data: {
-        email,
-        name,
-        role,
-        password: passwordHash,
-        businessId,
-        services: {
-          connect: services.map((id: string) => ({ id }))
-        }
-      },
-      include: {
-        services: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
+    const staff = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const newStaff = await tx.staff.create({
+        data: {
+          email,
+          name,
+          role,
+          password: passwordHash,
+          businessId,
+          services: {
+            connect: services.map((id: string) => ({ id })),
+          },
+        },
+        include: {
+          services: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      return tx.staff.findUnique({
+        where: { id: newStaff.id },
+        include: {
+          services: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
     });
 
     return NextResponse.json({ success: true, data: staff });

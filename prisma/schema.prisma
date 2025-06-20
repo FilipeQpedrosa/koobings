@@ -98,6 +98,7 @@ model Business {
   allowStaffToViewAllBookings   Boolean               @default(false)
   restrictStaffToViewAllClients Boolean               @default(false)
   restrictStaffToViewAllNotes   Boolean               @default(false)
+  requireAdminCancelApproval    Boolean               @default(false)
   clientRelationships           ClientRelationship[]
   businessHours                 BusinessHours[]
 

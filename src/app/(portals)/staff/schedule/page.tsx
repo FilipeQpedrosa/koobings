@@ -4,10 +4,10 @@ import { useSession } from 'next-auth/react';
 import { Calendar, momentLocalizer, Views, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import '@/styles/custom-calendar.css';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AppointmentCalendar } from '@/components/Calendar/AppointmentCalendar';
-import { AppointmentStatus } from '@prisma/client';
 import MobileMonthCalendar from '@/components/Calendar/MobileMonthCalendar';
 
 const localizer = momentLocalizer(moment);
@@ -49,6 +49,8 @@ export default function StaffSchedulePage() {
     'CANCELLED',
     'COMPLETED',
   ] as const;
+  
+  type AppointmentStatus = (typeof validStatuses)[number];
 
   // Helper to get the visible date range for the current view
   const getRangeForView = useCallback((date: Date, view: View) => {
@@ -81,17 +83,17 @@ export default function StaffSchedulePage() {
   const fetchAppointments = useCallback(async (start?: Date, end?: Date) => {
     setLoading(true);
     if (!session?.user?.id) return;
-    let url = `/api/staff/appointments?staffId=${session.user.id}`;
+    let url = `/api/business/appointments?staffId=${session.user.id}`;
     if (start && end) {
-      url += `&start=${start.toISOString()}&end=${end.toISOString()}`;
+      url += `&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
     }
     const res = await fetch(url);
     if (!res.ok) return setLoading(false);
     const data = await res.json();
     setEvents(
-      data.data.map((apt: any) => ({
+      (data.data.appointments || []).map((apt: any) => ({
         id: apt.id,
-        title: apt.serviceName || 'Appointment',
+        title: apt.service.name || 'Appointment',
         start: new Date(apt.scheduledFor),
         end: moment(apt.scheduledFor).add(apt.duration, 'minutes').toDate(),
         allDay: false,
