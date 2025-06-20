@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { ChevronLeft } from 'lucide-react';
-import { formatPrice, formatDuration } from '@/lib/utils';
+import { formatPrice, formatDuration } from '@/lib/utils/formatting';
 
 interface BookingSummary {
   service: {
@@ -67,8 +67,8 @@ export default function BookingSummaryPage() {
       try {
         // Fetch service and staff details
         const [serviceResponse, staffResponse] = await Promise.all([
-          fetch(`/api/services/${serviceId}`),
-          fetch(`/api/staff/${storedStaffId}`),
+          fetch(`/api/client/services/${serviceId}`),
+          fetch(`/api/client/staff/${storedStaffId}`),
         ]);
 
         if (!serviceResponse.ok || !staffResponse.ok) {
@@ -81,13 +81,13 @@ export default function BookingSummaryPage() {
         ]);
 
         // Ensure we have valid data before setting the summary
-        if (!serviceData || !staffData) {
+        if (!serviceData.data || !staffData.data) {
           throw new Error('Invalid service or staff data');
         }
 
         setSummary({
-          service: serviceData,
-          staff: staffData,
+          service: serviceData.data,
+          staff: staffData.data,
           datetime: {
             date: storedDate || '',
             time: storedTime || '',
@@ -115,7 +115,7 @@ export default function BookingSummaryPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/bookings', {
+      const response = await fetch('/api/client/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

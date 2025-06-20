@@ -5,14 +5,14 @@ import prisma from '@/lib/prisma';
 
 // GET /api/staff/clients/[id] - Get client details, history, and notes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(req: NextRequest, { params }: any) {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
 
   const staffId = session.user.id;
-  const clientId = params.id;
+  const clientId = new URL(req.url).pathname.split('/').at(-1);
 
   // Get staff's business and note restriction setting
   const staff = await prisma.staff.findUnique({
@@ -38,7 +38,11 @@ export async function GET(req: NextRequest, { params }: any) {
     where: { id: clientId },
     include: {
       appointments: {
-        include: {
+        select: {
+          id: true,
+          scheduledFor: true,
+          notes: true,
+          status: true,
           service: true,
           staff: { select: { id: true, name: true } },
         },
@@ -59,14 +63,14 @@ export async function GET(req: NextRequest, { params }: any) {
 
 // PUT /api/staff/clients/[id] - Update client info
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(req: NextRequest, { params }: any) {
+export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'STAFF') {
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
 
   const staffId = session.user.id;
-  const clientId = params.id;
+  const clientId = new URL(req.url).pathname.split('/').at(-1);
   const data = await req.json();
   const { name, email, phone } = data;
 

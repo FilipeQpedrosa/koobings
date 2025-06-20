@@ -108,4 +108,31 @@ export async function POST(request: Request) {
   }
 }
 
+export async function GET() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.businessId) {
+    return NextResponse.json({ error: 'Not authenticated or no business associated' }, { status: 401 });
+  }
+
+  try {
+    const business = await prisma.business.findUnique({
+      where: { id: session.user.businessId },
+      select: {
+        name: true,
+        logo: true,
+      },
+    });
+
+    if (!business) {
+      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(business);
+  } catch (error) {
+    console.error('Failed to fetch business info:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 // TODO: Add rate limiting middleware for abuse protection in the future. 
