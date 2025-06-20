@@ -108,30 +108,65 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.businessId) {
-    return NextResponse.json({ error: 'Not authenticated or no business associated' }, { status: 401 });
-  }
-
+export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.businessId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const business = await prisma.business.findUnique({
       where: { id: session.user.businessId },
       select: {
         name: true,
-        logo: true,
+        allowStaffToViewAllBookings: true,
+        restrictStaffToViewAllClients: true,
+        restrictStaffToViewAllNotes: true,
+        requireAdminCancelApproval: true,
       },
     });
 
     if (!business) {
-      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
     }
 
-    return NextResponse.json(business);
+    return NextResponse.json({ success: true, data: business });
   } catch (error) {
-    console.error('Failed to fetch business info:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[GET /api/business/info] error:', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.businessId || (session.user.staffRole !== 'ADMIN' && session.user.role !== 'BUSINESS_OWNER')) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const schema = z.object({
+      name: z.string().optional(),
+      allowStaffToViewAllBookings: z.boolean().optional(),
+      restrictStaffToViewAllClients: z.boolean().optional(),
+      restrictStaffToViewAllNotes: z.boolean().optional(),
+      requireAdminCancelApproval: z.boolean().optional(),
+    });
+
+    const body = await request.json();
+    const validatedData = schema.parse(body);
+
+    const updatedBusiness = await prisma.business.update({
+      where: { id: session.user.businessId },
+      data: validatedData,
+    });
+
+    return NextResponse.json({ success: true, data: updatedBusiness });
+  } catch (error) {
+    console.error('[PATCH /api/business/info] error:', error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ success: false, error: 'Invalid input', details: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
 

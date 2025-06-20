@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { z } from 'zod';
+import { hash } from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 
 interface RouteParams {
   params: {
@@ -51,58 +53,42 @@ export async function GET(request: Request, { params }: any) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(request: Request, { params }: any) {
+// PUT /api/business/staff/[id] - Update staff member
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user || !session.user.businessId) {
-      console.error('Unauthorized: No session or user.');
+    if (!session?.user?.businessId || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
-
+    const staffIdToUpdate = params.id;
     const businessId = session.user.businessId;
 
-    const staff = await prisma.staff.findFirst({
-      where: {
-        id: params.id,
-        businessId
-      }
-    });
-
-    if (!staff) {
-      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
-    }
-
-    // Input validation
+    // Validate input
     const schema = z.object({
-      name: z.string().min(1).optional(),
-      email: z.string().email().optional(),
-      role: z.enum(['ADMIN', 'MANAGER', 'STANDARD']).optional(),
-      phone: z.string().optional(),
-      isActive: z.boolean().optional()
+      email: z.string().email(),
+      name: z.string().min(1),
+      role: z.enum(['ADMIN', 'MANAGER', 'STANDARD']),
+      password: z.string().min(6).optional().or(z.literal('')),
+      services: z.array(z.string()).optional(),
     });
-    const data = schema.parse(await request.json());
 
-    const updateData = { ...data };
-    if (data.role) {
-      updateData.role = data.role;
+    const data = await request.json();
+    const { email, name, role, password, services = [] } = schema.parse(data);
+
+    const updateData: Prisma.StaffUpdateArgs['data'] = {
+      email,
+      name,
+      role,
+      services: { set: services.map(id => ({ id })) },
+    };
+
+    if (password) {
+      updateData.password = await hash(password, 10);
     }
 
     const updatedStaff = await prisma.staff.update({
-      where: { id: params.id },
+      where: { id: staffIdToUpdate, businessId },
       data: updateData,
-      include: {
-        services: {
-          select: {
-            id: true,
-            name: true,
-            duration: true,
-            price: true
-          }
-        },
-        availability: true,
-      }
     });
 
     return NextResponse.json({ success: true, data: updatedStaff });
@@ -111,42 +97,36 @@ export async function PUT(request: Request, { params }: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 });
     }
-    return NextResponse.json({ success: false, error: { code: 'STAFF_UPDATE_ERROR', message: 'Internal server error' } }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, { params }: any) {
+// DELETE /api/business/staff/[id] - Delete staff member
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user || !session.user.businessId) {
-      console.error('Unauthorized: No session or user.');
+    if (!session?.user?.businessId || session.user.staffRole !== 'ADMIN') {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
-
+    const staffIdToDelete = params.id;
     const businessId = session.user.businessId;
 
-    const staff = await prisma.staff.findFirst({
-      where: {
-        id: params.id,
-        businessId
-      }
-    });
-
-    if (!staff) {
-      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
+    // Ensure we don't delete the last admin
+    if (session.user.id === staffIdToDelete) {
+      return NextResponse.json({ success: false, error: { code: 'CANNOT_DELETE_SELF', message: 'You cannot delete your own account.' } }, { status: 400 });
     }
 
-    // Delete staff record
     await prisma.staff.delete({
-      where: { id: params.id }
+      where: {
+        id: staffIdToDelete,
+        businessId,
+      },
     });
-    console.info(`Staff member ${params.id} deleted by business ${businessId}`);
-    return NextResponse.json({ success: true, data: null }, { status: 200 });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE /business/staff/[id] error:', error);
-    return NextResponse.json({ success: false, error: { code: 'STAFF_DELETE_ERROR', message: 'Internal server error' } }, { status: 500 });
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 }
 

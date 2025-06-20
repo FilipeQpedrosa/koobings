@@ -16,11 +16,17 @@ const settingsTabs = [
 export default function StaffSettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [restrictClients, setRestrictClients] = useState(false);
-  const [restrictNotes, setRestrictNotes] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [businessInfo, setBusinessInfo] = useState({
+    name: '',
+    allowStaffToViewAllBookings: false,
+    restrictStaffToViewAllClients: false,
+    restrictStaffToViewAllNotes: false,
+    requireAdminCancelApproval: false,
+  });
   const pathname = usePathname();
 
   useEffect(() => {
@@ -34,52 +40,55 @@ export default function StaffSettingsPage() {
   }, [session, status, router]);
 
   useEffect(() => {
-    async function fetchSettings() {
-      setLoading(true);
-      setError('');
+    async function fetchBusinessInfo() {
+      setIsLoading(true);
       try {
-        const businessId = session?.user?.businessId || '';
-        const res = await fetch('/api/staff/settings', {
-          headers: {
-            'x-business-id': businessId,
-          },
-        });
-        if (!res.ok) throw new Error('Failed to fetch settings');
-        const data = await res.json();
-        setRestrictClients(!!data.restrictStaffToViewAllClients);
-        setRestrictNotes(!!data.restrictStaffToViewAllNotes);
+        const response = await fetch('/api/business/info');
+        if (!response.ok) throw new Error('Failed to fetch business info');
+        const data = await response.json();
+        if (data.success) {
+          setBusinessInfo({
+            name: data.data.name || '',
+            allowStaffToViewAllBookings: data.data.allowStaffToViewAllBookings || false,
+            restrictStaffToViewAllClients: data.data.restrictStaffToViewAllClients || false,
+            restrictStaffToViewAllNotes: data.data.restrictStaffToViewAllNotes || false,
+            requireAdminCancelApproval: data.data.requireAdminCancelApproval || false,
+          });
+        }
       } catch (err: any) {
-        setError(err.message || 'Error fetching settings');
+        setError(err.message || 'An error occurred');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
-    if (session) fetchSettings();
-  }, [session]);
+    fetchBusinessInfo();
+  }, []);
 
-  async function handleSave() {
-    setSaving(true);
+  const handleToggleChange = (field: keyof typeof businessInfo) => {
+    setBusinessInfo(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
     setError('');
+    setSuccess('');
     try {
-      const businessId = session?.user?.businessId || '';
-      const res = await fetch('/api/staff/settings', {
+      const response = await fetch('/api/business/info', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-business-id': businessId,
-        },
-        body: JSON.stringify({
-          restrictStaffToViewAllClients: restrictClients,
-          restrictStaffToViewAllNotes: restrictNotes,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(businessInfo),
       });
-      if (!res.ok) throw new Error('Failed to update settings');
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to save settings');
+      }
+      setSuccess('Settings saved successfully!');
     } catch (err: any) {
-      setError(err.message || 'Error updating settings');
+      setError(err.message);
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
-  }
+  };
 
   React.useEffect(() => {
     if (session) {
@@ -102,36 +111,53 @@ export default function StaffSettingsPage() {
           </Link>
         ))}
       </div>
-      {loading ? (
-        <div>Loading settings...</div>
+      {isLoading ? (
+        <div>Loading...</div>
       ) : (
-        <>
-          <div className="mb-6 flex flex-col gap-4">
-            <label className="flex items-center gap-3 sm:gap-4 mb-2 text-sm sm:text-base">
-              <Switch checked={restrictClients} onCheckedChange={setRestrictClients} />
-              <span>
-                Restrict staff to only view their own clients
-                <p className="text-xs text-gray-500 mt-1">
-                  When enabled, staff members will only be able to see clients that are assigned to them. They will not be able to view other staff members' clients.
-                </p>
-              </span>
-            </label>
-            <label className="flex items-center gap-3 sm:gap-4 mb-2 text-sm sm:text-base">
-              <Switch checked={restrictNotes} onCheckedChange={setRestrictNotes} />
-              <span>
-                Restrict staff to only view their own notes
-                <p className="text-xs text-gray-500 mt-1">
-                  When enabled, staff members will only be able to see notes that they have created. They will not be able to view notes created by other staff members.
-                </p>
-              </span>
-            </label>
-            <Button onClick={handleSave} disabled={saving} className="mt-2 w-full sm:w-auto">
-              {saving ? 'Saving...' : 'Save Settings'}
-            </Button>
-            {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+        <div className="space-y-6">
+          <div className="p-4 border rounded-lg">
+            <h2 className="text-lg font-semibold mb-2">General Settings</h2>
+            <div className="flex items-center justify-between">
+              <label htmlFor="allowStaffToViewAllBookings" className="text-sm font-medium">Allow staff to view all bookings</label>
+              <Switch
+                id="allowStaffToViewAllBookings"
+                checked={businessInfo.allowStaffToViewAllBookings}
+                onCheckedChange={() => handleToggleChange('allowStaffToViewAllBookings')}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-4">
+              <label htmlFor="restrictStaffToViewAllClients" className="text-sm font-medium">Restrict staff from viewing all clients</label>
+              <Switch
+                id="restrictStaffToViewAllClients"
+                checked={businessInfo.restrictStaffToViewAllClients}
+                onCheckedChange={() => handleToggleChange('restrictStaffToViewAllClients')}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-4">
+              <label htmlFor="restrictStaffToViewAllNotes" className="text-sm font-medium">Restrict staff from viewing all client notes</label>
+              <Switch
+                id="restrictStaffToViewAllNotes"
+                checked={businessInfo.restrictStaffToViewAllNotes}
+                onCheckedChange={() => handleToggleChange('restrictStaffToViewAllNotes')}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-4">
+              <label htmlFor="requireAdminCancelApproval" className="text-sm font-medium">Require admin approval for staff appointment cancellations</label>
+              <Switch
+                id="requireAdminCancelApproval"
+                checked={businessInfo.requireAdminCancelApproval}
+                onCheckedChange={() => handleToggleChange('requireAdminCancelApproval')}
+              />
+            </div>
           </div>
-          <p className="text-sm sm:text-base">Select a settings section from the tabs above.</p>
-        </>
+          {error && <div className="text-red-500">{error}</div>}
+          {success && <div className="text-green-500">{success}</div>}
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

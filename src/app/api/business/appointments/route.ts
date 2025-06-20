@@ -35,15 +35,14 @@ export async function GET(request: Request) {
     let where: any = {
       businessId: staff.businessId,
     };
-    // Restrict staff to only view their own bookings if business setting is false
-    if (session.user.role === 'STAFF') {
-      // Only restrict STANDARD staff, not ADMINs
-      if (staff.role !== 'ADMIN' && !staff.business.allowStaffToViewAllBookings) {
-        where.staffId = staff.id;
-      } else if (staffId && staffId !== 'all') {
-        where.staffId = staffId;
-      }
-    } else if (staffId && staffId !== 'all') {
+
+    // If the user is a standard staff member and the business does not allow
+    // viewing all bookings, restrict the query to only their appointments.
+    if (session.user.staffRole === 'STANDARD' && !staff.business.allowStaffToViewAllBookings) {
+      where.staffId = session.user.id;
+    }
+    
+    if (staffId && staffId !== 'all') {
       where.staffId = staffId;
     }
 

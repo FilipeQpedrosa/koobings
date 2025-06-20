@@ -67,7 +67,11 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (staff) {
-          const isPasswordValid = await compare(credentials.password, staff.password);
+          const passwordToCompare = staff.password || (staff as any).passwordHash;
+          if (!passwordToCompare) {
+            throw new Error('User password record is missing or corrupt.');
+          }
+          const isPasswordValid = await compare(credentials.password, passwordToCompare);
           if (!isPasswordValid) {
             throw new Error('Invalid password');
           }
