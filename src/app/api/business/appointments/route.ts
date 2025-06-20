@@ -25,6 +25,8 @@ export async function GET(request: Request) {
 
     // Get date from query params
     const { searchParams } = new URL(request.url);
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
     const dateParam = searchParams.get('date');
     const staffId = searchParams.get('staffId');
     const limit = parseInt(searchParams.get('limit') || '0', 10);
@@ -45,17 +47,20 @@ export async function GET(request: Request) {
       where.staffId = staffId;
     }
 
-    if (dateParam) {
-      let date;
-      try {
-        date = parseISO(dateParam);
-        if (isNaN(date.getTime())) throw new Error('Invalid date');
+    if (startDateParam) {
+      const startDate = startOfDay(parseISO(startDateParam));
+      const endDate = endDateParam ? endOfDay(parseISO(endDateParam)) : endOfDay(startDate);
+      where.scheduledFor = {
+        gte: startDate,
+        lte: endDate,
+      };
+    } else if (dateParam) {
+      const date = parseISO(dateParam);
+      if (!isNaN(date.getTime())) {
         where.scheduledFor = {
           gte: startOfDay(date),
           lte: endOfDay(date),
         };
-      } catch (err) {
-        return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD.' }, { status: 400 });
       }
     }
 
@@ -88,34 +93,36 @@ export async function GET(request: Request) {
       ...(offset ? { skip: offset } : {}),
     });
 
+    // Define the type for an appointment from Prisma
+    type AppointmentWithDetails = (typeof appointments)[0];
+
     // Transform the data to match the frontend interface
-    const formattedAppointments = appointments.map(apt => ({
+    const formattedAppointments = appointments.map((apt: AppointmentWithDetails) => ({
       id: apt.id,
-      client: {
-        id: apt.client?.id,
-        name: apt.client?.name,
-        email: apt.client?.email,
-      },
+      client: apt.client ? {
+        id: apt.client.id,
+        name: apt.client.name,
+      } : null,
       scheduledFor: apt.scheduledFor.toISOString(),
       status: apt.status,
       notes: apt.notes || undefined,
       staff: apt.staff ? {
         id: apt.staff.id,
         name: apt.staff.name,
-      } : undefined,
-      services: apt.service ? [{
+      } : null,
+      service: apt.service ? {
         id: apt.service.id,
         name: apt.service.name,
         duration: apt.service.duration,
-      }] : [],
+      } : null,
+      duration: apt.duration,
     }));
 
+    // The dashboard component expects a direct array of appointments
     return NextResponse.json({
       success: true,
       data: {
         appointments: formattedAppointments,
-        businessName: staff.business?.name ?? '',
-        businessLogo: staff.business?.logo ?? null,
         total,
       }
     });

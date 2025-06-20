@@ -53,11 +53,11 @@ export default function StaffSelectionPage() {
     async function fetchAvailableStaff() {
       try {
         const response = await fetch(
-          `/api/staff/available?serviceId=${serviceId}&date=${storedDate}&time=${storedTime}`
+          `/api/client/staff/available?serviceId=${serviceId}&date=${storedDate}&time=${storedTime}`
         );
         if (!response.ok) throw new Error('Failed to fetch available staff');
         const data = await response.json();
-        setStaffMembers(data);
+        setStaffMembers(data.data);
       } catch (error) {
         toast({
           title: 'Error',

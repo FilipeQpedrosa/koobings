@@ -11,6 +11,7 @@ interface Appointment {
   service: { name: string };
   staff: { id: string; name: string };
   notes?: string;
+  status: string;
 }
 
 interface Note {
@@ -49,19 +50,39 @@ export default function ClientDetailsPage() {
   const [editAppointmentId, setEditAppointmentId] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
+  const [editingClient, setEditingClient] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editClientError, setEditClientError] = useState("");
 
   useEffect(() => {
-    fetchClient();
-    // eslint-disable-next-line
+    if (clientId) {
+      fetchClient();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
+  useEffect(() => {
+    if (client) {
+      setEditName(client.name || "");
+      setEditEmail(client.email || "");
+      setEditPhone(client.phone || "");
+    }
+  }, [client]);
+
   async function fetchClient() {
+    if (!clientId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/staff/clients/${clientId}`);
       if (!res.ok) throw new Error("Failed to fetch client");
       const data = await res.json();
-      setClient(data);
+      if (data.success) {
+        setClient(data.data);
+      } else {
+        setClient(null);
+      }
     } catch {
       setClient(null);
     } finally {
@@ -126,6 +147,26 @@ export default function ClientDetailsPage() {
     }
   }
 
+  async function handleEditClient(e: React.FormEvent) {
+    e.preventDefault();
+    setEditClientError("");
+    try {
+      const res = await fetch(`/api/staff/clients/${clientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName, email: editEmail, phone: editPhone }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update client");
+      }
+      setEditingClient(false);
+      fetchClient();
+    } catch (err: any) {
+      setEditClientError(err.message);
+    }
+  }
+
   if (loading) return <div className="p-8">Loading client...</div>;
   if (!client) return <div className="p-8 text-red-600">Client not found.</div>;
 
@@ -135,21 +176,48 @@ export default function ClientDetailsPage() {
         ← Back
       </Button>
       <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 className="text-2xl font-bold mb-2">{client.name}</h2>
-        <div className="text-gray-600 mb-1">{client.email || "No email"}</div>
-        <div className="text-gray-600 mb-1">{client.phone || "No phone"}</div>
+        {editingClient ? (
+          <form onSubmit={handleEditClient} className="space-y-2">
+            <div>
+              <label className="block text-sm font-medium mb-1">Name</label>
+              <Input value={editName} onChange={e => setEditName(e.target.value)} required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <Input value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Phone</label>
+              <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+            </div>
+            {editClientError && <div className="text-red-600 text-sm mb-2">{editClientError}</div>}
+            <div className="flex gap-2 mt-2">
+              <Button type="button" variant="outline" onClick={() => setEditingClient(false)}>Cancel</Button>
+              <Button type="submit">Save</Button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{client.name}</h2>
+              <div className="text-gray-600 mb-1">{client.email || "No email"}</div>
+              <div className="text-gray-600 mb-1">{client.phone || "No phone"}</div>
+            </div>
+            <Button variant="outline" onClick={() => setEditingClient(true)}>Edit</Button>
+          </div>
+        )}
       </div>
       <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-2">Appointments</h3>
-        {client.appointments.length === 0 ? (
+        <h3 className="text-lg font-semibold mb-2">Booking History</h3>
+        {(client.appointments || []).length === 0 ? (
           <div className="text-gray-500">No appointments found.</div>
         ) : (
           <ul className="divide-y divide-gray-200 bg-white rounded-lg shadow">
-            {client.appointments.map((apt) => (
+            {(client.appointments || []).map((apt) => (
               <li key={apt.id} className="p-4">
-                <div className="font-medium">{apt.service.name}</div>
+                <div className="font-medium">{apt.service?.name || "Unknown Service"}</div>
                 <div className="text-gray-500 text-sm">
-                  {new Date(apt.scheduledFor).toLocaleString()} &bull; Staff: {apt.staff.name}
+                  {new Date(apt.scheduledFor).toLocaleString()} &bull; Staff: {apt.staff?.name || "Unknown"} &bull; Status: {apt.status || "Unknown"}
                 </div>
               </li>
             ))}
@@ -187,7 +255,7 @@ export default function ClientDetailsPage() {
               className="border rounded p-2 text-sm min-w-[180px]"
             >
               <option value="">Select appointment...</option>
-              {client.appointments.map((apt) => (
+              {(client.appointments || []).map((apt) => (
                 <option key={apt.id} value={apt.id}>
                   {new Date(apt.scheduledFor).toLocaleString()} — {apt.service.name}
                 </option>
@@ -198,7 +266,7 @@ export default function ClientDetailsPage() {
             </Button>
           </form>
           {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
-          {client.relationshipNotes.length === 0 ? (
+          {(!client.relationshipNotes || client.relationshipNotes.length === 0) ? (
             <div className="text-gray-500">No relationship notes found.</div>
           ) : (
             <ul className="divide-y divide-gray-200 bg-white rounded-lg shadow">
@@ -225,11 +293,11 @@ export default function ClientDetailsPage() {
           )}
         </div>
         {/* Appointment Notes Section */}
-        {client.appointments.some((apt) => apt.notes && apt.notes.trim() !== "") && (
+        {(client.appointments || []).some((apt) => apt.notes && apt.notes.trim() !== "") && (
           <div>
             <h4 className="font-semibold mb-2">Appointment Notes</h4>
             <ul className="divide-y divide-gray-200 bg-white rounded-lg shadow">
-              {client.appointments.filter((apt) => apt.notes && apt.notes.trim() !== "").map((apt) => (
+              {(client.appointments || []).filter((apt) => apt.notes && apt.notes.trim() !== "").map((apt) => (
                 <li key={apt.id} className="p-4">
                   <div className="text-sm text-gray-500 mb-1">
                     {apt.service.name} &bull; {new Date(apt.scheduledFor).toLocaleString()} &bull; Staff: {apt.staff.name}
@@ -277,7 +345,7 @@ export default function ClientDetailsPage() {
                     className="border rounded p-2 text-sm min-w-[180px]"
                   >
                     <option value="">Select appointment...</option>
-                    {client.appointments.map((apt) => (
+                    {(client.appointments || []).map((apt) => (
                       <option key={apt.id} value={apt.id}>
                         {new Date(apt.scheduledFor).toLocaleString()} — {apt.service.name}
                       </option>

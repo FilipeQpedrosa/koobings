@@ -54,10 +54,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   let businessName = req.headers.get('x-business');
-  if (!businessName && process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' && !businessName) {
     // Fallback: get business from session in development only
     const session = await getServerSession(authOptions);
-    businessName = session?.user?.businessId;
+    businessName = session?.user?.businessId ?? null;
   }
   if (!businessName) {
     return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });

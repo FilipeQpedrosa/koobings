@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Service, ServiceCategory } from '@prisma/client';
+// import { Service, ServiceCategory } from '@/types/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { formatPrice, formatDuration } from '@/lib/utils';
+import { formatPrice, formatDuration } from '@/lib/utils/formatting';
 
-type ServiceWithCategory = Service & {
-  category: ServiceCategory | null;
-};
+type ServiceWithCategory = any;
 
 interface GroupedServices {
   [key: string]: ServiceWithCategory[];
@@ -31,13 +29,13 @@ export default function ServiceSelectionPage() {
   useEffect(() => {
     async function fetchServices() {
       try {
-        const response = await fetch('/api/services/available');
+        const response = await fetch('/api/client/services/available');
         if (!response.ok) throw new Error('Failed to fetch services');
         const data = await response.json();
-        setServices(data);
+        setServices(data.data);
         
         // Initialize expanded state
-        const initialExpandedState = Object.keys(data).reduce((acc, category) => {
+        const initialExpandedState = Object.keys(data.data).reduce((acc, category) => {
           acc[category] = true; // Start with all categories expanded
           return acc;
         }, {} as Record<string, boolean>);

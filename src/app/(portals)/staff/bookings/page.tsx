@@ -112,8 +112,9 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
       });
       if (!res.ok) throw new Error('Erro ao criar cliente');
       const created = await res.json();
-      setLocalClients((prev: any) => [...prev, created]);
-      setClient({ id: created.id, name: created.name, email: created.email });
+      const newClientData = created.data;
+      setLocalClients((prev: any) => [...prev, newClientData]);
+      setClient({ id: newClientData.id, name: newClientData.name, email: newClientData.email });
       setShowAddClient(false);
       setNewClient({ name: '', email: '', phone: '', notes: '' });
     } catch (err: any) {
@@ -129,13 +130,13 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
       if (!staff || !date || !time || !duration) return;
       const startTime = new Date(date + 'T' + time).toISOString();
       try {
-        const res = await fetch('/api/business/appointments', {
-          method: 'PUT',
+        const res = await fetch('/api/business/appointments/check-availability', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ staffId: staff, date, startTime, duration }),
         });
-        const data = await res.json();
-        if (!data.available) {
+        const result = await res.json();
+        if (result.data && !result.data.available) {
           setAvailabilityError('Staff is not available at this time.');
         }
       } catch (err) {

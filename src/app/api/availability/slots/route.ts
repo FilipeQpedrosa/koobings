@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parse, format, addMinutes, setHours, setMinutes, setSeconds, getDay, isWithinInterval } from 'date-fns';
-import { generateTimeSlots } from '@/lib/utils';
+import { AppointmentService } from '@/lib/services/appointment';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,22 +39,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get business hours for the given date
-    const dayOfWeek = new Date(date).getDay();
-    const businessHours = service.business.businessHours.find(
-      (hours: { dayOfWeek: number }) => hours.dayOfWeek === dayOfWeek
-    );
-
-    if (!businessHours || !businessHours.isOpen) {
-      return NextResponse.json({ success: true, data: [] });
-    }
-
-    // Generate time slots
+    // The user has clarified that staff are available 24/7 unless constrained.
+    // We will generate slots for the entire day and check against constraints,
+    // ignoring general business hours.
+    const dayStart = setHours(setMinutes(setSeconds(date, 0), 0), 0);
+    const dayEnd = setHours(setMinutes(setSeconds(date, 59), 59), 23);
+    
+    // Generate time slots every 30 minutes for the entire day
     const slots: { time: string; available: boolean }[] = [];
-    let currentTime = businessHours.startTime ? parse(businessHours.startTime, 'HH:mm', new Date()) : setHours(setMinutes(new Date(), 0), 9);
-    const closeTime = businessHours.endTime ? parse(businessHours.endTime, 'HH:mm', new Date()) : setHours(setMinutes(new Date(), 0), 17);
+    let currentTime = dayStart;
 
-    while (currentTime < closeTime) {
+    while (currentTime < dayEnd) {
       const timeSlot = format(currentTime, 'HH:mm:ss');
 
       // Check if any staff member is available at this time
@@ -89,49 +84,59 @@ async function checkStaffAvailability(
   time: string,
   duration: number
 ) {
-  // Convert appointment time to Date object
   const appointmentStart = new Date(`${format(date, 'yyyy-MM-dd')}T${time}`);
   const appointmentEnd = addMinutes(appointmentStart, duration);
+  const staffIds = staff.map((s) => s.id);
 
-  // Check existing appointments for each staff member
+  // 1. Fetch all conflicting appointments for the involved staff on that day
   const existingAppointments = await prisma.appointment.findMany({
     where: {
-      staffId: {
-        in: staff.map((s) => s.id),
-      },
+      staffId: { in: staffIds },
       scheduledFor: {
-        gte: new Date(format(date, 'yyyy-MM-ddT00:00:00')),
-        lt: new Date(format(date, 'yyyy-MM-ddT23:59:59')),
+        gte: new Date(format(appointmentStart, "yyyy-MM-dd'T'00:00:00")),
+        lt: new Date(format(appointmentStart, "yyyy-MM-dd'T'23:59:59")),
       },
-      NOT: {
-        status: 'CANCELLED',
-      },
-    },
-    select: {
-      staffId: true,
-      scheduledFor: true,
-      duration: true,
+      NOT: { status: 'CANCELLED' },
     },
   });
 
-  // Check if at least one staff member is available
-  return staff.some((staffMember) => {
-    const staffAppointments = existingAppointments.filter(
-      (apt: { staffId: string }) => apt.staffId === staffMember.id
-    );
+  // 2. Fetch all unavailability blocks for the involved staff that overlap the slot
+  const unavailabilities = await prisma.staffUnavailability.findMany({
+    where: {
+      staffId: { in: staffIds },
+      start: { lte: appointmentEnd },
+      end: { gte: appointmentStart },
+    },
+  });
 
-    // Check if the staff member has any conflicting appointments
-    const hasConflict = staffAppointments.some((apt: { scheduledFor: Date | string; duration: number }) => {
+  // Find at least one staff member who is available
+  for (const staffMember of staff) {
+    // Check for conflicting appointments
+    const hasAppointmentConflict = existingAppointments.some((apt: any) => {
+      if (apt.staffId !== staffMember.id) return false;
       const existingStart = new Date(apt.scheduledFor);
       const existingEnd = addMinutes(existingStart, apt.duration);
-
-      return (
-        isWithinInterval(appointmentStart, { start: existingStart, end: existingEnd }) ||
-        isWithinInterval(appointmentEnd, { start: existingStart, end: existingEnd }) ||
-        isWithinInterval(existingStart, { start: appointmentStart, end: appointmentEnd })
-      );
+      // Check for overlap
+      return appointmentStart < existingEnd && appointmentEnd > existingStart;
     });
 
-    return !hasConflict;
-  });
+    if (hasAppointmentConflict) {
+      continue; // This staff member is busy, try next one
+    }
+
+    // Check for an unavailability block
+    const hasUnavailability = unavailabilities.some(
+      (unav: any) => unav.staffId === staffMember.id
+    );
+
+    if (hasUnavailability) {
+      continue; // This staff member is unavailable, try next one
+    }
+
+    // If we reach here, we found an available staff member
+    return true;
+  }
+
+  // If the loop completes without finding anyone, the slot is unavailable
+  return false;
 } 
