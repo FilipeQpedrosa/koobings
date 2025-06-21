@@ -119,6 +119,7 @@ export async function GET(request: Request) {
       where: { id: session.user.businessId },
       select: {
         name: true,
+        logo: true,
         allowStaffToViewAllBookings: true,
         restrictStaffToViewAllClients: true,
         restrictStaffToViewAllNotes: true,

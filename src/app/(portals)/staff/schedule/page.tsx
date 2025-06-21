@@ -34,8 +34,9 @@ function useIsMobile() {
 }
 
 export default function StaffSchedulePage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [events, setEvents] = useState<StaffEvent[]>([]);
+  const [monthlyEvents, setMonthlyEvents] = useState<StaffEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
   const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
@@ -83,39 +84,51 @@ export default function StaffSchedulePage() {
   const fetchAppointments = useCallback(async (start?: Date, end?: Date) => {
     setLoading(true);
     if (!session?.user?.id) return;
-    let url = `/api/business/appointments?staffId=${session.user.id}`;
-    if (start && end) {
-      url += `&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
-    }
-    const res = await fetch(url);
-    if (!res.ok) return setLoading(false);
-    const data = await res.json();
-    setEvents(
-      (data.data.appointments || []).map((apt: any) => ({
+    try {
+      let url = `/api/business/appointments?staffId=${session.user.id}`;
+      if (start && end) {
+        url += `&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.error('Failed to fetch appointments:', res.statusText);
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
+      const newEvents = (data.data.appointments || []).map((apt: any) => ({
         id: apt.id,
         title: apt.service.name || 'Appointment',
         start: new Date(apt.scheduledFor),
         end: moment(apt.scheduledFor).add(apt.duration, 'minutes').toDate(),
         allDay: false,
         ...apt,
-      }))
-    );
-    setLoading(false);
+      }));
+      setEvents(newEvents);
+      setMonthlyEvents(newEvents);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [session]);
 
-  // Initial fetch and when session/range changes
   useEffect(() => {
-    if (!range) {
-      // Set initial range to current month
-      const today = new Date();
-      setRange(getRangeForView(today, view));
-      setDate(today);
-      return;
+    if (status === 'authenticated') {
+      const initialRange = getRangeForView(date, view);
+      if (!range) {
+        setRange(initialRange);
+      }
+      fetchAppointments(range?.start, range?.end);
     }
-    fetchAppointments(range.start, range.end);
-    const interval = setInterval(() => fetchAppointments(range.start, range.end), 30000); // 30 seconds
-    return () => clearInterval(interval);
-  }, [session, range, view, getRangeForView, fetchAppointments]);
+  }, [status]);
+
+  // Refetch when range changes
+  useEffect(() => {
+    if (range && status === 'authenticated') {
+      fetchAppointments(range.start, range.end);
+    }
+  }, [range, status]);
 
   // Calendar navigation/view change handlers
   const handleNavigate = (newDate: Date) => {
@@ -148,7 +161,7 @@ export default function StaffSchedulePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-8 py-4 sm:py-8 w-full">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 mt-8">
         <h1 className="text-2xl sm:text-3xl font-bold">My Schedule</h1>
         <Button variant="outline" size="sm" onClick={() => fetchAppointments(range?.start, range?.end)} disabled={loading}>
           {loading ? 'Refreshing...' : 'Refresh'}
@@ -162,9 +175,13 @@ export default function StaffSchedulePage() {
           selectedDate={date}
           onDateSelect={d => {
             setDate(d);
-            setView('day');
-            setRange(getRangeForView(d, 'day'));
-            fetchAppointments(getRangeForView(d, 'day').start, getRangeForView(d, 'day').end);
+            const dayStart = moment(d).startOf('day');
+            const dayEnd = moment(d).endOf('day');
+            setEvents(
+              monthlyEvents.filter(e =>
+                moment(e.start).isBetween(dayStart, dayEnd, undefined, '[]')
+              )
+            );
           }}
           onEventSelect={apt => setSelectedEvent(apt)}
         />

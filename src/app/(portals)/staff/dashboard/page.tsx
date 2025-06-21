@@ -46,7 +46,9 @@ export default function StaffDashboardPage() {
         
         const data = await statsRes.json();
         const businessInfo = await businessRes.json();
-        setBusiness(businessInfo);
+        if (businessInfo.success) {
+          setBusiness(businessInfo.data);
+        }
         
         const appointmentsArr = data?.data?.appointments || [];
         

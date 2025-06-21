@@ -6,14 +6,10 @@ import { z } from 'zod';
 import { hash } from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(
+  request: Request,
+  { params }: any
+) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -54,7 +50,7 @@ export async function GET(request: Request, { params }: any) {
 }
 
 // PUT /api/business/staff/[id] - Update staff member
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.businessId || session.user.staffRole !== 'ADMIN') {
@@ -102,7 +98,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE /api/business/staff/[id] - Delete staff member
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: any) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.businessId || session.user.staffRole !== 'ADMIN') {

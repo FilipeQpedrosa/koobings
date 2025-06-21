@@ -291,53 +291,137 @@ export default function StaffSettingsServicesPage() {
     }
   }
 
+  // Only show to admin staff
+  if (status === 'authenticated' && session.user.staffRole !== 'ADMIN') {
+    return <div className="p-8">You do not have permission to manage services.</div>;
+  }
+
   return (
-    <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
-      <h1 className="text-2xl font-bold mb-4">Services Management</h1>
-      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto">
-        {settingsTabs.map(tab => (
-          <Link key={tab.href} href={tab.href} className={`px-3 py-2 rounded whitespace-nowrap text-sm sm:text-base ${pathname === tab.href ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>{tab.label}</Link>
-        ))}
+    <>
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold leading-tight text-gray-900">
+            Settings
+          </h1>
+          <div className="mt-4">
+            <div className="sm:hidden">
+              <label htmlFor="tabs" className="sr-only">Select a tab</label>
+              <select
+                id="tabs"
+                name="tabs"
+                className="block w-full pl-3 pr-12 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                defaultValue={settingsTabs.find(tab => pathname === tab.href)?.href}
+                onChange={(e) => router.push(e.target.value)}
+              >
+                {settingsTabs.map((tab) => (
+                  <option key={tab.href} value={tab.href}>{tab.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="hidden sm:block">
+              <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                  {settingsTabs.map((tab) => (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      className={`${
+                        pathname === tab.href
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                    >
+                      {tab.label}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Services Management</h2>
+            <Button onClick={openAddModal} size="sm">
+              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">Add New Service</span>
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">Loading services...</div>
+          ) : error ? (
+            <div className="text-center py-12 text-red-500">{error}</div>
+          ) : services.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No services found.</p>
+              <Button onClick={openAddModal} className="mt-4">
+                Add your first service
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Card layout for mobile */}
+              <div className="flex flex-col gap-4 sm:hidden">
+                {services.map((service) => (
+                  <div key={service.id} className="bg-white rounded-lg shadow p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-semibold text-lg">{service.name}</div>
+                        <div className="text-sm text-gray-600">
+                          {service.duration} min - €{service.price}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Category: {typeof service.category === 'object' ? service.category?.name : 'N/A'}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEditModal(service)}>Edit</Button>
+                        <Button variant="ghost" size="sm" className="text-red-600" onClick={() => openDeleteModal(service)}>Remove</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Table layout for desktop */}
+              <div className="hidden sm:block bg-white shadow overflow-hidden sm:rounded-md">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                      <th scope="col" className="relative px-6 py-3">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {services.map((service) => (
+                      <tr key={service.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{service.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{service.duration} min</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">€{service.price}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{typeof service.category === 'object' ? service.category?.name : 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <Button variant="ghost" size="sm" onClick={() => openEditModal(service)}>Edit</Button>
+                          <Button variant="ghost" size="sm" className="text-red-600 ml-2" onClick={() => openDeleteModal(service)}>Remove</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </main>
       </div>
-      <Button onClick={openAddModal} className="mb-4">Add Service</Button>
-      {loading ? (
-        <div>Loading services...</div>
-      ) : error ? (
-        <div className="text-red-600">{error}</div>
-      ) : (
-        <ul className="divide-y divide-gray-200 bg-white rounded-lg shadow">
-          {services.map(service => (
-            <li key={service.id} className="p-4 flex justify-between items-center">
-              <div>
-                <div className="font-medium text-lg">{service.name}</div>
-                <div className="text-gray-500 text-sm">
-                  {service.duration} min &bull; €{service.price}
-                  {service.category && (
-                    <span className="ml-2">Category: {typeof service.category === "string" ? service.category : service.category?.name}</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => openEditModal(service)}>Edit</Button>
-                <Button variant="destructive" onClick={() => openDeleteModal(service)}>Delete</Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {showModal && (
-        <ServiceModal
-          form={form}
-          setForm={setForm}
-          formError={formError}
-          setShowModal={setShowModal}
-          handleAddOrEditService={handleAddOrEditService}
-          categories={categories}
-          editService={editService}
-        />
-      )}
+
+      {/* Delete confirmation modal */}
       {deleteService && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Delete Service</h2>
             <p>Are you sure you want to delete <span className="font-semibold">{deleteService.name}</span>?</p>
@@ -353,6 +437,18 @@ export default function StaffSettingsServicesPage() {
           </div>
         </div>
       )}
-    </div>
+
+      {showModal && (
+        <ServiceModal
+          form={form}
+          setForm={setForm}
+          formError={formError}
+          setShowModal={setShowModal}
+          handleAddOrEditService={handleAddOrEditService}
+          categories={categories}
+          editService={editService}
+        />
+      )}
+    </>
   );
 } 
