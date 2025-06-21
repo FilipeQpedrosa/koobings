@@ -2,7 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, endOfToday } from "date-fns";
+import { Plus } from "lucide-react";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { type DateRange } from "react-day-picker";
 
 interface Booking {
   id: string;
@@ -420,74 +424,74 @@ export default function StaffBookingsPage() {
   const [services, setServices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>('all');
-  const [selectedStaff, setSelectedStaff] = useState<string>('all');
+  const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [staffFilter, setStaffFilter] = useState<string>('ALL');
+  const [dateFilter, setDateFilter] = useState<string>('ALL');
 
   function fetchBookings(append = false) {
     setLoading(true);
     setError("");
     let url = `/api/business/appointments?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
-    if (selectedDate && selectedDate !== 'all') {
-      url += `&date=${selectedDate}`;
+    if (dateRange?.from) {
+      url += `&startDate=${dateRange.from.toISOString()}`;
     }
-    if (selectedStaff && selectedStaff !== 'all') {
-      url += `&staffId=${selectedStaff}`;
+    if (dateRange?.to) {
+      url += `&endDate=${dateRange.to.toISOString()}`;
+    }
+    if (staffFilter && staffFilter !== 'ALL') {
+      url += `&staffId=${staffFilter}`;
+    }
+    if (statusFilter && statusFilter !== 'ALL') {
+      url += `&status=${statusFilter}`;
     }
     fetch(url)
       .then(res => res.json())
       .then(data => {
         setTotal(data.data.total || 0);
-        if (append) {
-          setBookings(prev => [...prev, ...(data.data.appointments || [])]);
-        } else {
-          setBookings(data.data.appointments || []);
-        }
+        setBookings(append ? [...bookings, ...data.data.appointments] : data.data.appointments);
+        setHasMore(data.data.appointments.length === PAGE_SIZE);
       })
       .catch(err => setError("Failed to fetch bookings"))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
-    setPage(0);
     fetchBookings(false);
-  }, [selectedDate, selectedStaff]);
+  }, [dateFilter, staffFilter, statusFilter]);
 
   useEffect(() => {
-    async function fetchServices() {
+    async function fetchInitialData() {
+      setLoading(true);
       try {
-        const res = await fetch("/api/business/services");
-        const data = await res.json();
-        setServices(data.data);
-      } catch {}
+        const [servicesRes, clientsRes, staffRes] = await Promise.all([
+          fetch("/api/business/services"),
+          fetch("/api/business/patients"),
+          fetch("/api/business/staff"),
+        ]);
+        const servicesData = await servicesRes.json();
+        const clientsData = await clientsRes.json();
+        const staffData = await staffRes.json();
+        setServices(servicesData.data || []);
+        setClients(clientsData.data || []);
+        setStaffList(staffData.data || []);
+      } catch (err) {
+        setError("Failed to load initial data.");
+      } finally {
+        setLoading(false);
+      }
     }
-    async function fetchClients() {
-      try {
-        const res = await fetch("/api/business/patients");
-        const data = await res.json();
-        setClients(data.data);
-      } catch {}
-    }
-    async function fetchStaff() {
-      try {
-        const res = await fetch("/api/business/staff");
-        const data = await res.json();
-        setStaffList(data.data);
-      } catch {}
-    }
-    fetchServices();
-    fetchClients();
-    fetchStaff();
+    fetchInitialData();
   }, []);
 
   function handleShowMore() {
-    setPage(prev => {
-      const nextPage = prev + 1;
-      fetchBookings(true);
-      return nextPage;
-    });
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchBookings(true);
   }
 
   function openAddModal() {
@@ -503,136 +507,157 @@ export default function StaffBookingsPage() {
     setEditBooking(null);
   }
 
-  const sortedBookings = Array.isArray(bookings) ? [...bookings].sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()) : [];
+  const filteredBookings = bookings; // Filtering is now done on the server
+
+  const statusOptions = [
+    { value: 'ALL', label: 'All Statuses' },
+    { value: 'PENDING', label: 'Booked' },
+    { value: 'COMPLETED', label: 'Completed' },
+    { value: 'CANCELLED', label: 'Cancelled' },
+  ];
+
+  const dateFilterOptions = [
+    { value: 'ALL', label: 'All Dates' },
+    { value: 'TODAY', label: 'Today' },
+    { value: 'THIS_WEEK', label: 'This Week' },
+    { value: 'THIS_MONTH', label: 'This Month' },
+  ];
+
+  const handleDateFilterChange = (value: string) => {
+    setDateFilter(value);
+    let newRange: DateRange | undefined;
+    const today = new Date();
+    switch (value) {
+      case 'TODAY':
+        newRange = { from: startOfToday(), to: endOfToday() };
+        break;
+      case 'THIS_WEEK':
+        newRange = { from: startOfWeek(today), to: endOfWeek(today) };
+        break;
+      case 'THIS_MONTH':
+        newRange = { from: startOfMonth(today), to: endOfMonth(today) };
+        break;
+      default:
+        newRange = undefined;
+    }
+    setDateRange(newRange);
+  };
 
   return (
-    <div className="container mx-auto py-10 px-2 sm:px-0">
-      {/* Filters and Add Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <div className="flex items-center gap-2">
-            <label className="font-medium">Date:</label>
-            <select
-              className="border rounded p-2 w-full sm:w-auto"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-            >
-              <option value="all">All Dates</option>
-              <option value={new Date().toISOString().slice(0, 10)}>{new Date().toISOString().slice(0, 10)}</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="font-medium ml-0 sm:ml-4">Staff:</label>
-            <select
-              className="border rounded p-2 w-full sm:w-auto"
-              value={selectedStaff}
-              onChange={e => setSelectedStaff(e.target.value)}
-            >
-              <option value="all">All Staff</option>
-              {staffList.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <Button onClick={openAddModal} className="w-full sm:w-auto sticky bottom-4 right-4 z-20 sm:static">
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <header className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold leading-tight text-gray-900">
+          Bookings
+        </h1>
+        <Button onClick={openAddModal}>
+          <Plus className="h-5 w-5 sm:mr-2" />
           <span className="hidden sm:inline">Add Booking</span>
-          <span className="sm:hidden flex items-center justify-center"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></span>
         </Button>
-      </div>
-      {/* Responsive Bookings List/Table */}
-      <div>
-        {/* Desktop Table */}
-        <div className="hidden sm:block">
-          {loading ? (
-            <div>Loading bookings...</div>
-          ) : error ? (
-            <div className="text-red-600">{error}</div>
-          ) : sortedBookings.length === 0 ? (
-            <div className="text-gray-500">No bookings for this date.</div>
-          ) : (
-            <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedBookings.map((booking) => (
-                    <tr key={booking.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">{booking.client?.name || <span className="text-gray-400 italic">No client</span>}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{booking.staff?.name || <span className="text-gray-400 italic">No staff</span>}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{booking.services?.map(s => s.name).join(", ")}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{format(new Date(booking.scheduledFor), "yyyy-MM-dd HH:mm")}</td>
-                      <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={booking.status} /></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <Button variant="ghost" size="sm" onClick={() => openEditModal(booking)}>Edit</Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 ml-2">Remove</Button>
-                      </td>
-                    </tr>
+      </header>
+
+      <main>
+        {/* Filters */}
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="date-filter" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <Select onValueChange={handleDateFilterChange} value={dateFilter}>
+                <SelectTrigger id="date-filter">
+                  <SelectValue placeholder="All Dates" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dateFilterOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                   ))}
-                </tbody>
-              </table>
+                </SelectContent>
+              </Select>
             </div>
-            {bookings.length < total && (
-              <Button onClick={handleShowMore} className="mt-4">Show More</Button>
-            )}
-            </>
-          )}
+            <div>
+              <label htmlFor="staff-filter" className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
+              <Select onValueChange={(value) => setStaffFilter(value)} value={staffFilter}>
+                <SelectTrigger id="staff-filter">
+                  <SelectValue placeholder="All Staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Staff</SelectItem>
+                  {staffList.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <Select onValueChange={setStatusFilter} value={statusFilter}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(s => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-        {/* Mobile Card/List View */}
-        <div className="sm:hidden">
-          {loading ? (
-            <div>Loading bookings...</div>
-          ) : error ? (
-            <div className="text-red-600">{error}</div>
-          ) : sortedBookings.length === 0 ? (
-            <div className="text-gray-500">No bookings for this date.</div>
-          ) : (
-            <>
-            <ul className="space-y-4">
-              {sortedBookings.map((booking) => (
-                <li key={booking.id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="font-semibold text-base">{booking.client?.name || <span className="text-gray-400 italic">No client</span>}</div>
-                    <StatusBadge status={booking.status} />
+
+        {loading ? (
+          <div className="text-center py-12">Loading bookings...</div>
+        ) : filteredBookings.length === 0 ? (
+          <div className="text-center py-12">
+            <h3 className="text-lg font-medium text-gray-900">No bookings found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Try adjusting your filters or add a new booking.
+            </p>
+            <Button onClick={openAddModal} className="mt-4">
+              <Plus className="h-5 w-5 mr-2" />
+              Add Booking
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredBookings.map((booking) => (
+              <div key={booking.id} className="bg-white rounded-lg shadow-md p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-bold text-lg">{booking.client.name}</p>
+                    <p className="text-sm text-gray-600">
+                      Staff: {booking.staff.name}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {format(new Date(booking.scheduledFor), "PPP p")}
+                    </p>
                   </div>
-                  <div className="text-xs text-gray-500">{booking.services?.map(s => s.name).join(", ")}</div>
-                  <div className="text-xs text-gray-500">Staff: {booking.staff?.name || <span className="text-gray-400 italic">No staff</span>}</div>
-                  <div className="text-xs text-gray-500">{format(new Date(booking.scheduledFor), "yyyy-MM-dd HH:mm")}</div>
-                  <div className="flex gap-2 mt-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditModal(booking)}>Edit</Button>
-                    <Button variant="destructive" size="sm" className="flex-1">Remove</Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            {bookings.length < total && (
-              <Button onClick={handleShowMore} className="mt-4 w-full">Show More</Button>
-            )}
-            </>
-          )}
-        </div>
-      </div>
-      {/* Add Booking Modal */}
-      {showModal && (
-        <AddBookingStepperModal
-          open={showModal}
-          onClose={closeModal}
-          onAddBooking={fetchBookings}
-          editBooking={editBooking}
-          services={services}
-          clients={clients}
-          staffList={staffList}
-        />
-      )}
+                  <StatusBadge status={booking.status} />
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" size="sm" onClick={() => openEditModal(booking)}>Edit</Button>
+                  <Button variant="destructive" size="sm">Remove</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hasMore && !loading && (
+          <div className="text-center mt-6">
+            <Button onClick={handleShowMore} disabled={loading}>
+              {loading ? 'Loading...' : 'Show More'}
+            </Button>
+          </div>
+        )}
+      </main>
+
+      <AddBookingStepperModal
+        open={showModal}
+        onClose={closeModal}
+        onAddBooking={fetchBookings}
+        editBooking={editBooking}
+        services={services}
+        clients={clients}
+        staffList={staffList}
+      />
     </div>
   );
 } 

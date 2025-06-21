@@ -46,12 +46,10 @@ export async function GET(request: Request) {
       where.staffId = staffId;
     }
 
-    if (startDateParam) {
-      const startDate = startOfDay(parseISO(startDateParam));
-      const endDate = endDateParam ? endOfDay(parseISO(endDateParam)) : endOfDay(startDate);
+    if (startDateParam && endDateParam) {
       where.scheduledFor = {
-        gte: startDate,
-        lte: endDate,
+        gte: parseISO(startDateParam),
+        lte: parseISO(endDateParam),
       };
     } else if (dateParam) {
       const date = parseISO(dateParam);
