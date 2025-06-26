@@ -1,7 +1,5 @@
-import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/services/route'
 import { prisma } from '@/lib/prisma'
-import { Service, ServiceCategory, Staff } from '@prisma/client'
 
 jest.mock('@/lib/prisma', () => ({
   prisma: {

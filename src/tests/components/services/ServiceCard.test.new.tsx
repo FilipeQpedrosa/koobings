@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import ServiceCard from '@/components/services/ServiceCard'
 import { Service, ServiceCategory, Staff, StaffRole } from '@prisma/client'
 import { act } from 'react-dom/test-utils'
