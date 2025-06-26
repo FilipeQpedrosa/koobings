@@ -101,7 +101,7 @@ export default function ServiceSelectionPage() {
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-bold mb-2">Choose Your Service</h1>
-        <p className="text-gray-600">Select the service you'd like to book</p>
+        <p className="text-gray-600">Select the service you&apos;d like to book</p>
       </div>
 
       <div className="relative">

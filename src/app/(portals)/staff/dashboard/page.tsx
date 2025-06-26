@@ -11,15 +11,6 @@ interface Stats {
   completionRate: number;
 }
 
-interface Appointment {
-  id: string;
-  clientName: string;
-  serviceName: string;
-  dateTime: string;
-  status: string;
-  duration: number;
-}
-
 export default function StaffDashboardPage() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<Stats | null>(null);

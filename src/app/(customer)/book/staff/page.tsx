@@ -96,7 +96,7 @@ export default function StaffSelectionPage() {
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-bold mb-2">Choose Your Provider</h1>
-        <p className="text-gray-600">Select who you'd like to provide the service</p>
+        <p className="text-gray-600">Select who you&apos;d like to provide the service</p>
       </div>
 
       {selectedDate && selectedTime && (
