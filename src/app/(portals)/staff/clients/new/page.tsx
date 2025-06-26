@@ -26,7 +26,6 @@ export default function AddClientPage() {
         const err = await res.json();
         throw new Error(err.error || "Failed to add client");
       }
-      const client = await res.json();
       router.push('/staff/clients');
     } catch (err: any) {
       setError(err.message);

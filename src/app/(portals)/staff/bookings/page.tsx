@@ -1,12 +1,10 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, endOfToday } from "date-fns";
 import { Plus } from "lucide-react";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { type DateRange } from "react-day-picker";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, endOfToday } from "date-fns";
 
 interface Booking {
   id: string;
@@ -420,14 +418,12 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
 export default function StaffBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editBooking, setEditBooking] = useState<Booking | null>(null);
   const [services, setServices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -437,7 +433,6 @@ export default function StaffBookingsPage() {
 
   function fetchBookings(append = false) {
     setLoading(true);
-    setError("");
     let url = `/api/business/appointments?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
     if (dateRange?.from) {
       url += `&startDate=${dateRange.from.toISOString()}`;
@@ -454,11 +449,10 @@ export default function StaffBookingsPage() {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        setTotal(data.data.total || 0);
         setBookings(append ? [...bookings, ...data.data.appointments] : data.data.appointments);
         setHasMore(data.data.appointments.length === PAGE_SIZE);
       })
-      .catch(err => setError("Failed to fetch bookings"))
+      .catch(err => console.error("Failed to fetch bookings"))
       .finally(() => setLoading(false));
   }
 
@@ -482,7 +476,7 @@ export default function StaffBookingsPage() {
         setClients(clientsData.data || []);
         setStaffList(staffData.data || []);
       } catch (err) {
-        setError("Failed to load initial data.");
+        console.error("Failed to load initial data.");
       } finally {
         setLoading(false);
       }
