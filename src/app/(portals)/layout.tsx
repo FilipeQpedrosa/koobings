@@ -48,7 +48,6 @@ export default async function PortalLayout({
 
   // Extra: If staff is not staffRole ADMIN, restrict access to staff admin features (e.g., settings)
   if (portalType === 'staff' && userRole === 'STAFF') {
-    // @ts-expect-error
     if (session.user.staffRole !== 'ADMIN' && pathname.includes('/settings')) {
       redirect('/portals/staff/dashboard');
     }
