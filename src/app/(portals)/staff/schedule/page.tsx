@@ -1,13 +1,12 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Calendar, momentLocalizer, Views, View } from 'react-big-calendar';
+import { Calendar, momentLocalizer, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '@/styles/custom-calendar.css';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { AppointmentCalendar } from '@/components/Calendar/AppointmentCalendar';
 import MobileMonthCalendar from '@/components/Calendar/MobileMonthCalendar';
 
 const localizer = momentLocalizer(moment);

@@ -20,14 +20,6 @@ interface Category {
   services: any[];
 }
 
-interface CategoryModalProps {
-  form: { name: string; color: string; description: string };
-  setForm: React.Dispatch<React.SetStateAction<{ name: string; color: string; description: string }>>;
-  formError: string;
-  setShowModal: (show: boolean) => void;
-  handleAddCategory: (e: React.FormEvent) => void;
-}
-
 interface DeleteDialogProps {
   open: boolean;
   onClose: () => void;
@@ -37,49 +29,22 @@ interface DeleteDialogProps {
   category: Category | null;
 }
 
-function CategoryModal({ form, setForm, formError, setShowModal, handleAddCategory }: CategoryModalProps) {
+function DeleteDialog({ open, onClose, onConfirm, loading, error, category }: DeleteDialogProps) {
+  if (!open || !category) return null;
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Add Category</h2>
-        <form onSubmit={handleAddCategory} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <input
-              type="text"
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Color</label>
-            <input
-              type="color"
-              className="mt-1 block w-12 h-8 border border-gray-300 rounded-md p-1"
-              value={form.color}
-              onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            />
-          </div>
-          {formError && <div className="text-red-600 text-sm">{formError}</div>}
-          <div className="flex justify-end gap-2 mt-6">
-            <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Add Category
-            </Button>
-          </div>
-        </form>
+        <h2 className="text-xl font-bold mb-4 text-red-600">Delete Category</h2>
+        <p className="mb-4">Are you sure you want to delete the category <span className="font-semibold">{category.name}</span>? This action cannot be undone.</p>
+        {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
+        <div className="flex justify-end gap-2 mt-6">
+          <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={loading} ref={undefined}>
+            {loading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -92,15 +57,11 @@ export default function StaffSettingsCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: '', color: '', description: '' });
-  const [formError, setFormError] = useState('');
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
-  const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (status === 'loading' || !session) return;
@@ -130,67 +91,16 @@ export default function StaffSettingsCategoriesPage() {
     fetchCategories();
   }, []);
 
-  async function handleAddCategory(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError('');
-    try {
-      if (!form.name) {
-        setFormError('Name is required.');
-        return;
-      }
-      const payload: any = { name: form.name };
-      if (form.color) payload.color = form.color;
-      if (form.description) payload.description = form.description;
-      let res, data;
-      if (editCategoryId) {
-        // Edit mode
-        res = await fetch(`/api/staff/categories/${editCategoryId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to update category');
-      } else {
-        // Add mode
-        res = await fetch('/api/staff/categories', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Failed to create category');
-        }
-      }
-      setShowModal(false);
-      setForm({ name: '', color: '', description: '' });
-      setEditCategoryId(null);
-      // Refresh list
-      const updated = await fetch('/api/staff/categories');
-      const updatedData = await updated.json();
-      setCategories(updatedData.data);
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to save category');
-    }
-  }
-
   function openEditModal(category: Category) {
-    setForm({
-      name: category.name || '',
-      color: category.color || '',
-      description: category.description || '',
-    });
     setEditCategoryId(category.id);
-    setFormError('');
-    setShowModal(true);
+    setShowDeleteDialog(false);
+    setCategoryToDelete(null);
   }
 
   function openAddModal() {
-    setForm({ name: '', color: '', description: '' });
     setEditCategoryId(null);
-    setFormError('');
-    setShowModal(true);
+    setShowDeleteDialog(false);
+    setCategoryToDelete(null);
   }
 
   async function handleDeleteCategory() {
@@ -222,27 +132,6 @@ export default function StaffSettingsCategoriesPage() {
     setCategoryToDelete(category);
     setDeleteError('');
     setShowDeleteDialog(true);
-  }
-
-  function DeleteDialog({ open, onClose, onConfirm, loading, error, category }: DeleteDialogProps) {
-    if (!open || !category) return null;
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-          <h2 className="text-xl font-bold mb-4 text-red-600">Delete Category</h2>
-          <p className="mb-4">Are you sure you want to delete the category <span className="font-semibold">{category.name}</span>? This action cannot be undone.</p>
-          {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
-          <div className="flex justify-end gap-2 mt-6">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="button" variant="destructive" onClick={onConfirm} disabled={loading} ref={deleteButtonRef}>
-              {loading ? 'Deleting...' : 'Delete'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   // Admin-only guard

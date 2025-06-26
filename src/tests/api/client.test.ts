@@ -1,10 +1,8 @@
-import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import * as clientProfileHandler from '@/app/api/client/profile/route';
 import * as clientAppointmentsHandler from '@/app/api/client/appointments/route';
 import * as clientBookingHandler from '@/app/api/client/bookings/route';
 import { prisma } from '@/lib/prisma';
-import { createMocks } from 'node-mocks-http';
 
 jest.mock('next-auth', () => ({
   getServerSession: jest.fn(),

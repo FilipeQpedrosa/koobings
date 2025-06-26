@@ -2,7 +2,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SessionProvider } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ClientProfile from '../../components/client/ClientProfile';
-import BookingDateTime from '@/components/client/BookingDateTime';
 import ClientAppointments from '@/components/client/ClientAppointments';
 
 // Mock fetch calls
