@@ -98,7 +98,7 @@ export default function StaffSchedulePage() {
       const data = await res.json();
       const newEvents = (data.data.appointments || []).map((apt: any) => ({
         id: apt.id,
-        title: apt.service.name || 'Appointment',
+        title: (apt.services?.[0]?.name) || 'Appointment',
         start: new Date(apt.scheduledFor),
         end: moment(apt.scheduledFor).add(apt.duration, 'minutes').toDate(),
         allDay: false,

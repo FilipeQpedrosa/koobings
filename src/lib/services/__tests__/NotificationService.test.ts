@@ -1,16 +1,12 @@
+// Removido o jest.mock('@prisma/client', ...) local para usar apenas o mock global
+
 import { NotificationService } from '../NotificationService';
 import { PrismaClient } from '@prisma/client';
 
-// Mock PrismaClient
-jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn().mockImplementation(() => ({
-    patient: {
-      findUnique: jest.fn().mockResolvedValue({
-        email: 'test@example.com'
-      })
-    }
-  }))
-}));
+declare global {
+  var __mockClient: any;
+  var mockClient: any;
+}
 
 describe('NotificationService', () => {
   let notificationService: NotificationService;
@@ -22,6 +18,7 @@ describe('NotificationService', () => {
     patientId: '1',
     staffId: '1',
     serviceId: '1',
+    clientId: '1',
     startTime: new Date(),
     endTime: new Date(),
     status: 'SCHEDULED',
@@ -55,15 +52,10 @@ describe('NotificationService', () => {
     });
 
     it('should throw error when patient email not found', async () => {
-      (PrismaClient as jest.Mock).mockImplementationOnce(() => ({
-        patient: {
-          findUnique: jest.fn().mockResolvedValue(null)
-        }
-      }));
-      notificationService = new NotificationService({ enabled: true, provider: 'mock' });
+      global.mockClient.client.findUnique.mockResolvedValueOnce(null);
       await expect(
         notificationService.sendAppointmentConfirmation(mockAppointment)
-      ).rejects.toThrow('Patient email not found');
+      ).rejects.toThrow('Client email not found');
     });
   });
 

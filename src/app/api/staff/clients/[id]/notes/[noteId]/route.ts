@@ -45,7 +45,7 @@ export async function PUT(req: NextRequest, { params }: any) {
   }
 
   // If appointmentId is provided, validate it
-  let updateData: any = {};
+  const updateData: any = {};
   if (typeof content === 'string') updateData.content = content;
   if (typeof noteType === 'string') updateData.noteType = noteType;
   if (appointmentId) {

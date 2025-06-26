@@ -23,7 +23,7 @@ export function formatTime(date: Date | string): string {
 
 export function generateTimeSlots(start: Date, end: Date, interval: number): Date[] {
   const slots = [];
-  let current = new Date(start);
+  const current = new Date(start);
 
   while (current < end) {
     slots.push(new Date(current));

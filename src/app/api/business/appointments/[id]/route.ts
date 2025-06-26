@@ -23,7 +23,7 @@ export async function PATCH(request: Request, { params }: any) {
     }
 
     const body = await request.json();
-    const { status, scheduledFor, notes, staffId } = body;
+    const { status, scheduledFor, notes, staffId, serviceId } = body;
     console.log('PATCH /api/business/appointments/[id]', {
       params,
       body,
@@ -57,6 +57,7 @@ export async function PATCH(request: Request, { params }: any) {
     if (scheduledFor) updateData.scheduledFor = new Date(scheduledFor);
     if (notes !== undefined) updateData.notes = notes;
     if (staffId) updateData.staffId = staffId;
+    if (serviceId) updateData.serviceId = serviceId;
 
     // Update the appointment
     let updatedAppointment;

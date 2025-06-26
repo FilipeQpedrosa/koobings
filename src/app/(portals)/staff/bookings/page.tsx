@@ -54,7 +54,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
     if (editBooking && open) {
       setStep(3);
       setClient(editBooking.client);
-      setServicesState(editBooking.services.map((s: any) => s.id));
+      setServicesState(Array.isArray(editBooking.services) ? editBooking.services.map((s: any) => s.id) : []);
       setStaff(editBooking.staff.id);
       setDate(editBooking.scheduledFor.slice(0, 10));
       setTime(editBooking.scheduledFor.slice(11, 16));
@@ -169,6 +169,8 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
           status,
           notes,
           scheduledFor: new Date(date + 'T' + time).toISOString(),
+          serviceId: selectedServices[0],
+          staffId: staff,
         };
         const res = await fetch(`/api/business/appointments/${editBooking.id}`, {
           method: 'PATCH',
