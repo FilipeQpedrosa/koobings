@@ -50,3 +50,8 @@ next-env.d.ts
 # Prisma generated
 /src/generated/
 next.config.ts
+
+# Prisma engines
+src/generated/prisma/*.node
+# Lint reports
+lint-report.json
