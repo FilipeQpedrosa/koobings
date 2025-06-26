@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     endOfDay.setHours(23, 59, 59, 999);
 
     // Filter by business if user is a business owner
-    let where: any = {
+    const where: any = {
       scheduledFor: {
         gte: startOfDay,
         lte: endOfDay,

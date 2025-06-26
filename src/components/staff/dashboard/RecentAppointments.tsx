@@ -17,9 +17,7 @@ interface Appointment {
     name: string;
     image?: string;
   };
-  service: {
-    name: string;
-  };
+  services: { name: string }[];
   scheduledFor: string;
   duration: number;
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
@@ -173,7 +171,7 @@ export default function RecentAppointments() {
                       {apt.status}
                     </Badge>
                   </div>
-                  <div className="text-gray-700">{apt.service.name}</div>
+                  <div className="text-gray-700">{apt.services?.[0]?.name}</div>
                   <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: enUS })}</div>
                   <div className="text-sm text-gray-500">{apt.duration} min</div>
                   <div className="mt-4">
@@ -214,7 +212,7 @@ export default function RecentAppointments() {
                   filteredAppointments.map((apt) => (
                     <tr key={apt.id} className="border-b last:border-b-0 hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">{apt.client.name}</td>
-                      <td className="px-4 py-3">{apt.service.name}</td>
+                      <td className="px-4 py-3">{apt.services?.[0]?.name}</td>
                       <td className="px-4 py-3">{format(new Date(apt.scheduledFor), 'PP p', { locale: enUS })}</td>
                       <td className="px-4 py-3">{apt.duration} min</td>
                       <td className="px-4 py-3">

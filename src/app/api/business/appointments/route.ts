@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '0', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    let where: any = {
+    const where: any = {
       businessId: staff.businessId,
     };
 
@@ -107,11 +107,7 @@ export async function GET(request: Request) {
         id: apt.staff.id,
         name: apt.staff.name,
       } : null,
-      service: apt.service ? {
-        id: apt.service.id,
-        name: apt.service.name,
-        duration: apt.service.duration,
-      } : null,
+      services: apt.service ? [{ id: apt.service.id, name: apt.service.name }] : [],
       duration: apt.duration,
     }));
 

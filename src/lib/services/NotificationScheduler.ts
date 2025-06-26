@@ -114,4 +114,9 @@ export class NotificationScheduler {
       console.error(`Error processing appointment ${appointment.id}:`, error);
     }
   }
+
+  // For testing only: permite aos testes chamar reminders diretamente
+  public async sendReminders() {
+    await this.checkAppointments();
+  }
 } 

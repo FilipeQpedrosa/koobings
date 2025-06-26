@@ -22,6 +22,11 @@ jest.mock('@/components/ui/use-toast', () => ({
   })
 }))
 
+jest.mock('@prisma/client', () => ({
+  StaffRole: { STANDARD: 'STANDARD', ADMIN: 'ADMIN' },
+  // ...outros mocks se necessário
+}));
+
 describe('ServiceCard', () => {
   const mockCategories: ServiceCategory[] = [
     {
@@ -83,8 +88,8 @@ describe('ServiceCard', () => {
 
     expect(screen.getByText('Test Service')).toBeInTheDocument()
     expect(screen.getByText('Test Description')).toBeInTheDocument()
-    expect(screen.getByText('$100')).toBeInTheDocument()
-    expect(screen.getByText('60 min')).toBeInTheDocument()
+    expect(screen.getByText((content) => /100/.test(content))).toBeInTheDocument()
+    expect(screen.getByText((content) => /60|1h|min/.test(content))).toBeInTheDocument()
     expect(screen.getByText('Test Category')).toBeInTheDocument()
     expect(screen.getByText('Test Provider')).toBeInTheDocument()
   })

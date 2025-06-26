@@ -73,36 +73,82 @@ process.env = {
   NEXTAUTH_SECRET: 'test_secret',
 };
 
-// Mock PrismaClient
+// Mock PrismaClient (global para partilha entre instâncias e testes)
 const mockClient = {
   client: {
-    findUnique: jest.fn().mockResolvedValue({
+    findUnique: jest.fn().mockImplementation(() => Promise.resolve({
       id: '1',
-      email: 'test@example.com',
       name: 'Test Client',
-      businessId: '1',
-      phone: null,
-      password: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    })
-  }
+      email: 'test@example.com',
+      phone: '1234567890',
+      status: 'ACTIVE',
+      preferences: {},
+    })),
+    update: jest.fn(),
+    create: jest.fn(),
+  },
+  appointment: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
+  patient: {
+    findUnique: jest.fn(),
+  },
+  business: {
+    upsert: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    create: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+  },
+  businessHours: {
+    deleteMany: jest.fn(),
+    createMany: jest.fn(),
+    create: jest.fn(),
+    findMany: jest.fn(),
+    updateMany: jest.fn(),
+  },
+  $use: jest.fn(),
+  $disconnect: jest.fn(),
+  staff: {
+    findUnique: jest.fn().mockResolvedValue({ id: '1', name: 'Test Staff', email: 'staff@example.com' }),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    findMany: jest.fn(),
+    findFirst: jest.fn().mockResolvedValue({ id: '1', name: 'Test Staff', email: 'staff@example.com' }),
+  },
+  service: {
+    findUnique: jest.fn().mockResolvedValue({ id: '1', name: 'Test Service', duration: 60 }),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    findMany: jest.fn(),
+    findFirst: jest.fn().mockResolvedValue({ id: '1', name: 'Test Service', duration: 60 }),
+  },
+  notification: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
 };
 
-// Mock the entire @prisma/client module
-jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn(() => ({
-    client: mockClient.client
-  }))
-}));
+global.mockClient = mockClient;
 
-// Make mocks available globally
-global.__mockClient = mockClient.client;
+jest.mock('@prisma/client', () => {
+  return {
+    PrismaClient: jest.fn().mockImplementation(() => mockClient),
+    StaffRole: { STANDARD: 'STANDARD', ADMIN: 'ADMIN' },
+    AppointmentStatus: { SCHEDULED: 'SCHEDULED', CONFIRMED: 'CONFIRMED', CANCELLED: 'CANCELLED' },
+  };
+});
 
 // Reset all mocks after each test
 afterEach(() => {
   jest.clearAllMocks();
-  if (mockClient.client.findUnique) {
-    mockClient.client.findUnique.mockClear();
+  if (global.mockClient.client.findUnique) {
+    global.mockClient.client.findUnique.mockClear();
   }
 });

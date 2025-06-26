@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: any) {
   }
 
   // Only require appointmentId validation if provided
-  let appointmentData: any = {};
+  const appointmentData: any = {};
   if (appointmentId) {
     // Ensure appointment belongs to the client and business
     const appointment = await prisma.appointment.findUnique({
