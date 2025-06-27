@@ -1,5 +1,5 @@
-import { PrismaClient, AppointmentStatus, Prisma } from '@prisma/client';
-import { addDays, addHours, isAfter, isBefore } from 'date-fns';
+import { PrismaClient, AppointmentStatus } from '@prisma/client';
+import { addDays, addHours, isAfter } from 'date-fns';
 import { sendAppointmentReminder } from '../email';
 import type { AppointmentWithRelations } from '../email';
 

@@ -1,6 +1,5 @@
-import { PrismaClient, AppointmentStatus, Prisma } from '@prisma/client';
-import { addMinutes, isWithinInterval, parseISO } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
+import { PrismaClient, AppointmentStatus } from '@prisma/client';
+import { addMinutes, isWithinInterval } from 'date-fns';
 
 const prisma = new PrismaClient();
 

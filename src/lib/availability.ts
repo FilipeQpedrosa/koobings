@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
 import { format, parseISO, parse, addMinutes } from 'date-fns';
-import { Staff, StaffAvailability, Appointment, StaffUnavailability } from '@prisma/client';
 
 interface TimeSlot {
   startTime: string;

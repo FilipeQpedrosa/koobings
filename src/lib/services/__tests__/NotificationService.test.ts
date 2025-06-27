@@ -1,7 +1,6 @@
 // Removido o jest.mock('@prisma/client', ...) local para usar apenas o mock global
 
 import { NotificationService } from '../NotificationService';
-import { PrismaClient } from '@prisma/client';
 
 declare global {
   var __mockClient: any;

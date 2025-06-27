@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { addMinutes, parseISO, format, isSameDay } from 'date-fns';
-import { AppointmentStatus, Prisma } from '@prisma/client';
+import { addMinutes, parseISO, format } from 'date-fns';
 import { ApiError } from '@/lib/api-handler';
 
 export interface TimeSlot {

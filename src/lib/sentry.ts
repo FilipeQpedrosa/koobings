@@ -2,8 +2,6 @@
 // import * as Sentry from '@sentry/nextjs'
 import { env } from './env'
 
-const SENTRY_DSN = env.SENTRY_DSN
-
 // if (SENTRY_DSN) {
 //   Sentry.init({
 //     dsn: SENTRY_DSN,

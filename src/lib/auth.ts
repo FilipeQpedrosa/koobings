@@ -2,7 +2,6 @@ import { NextAuthOptions } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from 'bcryptjs';
-import { Business, Staff, Prisma, DataAccessType } from "@prisma/client";
 import type { UserRole } from '@/types/dashboard';
 
 export interface CustomUser {

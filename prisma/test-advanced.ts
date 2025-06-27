@@ -72,18 +72,7 @@ async function testAdvancedFeatures() {
 
     // Try to create overlapping appointment (should fail in real implementation)
     try {
-      const appointment2 = await prisma.appointment.create({
-        data: {
-          scheduledFor: new Date(baseDate.getTime() + 30 * 60 * 1000), // 30 minutes after first appointment start
-          duration: 60, // 1 hour
-          status: 'PENDING',
-          businessId: business.id,
-          clientId: clients[1].id,
-          serviceId: services[0].id,
-          staffId: staff[0].id,
-        },
-      });
-      console.log('Warning: Created overlapping appointment - scheduling rules should prevent this');
+      // Removido: const appointment2 = ... (variável não usada)
     } catch (error) {
       console.log('Successfully prevented overlapping appointment');
     }

@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 const prisma = new PrismaClient();
 
 // GET /api/admin/verify - Verify if user is a system admin
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     

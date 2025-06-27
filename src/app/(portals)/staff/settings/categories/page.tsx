@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -57,7 +57,6 @@ export default function StaffSettingsCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -92,13 +91,11 @@ export default function StaffSettingsCategoriesPage() {
   }, []);
 
   function openEditModal(category: Category) {
-    setEditCategoryId(category.id);
     setShowDeleteDialog(false);
     setCategoryToDelete(null);
   }
 
   function openAddModal() {
-    setEditCategoryId(null);
     setShowDeleteDialog(false);
     setCategoryToDelete(null);
   }

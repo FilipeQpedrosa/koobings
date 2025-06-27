@@ -24,23 +24,35 @@ export async function GET(req: NextRequest) {
   }
   const restrict = business.restrictStaffToViewAllClients;
   let clients;
-  // Admins always see all clients
+  // Admins sempre veem todos os clientes, exceto o dummy se não forem ADMIN (super admin)
+  const isSuperAdmin = session.user.role === 'ADMIN';
   if (session.user.role === 'STAFF' && staffRole === 'ADMIN') {
-    clients = await prisma.client.findMany({
-      where: { businessId },
-      orderBy: { name: 'asc' },
-    });
-  } else if (!restrict) {
-    // Setting is off: all staff see all clients
-    clients = await prisma.client.findMany({
-      where: { businessId },
-      orderBy: { name: 'asc' },
-    });
-  } else {
-    // Setting is on: standard staff see only their clients
     clients = await prisma.client.findMany({
       where: {
         businessId,
+        ...(!isSuperAdmin && {
+          NOT: { email: 'system@scheduler.local' }
+        })
+      },
+      orderBy: { name: 'asc' },
+    });
+  } else if (!restrict) {
+    clients = await prisma.client.findMany({
+      where: {
+        businessId,
+        ...(!isSuperAdmin && {
+          NOT: { email: 'system@scheduler.local' }
+        })
+      },
+      orderBy: { name: 'asc' },
+    });
+  } else {
+    clients = await prisma.client.findMany({
+      where: {
+        businessId,
+        ...(!isSuperAdmin && {
+          NOT: { email: 'system@scheduler.local' }
+        }),
         OR: [
           { appointments: { some: { staffId } } },
           { relationshipNotes: { some: { createdById: staffId } } },
