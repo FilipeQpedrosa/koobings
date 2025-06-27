@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
-import { SystemSettings, SystemSettingRecord } from '@/types/settings';
+import { SystemSettings } from '@/types/settings';
 
 const prisma = new PrismaClient();
 
@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   }
 };
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     

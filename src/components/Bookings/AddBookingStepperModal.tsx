@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
-
-const statusOptions = ["PENDENTE", "CONFIRMADA", "CONCLUÍDA", "CANCELADA", "FALTA"];
 
 function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, selectedDate, services, clients, onClientAdded }: { open: boolean; onClose: () => void; onAddBooking: (date: string) => void; editBooking?: any | null; selectedDate: string; services: { id: string; name: string; duration: number }[]; clients: { id: string; name: string; email: string; phone?: string }[]; onClientAdded: (client: any) => void }) {
   const [step, setStep] = useState(1);
   const [clientSearch, setClientSearch] = useState("");
-  const [showAddClient, setShowAddClient] = useState(false);
   const [client, setClient] = useState<{ id: string; name: string; email: string } | null>(null);
   const [newClient, setNewClient] = useState({ name: "", email: "", phone: "", notes: "" });
   const [localClients, setLocalClients] = useState<typeof clients>(clients);
@@ -19,10 +14,8 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, sele
   const [duration, setDuration] = useState(0);
   const [status, setStatus] = useState("PENDENTE");
   const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [availabilityError, setAvailabilityError] = useState('');
-  const [staffList, setStaffList] = useState<{ id: string; name: string; email: string }[]>([]);
 
   useEffect(() => {
     if (editBooking && open) {
@@ -59,63 +52,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, sele
   useEffect(() => { setLocalClients(clients); }, [clients]);
 
   useEffect(() => {
-    async function fetchStaff() {
-      try {
-        const res = await fetch('/api/business/staff');
-        if (!res.ok) throw new Error('Erro ao carregar funcionários');
-        const data = await res.json();
-        setStaffList(data.map((s: any) => ({ id: s.id, name: s.name, email: s.email })));
-      } catch {
-        setStaffList([]);
-      }
-    }
-    fetchStaff();
-  }, []);
-
-  const filteredClients = localClients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-      c.email.toLowerCase().includes(clientSearch.toLowerCase())
-  );
-
-  function handleSelectClient(c: any) {
-    setClient(c);
-    setShowAddClient(false);
-    setClientSearch("");
-  }
-
-  async function handleAddClient() {
-    setSaving(true);
-    setSaveError('');
-    try {
-      const payload = {
-        name: newClient.name,
-        email: newClient.email,
-        phone: newClient.phone,
-        preferredContactMethod: '',
-        medicalInfo: {},
-        notificationPreferences: {},
-        notes: newClient.notes,
-      };
-      const res = await fetch('/api/business/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('Erro ao criar cliente');
-      const created = await res.json();
-      onClientAdded(created);
-      setClient({ id: created.id, name: created.name, email: created.email });
-      setShowAddClient(false);
-      setNewClient({ name: '', email: '', phone: '', notes: '' });
-    } catch (err: any) {
-      setSaveError(err.message || 'Erro ao criar cliente');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  useEffect(() => {
     async function checkAvailability() {
       setAvailabilityError('');
       if (!staff || !date || !time || !duration) return;
@@ -140,8 +76,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, sele
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!client || !staff || !date || !time || selectedServices.length === 0 || availabilityError) return;
-    setSaving(true);
-    setSaveError('');
     try {
       if (editBooking) {
         const payload: any = {
@@ -177,30 +111,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, sele
       }
     } catch (err: any) {
       setSaveError(err.message || 'Erro ao guardar marcação');
-    } finally {
-      setSaving(false);
     }
-  }
-
-  function getTimeSlots() {
-    const slots = [];
-    for (let h = 8; h <= 20; h++) {
-      for (let m = 0; m < 60; m += 30) {
-        const hour = h.toString().padStart(2, '0');
-        const min = m.toString().padStart(2, '0');
-        slots.push(`${hour}:${min}`);
-      }
-    }
-    if (date === format(new Date(), 'yyyy-MM-dd')) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      return slots.filter(slot => {
-        const [h, m] = slot.split(':').map(Number);
-        const slotMinutes = h * 60 + m;
-        return slotMinutes > currentMinutes;
-      });
-    }
-    return slots;
   }
 
   if (!open) return null;

@@ -50,7 +50,6 @@ export function AppointmentBookingForm({
     handleSubmit,
     formState: { errors },
     setValue,
-    watch,
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
   });

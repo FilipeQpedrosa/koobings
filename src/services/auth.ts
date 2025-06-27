@@ -1,5 +1,4 @@
 import { PrismaClient, StaffRole, AdminRole, DataAccessType } from '@prisma/client';
-import { hash, compare } from 'bcryptjs';
 import { sign, verify } from 'jsonwebtoken';
 
 const prisma = new PrismaClient();

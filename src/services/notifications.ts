@@ -3,15 +3,6 @@ import nodemailer from 'nodemailer';
 
 const prisma = new PrismaClient();
 
-type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
-  include: {
-    client: true;
-    service: true;
-    staff: true;
-    business: true;
-  }
-}>;
-
 // Initialize email transporter
 const emailTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,

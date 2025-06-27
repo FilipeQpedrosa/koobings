@@ -1,7 +1,6 @@
 "use client";
 import { Calendar } from 'react-big-calendar';
 import type { ComponentProps } from 'react';
-import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 type CalendarEvent = { start: Date; end: Date; [key: string]: any };

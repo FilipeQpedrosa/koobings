@@ -6,12 +6,6 @@ import { sendVerificationEmail } from '@/lib/email';
 
 const prisma = new PrismaClient();
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
 // POST /api/admin/businesses/[id]/verify - Verify a business
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, { params }: any) {
