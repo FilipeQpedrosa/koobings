@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { parseISO, addMinutes, format } from 'date-fns';
+import { addMinutes, format } from 'date-fns';
 
 export async function GET(request: Request) {
   try {

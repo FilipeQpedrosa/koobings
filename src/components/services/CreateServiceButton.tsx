@@ -3,11 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PriceInput } from '@/components/ui/price-input'
-import { parsePrice } from '@/lib/utils/validation'
 
 export default function CreateServiceButton() {
   const [isOpen, setIsOpen] = useState(false)
-  const router = useRouter()
 
   return (
     <>
@@ -30,7 +28,7 @@ export default function CreateServiceButton() {
 
 function CreateServiceDialog({ onClose }: { onClose: () => void }) {
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const _router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -54,7 +52,7 @@ function CreateServiceDialog({ onClose }: { onClose: () => void }) {
 
       if (!response.ok) throw new Error('Failed to create service')
 
-      router.refresh()
+      _router.refresh()
       onClose()
     } catch (error) {
       console.error('Error creating service:', error)

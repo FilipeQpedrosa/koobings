@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { ApiError, handleApiError } from '@/lib/utils/api/error'
+import { handleApiError } from '@/lib/utils/api/error'
 import { z } from 'zod'
 import { NoteType } from '@prisma/client'
 

@@ -7,7 +7,7 @@ import { z } from 'zod';
 const prisma = new PrismaClient();
 
 // GET /api/business/patients - List all clients for a business
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.email) {

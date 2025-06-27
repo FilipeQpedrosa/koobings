@@ -1,21 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { startOfWeek, endOfWeek, parseISO } from 'date-fns';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
-interface AvailabilitySlot {
-  staffId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-  type: 'REGULAR' | 'EXCEPTION';
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -31,17 +19,14 @@ export async function GET(request: Request, { params }: any) {
 
     const url = new URL(request.url);
     const weekParam = url.searchParams.get('week');
+    const staffId = url.pathname.split('/').slice(-2)[0]; // Extract staff ID from URL
     
     if (!weekParam) {
       return NextResponse.json({ success: false, error: { code: 'WEEK_PARAM_REQUIRED', message: 'Week parameter is required' } }, { status: 400 });
     }
 
-    const weekDate = parseISO(weekParam);
-    const weekStart = startOfWeek(weekDate, { weekStartsOn: 0 });
-    const weekEnd = endOfWeek(weekDate, { weekStartsOn: 0 });
-
     const availability = await prisma.staffAvailability.findUnique({
-      where: { staffId: params.id }
+      where: { staffId: staffId }
     });
 
     return NextResponse.json({ success: true, data: availability?.schedule || {} });
@@ -52,7 +37,7 @@ export async function GET(request: Request, { params }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(request: Request, { params }: any) {
+export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -66,9 +51,12 @@ export async function PUT(request: Request, { params }: any) {
       return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
 
+    const url = new URL(request.url);
+    const staffId = url.pathname.split('/').slice(-2)[0]; // Extract staff ID from URL
+
     const staff = await prisma.staff.findFirst({
       where: {
-        id: params.id,
+        id: staffId,
         businessId
       }
     });
@@ -81,7 +69,7 @@ export async function PUT(request: Request, { params }: any) {
 
     // Update the schedule JSON for the staff member
     const updated = await prisma.staffAvailability.update({
-      where: { staffId: params.id },
+      where: { staffId: staffId },
       data: { schedule }
     });
 

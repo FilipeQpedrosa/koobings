@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { parse, format, addMinutes, setHours, setMinutes, setSeconds, getDay, isWithinInterval } from 'date-fns';
-import { AppointmentService } from '@/lib/services/appointment';
+import { parse, format, addMinutes, setHours, setMinutes, setSeconds } from 'date-fns';
 
 export async function GET(request: NextRequest) {
   try {

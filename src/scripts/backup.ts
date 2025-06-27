@@ -1,8 +1,7 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'
-import { createReadStream, createWriteStream } from 'fs'
-import { pipeline } from 'stream/promises'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { createReadStream } from 'fs'
 import path from 'path'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
@@ -200,7 +199,7 @@ async function verifyBackup(backupPath: string, backupId: string) {
   }
 }
 
-async function cleanupOldBackups(retentionDays: number) {
+export const _cleanupOldBackups = async (retentionDays: number = 30) => {
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
 

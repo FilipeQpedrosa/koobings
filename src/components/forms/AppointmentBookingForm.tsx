@@ -50,6 +50,7 @@ export function AppointmentBookingForm({
     handleSubmit,
     formState: { errors },
     setValue,
+    reset,
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
   });
@@ -110,7 +111,8 @@ export function AppointmentBookingForm({
 
   const onSubmit = async (data: BookingFormData) => {
     try {
-      const response = await fetch('/api/appointments', {
+      setIsLoading(true);
+      await fetch('/api/appointments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,15 +122,12 @@ export function AppointmentBookingForm({
           clientId,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to book appointment');
-      }
-
-      const appointment = await response.json();
       router.push('/book/success');
     } catch (error) {
       console.error('Error booking appointment:', error);
+    } finally {
+      setIsLoading(false);
+      reset();
     }
   };
 

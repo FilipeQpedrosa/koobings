@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { ApiError, handleApiError } from '@/lib/utils/api/error'
 import { z } from 'zod'
 
 // GET: List visit history for a client relationship

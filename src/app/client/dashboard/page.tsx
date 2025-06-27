@@ -34,11 +34,12 @@ interface Activity {
 }
 
 export default function ClientDashboard() {
-  const { data: session } = useSession();
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  useSession();
 
   useEffect(() => {
     Promise.all([

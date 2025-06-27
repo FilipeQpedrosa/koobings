@@ -4,11 +4,11 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
+const categorySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  color: z.string().optional()
+})
 
 // GET: Get a specific category
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,13 +56,8 @@ export async function PATCH(request: Request) {
 
   try {
     // Input validation
-    const schema = z.object({
-      name: z.string().min(1),
-      description: z.string().optional(),
-      color: z.string().optional()
-    })
     const json = await request.json()
-    const { name, description, color } = schema.parse(json)
+    const { name, description, color } = categorySchema.parse(json)
 
     // Fetch category and business in one go
     const category = await prisma.serviceCategory.findUnique({

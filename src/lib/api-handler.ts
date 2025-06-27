@@ -70,7 +70,6 @@ export function createApiHandler<T = any, S = any>(
 ) {
   const wrappedHandler = async (req: NextApiRequest, res: NextApiResponse, user: CustomUser) => {
     try {
-      let result: T;
       let validatedData: S | undefined;
 
       if (schema) {
@@ -82,7 +81,7 @@ export function createApiHandler<T = any, S = any>(
         }
       }
 
-      result = await handler(req, res, user, validatedData);
+      const result = await handler(req, res, user, validatedData);
 
       const response: ApiResponse<T> = {
         success: true,

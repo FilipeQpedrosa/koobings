@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { startOfDay, endOfDay, parseISO, addMinutes } from 'date-fns';
+import { startOfDay, endOfDay, parseISO } from 'date-fns';
 import { z } from 'zod';
 
 export async function GET(request: Request) {

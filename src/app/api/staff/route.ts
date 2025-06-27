@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { StaffRole } from '@prisma/client';
-import { UserRole } from '@/types/dashboard';
 import { hash } from 'bcryptjs';
-
-const BUSINESS_OWNER: UserRole = 'BUSINESS_OWNER';
 
 // Validation schema for staff
 const staffSchema = z.object({
@@ -17,13 +14,15 @@ const staffSchema = z.object({
   businessId: z.string(),
 });
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.businessId) {
-      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found in session' } }, { status: 404 });
+    if (!session || !session.user?.businessId) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
-    const businessId = session.user.businessId;
+
+    const { businessId } = session.user;
+
     // Find business by ID
     const business = await prisma.business.findUnique({ where: { id: businessId } });
     if (!business) {

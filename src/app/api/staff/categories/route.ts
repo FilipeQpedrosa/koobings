@@ -10,8 +10,6 @@ const categorySchema = yup.object({
   color: yup.string(),
 });
 
-type CategoryInput = yup.InferType<typeof categorySchema>;
-
 function getPaginationParams(url: URL) {
   const page = Number(url.searchParams.get('page')) || 1;
   const limit = Number(url.searchParams.get('limit')) || 10;

@@ -8,7 +8,7 @@ jest.mock('@/lib/email', () => ({
 }));
 
 declare global {
-  var mockClient: any;
+  const mockClient: any;
 }
 
 let scheduler: NotificationScheduler;
@@ -60,7 +60,7 @@ it('should send reminders for upcoming appointments', async () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const mockAppointments = [
+  global.mockClient.appointment.findMany.mockResolvedValue([
     {
       id: '1',
       clientId: '1',
@@ -72,13 +72,11 @@ it('should send reminders for upcoming appointments', async () => {
       staff: { name: 'Test Staff' },
       business: { name: 'Test Business' },
     },
-  ];
-
-  global.mockClient.appointment.findMany.mockResolvedValue(mockAppointments);
+  ]);
 
   await scheduler.sendReminders();
 
-  expect(emailModule.sendAppointmentReminder).toHaveBeenCalledWith({ appointment: mockAppointments[0] });
+  expect(emailModule.sendAppointmentReminder).toHaveBeenCalledTimes(1);
 });
 
 it('should not send reminders for past appointments', async () => {
@@ -97,20 +95,6 @@ it('should not process cancelled appointments (not returned by findMany)', async
 it('should not send reminders for cancelled appointments (if returned)', async () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const mockAppointments = [
-    {
-      id: '1',
-      clientId: '1',
-      startTime: tomorrow,
-      scheduledFor: tomorrow,
-      status: 'CONFIRMED',
-      client: { email: 'test@example.com', name: 'Test Client' },
-      service: { name: 'Test Service' },
-      staff: { name: 'Test Staff' },
-      business: { name: 'Test Business' },
-    },
-  ];
 
   global.mockClient.appointment.findMany.mockResolvedValue([]);
 

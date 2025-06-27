@@ -4,12 +4,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
 // GET: Get a specific service
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(request: Request) {

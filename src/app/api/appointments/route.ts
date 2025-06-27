@@ -1,65 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { AppointmentService } from '@/lib/services/appointment';
-import { createApiHandler, ApiError } from '@/lib/api-handler';
-import * as yup from 'yup';
 import { prisma } from '@/lib/prisma';
-import { CustomUser } from '@/lib/auth';
-import { NextApiRequest, NextApiResponse } from 'next';
-import { sendAppointmentConfirmation, type AppointmentWithRelations } from '@/lib/email';
-import { z } from 'zod';
-
-// Schema for appointment creation
-const appointmentSchema = yup.object({
-  serviceId: yup.string().required(),
-  staffId: yup.string().required(),
-  clientId: yup.string().required(),
-  startTime: yup.date().required(),
-  notes: yup.string(),
-});
-
-// Schema for appointment status update
-const statusUpdateSchema = yup.object({
-  status: yup.string().oneOf([
-    'PENDING',
-    'CONFIRMED',
-    'CANCELLED',
-    'COMPLETED',
-    'NO_SHOW',
-    'RESCHEDULED',
-    'SCHEDULED',
-  ]).required(),
-  reason: yup.string(),
-});
-
-type AppointmentInput = yup.InferType<typeof appointmentSchema>;
-type StatusUpdateInput = yup.InferType<typeof statusUpdateSchema>;
-
-const appointmentService = new AppointmentService();
-
-// Validation schema for creating appointments
-const createAppointmentSchema = z.object({
-  startTime: z.string().transform((str) => new Date(str)),
-  clientId: z.string(),
-  serviceId: z.string(),
-  staffId: z.string(),
-  businessId: z.string(),
-  notes: z.string().optional(),
-  recurringPattern: z.object({
-    frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']),
-    interval: z.number().min(1),
-    daysOfWeek: z.array(z.number().min(0).max(6)).optional(),
-    endDate: z.string().transform((str) => new Date(str)).optional()
-  }).optional()
-});
-
-// Validation schema for updating appointments
-const updateAppointmentSchema = z.object({
-  startTime: z.string().transform((str) => new Date(str)).optional(),
-  notes: z.string().optional(),
-  status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW', 'RESCHEDULED']).optional()
-});
 
 // GET handler
 export async function GET(request: NextRequest) {

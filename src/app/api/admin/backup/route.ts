@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 
 const loggerInstance = logger.child({ service: 'backup-api' })
 
-export async function POST(_request: Request) {
+export async function POST() {
   try {
     // Check authentication
     const session = await getServerSession(authOptions)
@@ -34,7 +34,7 @@ export async function POST(_request: Request) {
   }
 }
 
-export async function GET(_request: Request) {
+export async function GET() {
   try {
     // Check authentication
     const session = await getServerSession(authOptions)

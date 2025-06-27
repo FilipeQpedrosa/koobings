@@ -11,9 +11,6 @@ export async function GET(request: NextRequest) {
   if (!business) {
     return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
   }
-  // Get all staff for this business
-  const staffList = await prisma.staff.findMany({ where: { businessId: business.id } });
-  const staffIds = staffList.map(s => s.id);
   const now = new Date();
   const weekFromNow = addDays(now, 7);
   // Appointments for all staff in this business

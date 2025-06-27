@@ -78,7 +78,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { status, notes, cancellationReason } = body;
+    const { status, notes } = body;
     console.log('PATCH /api/appointments/[id] payload:', body);
     console.log('PATCH /api/appointments/[id] session user:', session.user);
 

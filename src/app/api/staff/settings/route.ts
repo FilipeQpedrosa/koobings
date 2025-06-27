@@ -1,19 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-
-function parseSettings(settings: any) {
-  if (!settings) return {};
-  if (typeof settings === 'string') {
-    try {
-      return JSON.parse(settings);
-    } catch {
-      return {};
-    }
-  }
-  return settings;
-}
+import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
   const businessId = request.headers.get('x-business-id');

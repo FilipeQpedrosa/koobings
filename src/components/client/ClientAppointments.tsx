@@ -29,7 +29,7 @@ interface Appointment {
 }
 
 export default function ClientAppointments() {
-  const { data: session } = useSession();
+  useSession();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);

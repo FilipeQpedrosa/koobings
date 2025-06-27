@@ -90,7 +90,7 @@ export default function StaffSettingsCategoriesPage() {
     fetchCategories();
   }, []);
 
-  function openEditModal(category: Category) {
+  function openEditModal() {
     setShowDeleteDialog(false);
     setCategoryToDelete(null);
   }
@@ -212,7 +212,7 @@ export default function StaffSettingsCategoriesPage() {
                         <div className="font-semibold text-lg">{category.name}</div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEditModal(category)}>Edit</Button>
+                        <Button variant="ghost" size="sm" onClick={() => openEditModal()}>Edit</Button>
                         <Button variant="ghost" size="sm" className="text-red-600" onClick={() => openDeleteDialog(category)}>Remove</Button>
                       </div>
                     </div>
@@ -247,7 +247,7 @@ export default function StaffSettingsCategoriesPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{category.description || '—'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{category.services?.length || 0}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <Button variant="ghost" size="sm" onClick={() => openEditModal(category)}>Edit</Button>
+                          <Button variant="ghost" size="sm" onClick={() => openEditModal()}>Edit</Button>
                           <Button variant="ghost" size="sm" className="text-red-600 ml-2" onClick={() => openDeleteDialog(category)}>Remove</Button>
                         </td>
                       </tr>

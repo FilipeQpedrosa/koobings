@@ -73,7 +73,7 @@ export default function BusinessOnboardingForm() {
         throw new Error(error.message || 'Failed to create business');
       }
 
-      const result = await response.json();
+      await response.json();
       // Refresh session: sign out and sign in as the new admin staff
       await signOut({ redirect: false });
       await signIn('credentials', {

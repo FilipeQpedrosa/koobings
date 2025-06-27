@@ -11,11 +11,9 @@ import { useToast } from '@/components/ui/use-toast';
 
 export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -90,15 +88,8 @@ export default function SignInPage() {
           </Button>
         </form>
         <div className="text-center text-sm">
-          <p className="text-gray-500">
-            Don't have an account?{' '}
-            <Button
-              variant="link"
-              className="p-0 h-auto font-semibold"
-              onClick={() => router.push('/auth/signup')}
-            >
-              Sign up
-            </Button>
+          <p className="text-sm text-muted-foreground">
+            Don&apos;t have an account? Contact your administrator
           </p>
         </div>
       </Card>

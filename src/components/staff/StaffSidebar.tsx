@@ -81,16 +81,11 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
   const { data: session } = useSession();
   const staffRole = session?.user?.staffRole;
   const staffName = session?.user?.name;
-  const [canViewSettings, setCanViewSettings] = React.useState<boolean>(false);
-  React.useEffect(() => {
-    if (session?.user?.permissions) {
-      setCanViewSettings(session.user.permissions.includes('canViewSettings'));
-    }
-  }, [session]);
+  const _canViewSettings = session?.user?.staffRole === 'ADMIN' || session?.user?.permissions?.includes('canViewSettings');
 
   const filteredNavItems = navItems.filter(item => {
     if (item.title === 'Settings') {
-      return staffRole === 'ADMIN';
+      return _canViewSettings;
     }
     if (item.adminOnly) {
       return staffRole === 'ADMIN';

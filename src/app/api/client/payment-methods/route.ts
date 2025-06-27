@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 const prisma = new PrismaClient();
 
 // GET /api/client/payment-methods - Get client payment methods
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {

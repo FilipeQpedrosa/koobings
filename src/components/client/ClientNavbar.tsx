@@ -1,6 +1,5 @@
 'use client';
 
-import { signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { Bell, User, MessageSquare } from 'lucide-react';
 
