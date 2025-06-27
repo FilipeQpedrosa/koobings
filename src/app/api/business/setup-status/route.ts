@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Business, Prisma } from '@prisma/client';
+import { Business } from '@prisma/client';
 
 interface SetupTask {
   id: string;
@@ -21,7 +21,7 @@ interface BusinessWithSettings extends Omit<Business, 'settings'> {
   settings?: BusinessSettings;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 

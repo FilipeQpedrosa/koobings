@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 const prisma = new PrismaClient();
 
 // GET /api/patient/verify - Verify if user is a client (was patient)
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
@@ -40,4 +40,8 @@ export async function GET(request: Request) {
     console.error('Error verifying client:', error);
     return NextResponse.json({ success: false, error: { code: 'VERIFY_ERROR', message: 'Internal Server Error' } }, { status: 500 });
   }
+}
+
+export async function POST() {
+  // ... existing code ...
 } 

@@ -10,11 +10,9 @@ import { useToast } from '@/components/ui/use-toast';
 
 export default function AdminSignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  useSearchParams(); // Just call the hook without assigning
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

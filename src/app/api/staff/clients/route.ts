@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 // GET /api/staff/clients - List clients for the business
 // POST /api/staff/clients - Add a new client
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

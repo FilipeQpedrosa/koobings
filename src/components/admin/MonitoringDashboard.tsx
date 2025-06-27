@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { LineChart } from '@/components/ui/charts'
 import { logger } from '@/lib/logger'
 
 interface HealthStatus {
@@ -16,24 +15,8 @@ interface HealthStatus {
   responseTime: string
 }
 
-interface MetricPoint {
-  timestamp: number
-  value: number
-}
-
-interface SystemMetrics {
-  cpu: MetricPoint[]
-  memory: MetricPoint[]
-  responseTime: MetricPoint[]
-}
-
 export function MonitoringDashboard() {
   const [health, setHealth] = useState<HealthStatus | null>(null)
-  const [metrics, setMetrics] = useState<SystemMetrics>({
-    cpu: [],
-    memory: [],
-    responseTime: []
-  })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -42,20 +25,6 @@ export function MonitoringDashboard() {
         const response = await fetch('/api/health')
         const data = await response.json()
         setHealth(data)
-        
-        // Update metrics
-        const now = Date.now()
-        setMetrics(prev => ({
-          cpu: [...prev.cpu.slice(-30), { timestamp: now, value: Math.random() * 100 }],
-          memory: [...prev.memory.slice(-30), {
-            timestamp: now,
-            value: parseInt(data.checks.memory.details?.heapUsed || '0')
-          }],
-          responseTime: [...prev.responseTime.slice(-30), {
-            timestamp: now,
-            value: parseInt(data.responseTime)
-          }]
-        }))
       } catch (err) {
         const error = err as Error
         logger.error('Failed to fetch health status', error)
@@ -118,27 +87,29 @@ export function MonitoringDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="p-4">
-          <h3 className="font-semibold mb-4">Memory Usage</h3>
-          <LineChart
-            data={metrics.memory}
-            xKey="timestamp"
-            yKey="value"
-            label="Memory (MB)"
-          />
-        </Card>
+      <Card className="p-4">
+        <h3 className="font-semibold mb-2">Memory Status</h3>
+        <div className="space-y-2">
+          <Badge
+            variant={health.checks.memory.status === 'healthy' ? 'success' : 'destructive'}
+          >
+            {health.checks.memory.status}
+          </Badge>
+          <p className="text-sm text-gray-600">{health.checks.memory.message}</p>
+          {health.checks.memory.details && (
+            <div className="text-xs text-gray-500">
+              {Object.entries(health.checks.memory.details).map(([key, value]) => (
+                <div key={key}>{key}: {value}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
 
-        <Card className="p-4">
-          <h3 className="font-semibold mb-4">Response Time</h3>
-          <LineChart
-            data={metrics.responseTime}
-            xKey="timestamp"
-            yKey="value"
-            label="Response Time (ms)"
-          />
-        </Card>
-      </div>
+      <Card className="p-4">
+        <h3 className="font-semibold mb-2">Response Time</h3>
+        <p className="text-lg font-mono">{health.responseTime}</p>
+      </Card>
 
       <div className="mt-4 text-sm text-gray-500">
         Last updated: {new Date(health.timestamp).toLocaleString()}

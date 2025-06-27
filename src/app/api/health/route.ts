@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { RedisClient } from '@/lib/redis'
-import { getMetrics } from '@/middleware/monitoring'
 import { logger } from '@/lib/logger'
 
 interface HealthStatus {
@@ -17,12 +16,6 @@ interface HealthStatus {
       status: 'up' | 'down'
       latency: number
     }
-  }
-  metrics?: {
-    requestCount: number
-    errorCount: number
-    averageResponseTime: number
-    statusCodes: Record<number, number>
   }
 }
 
@@ -69,21 +62,6 @@ export async function GET() {
   } catch (error) {
     logger.error('Redis health check failed', { error })
     healthStatus.status = 'degraded'
-  }
-
-  try {
-    // Get metrics
-    const metrics = await getMetrics()
-    if (metrics) {
-      healthStatus.metrics = {
-        requestCount: metrics.requestCount,
-        errorCount: metrics.errorCount,
-        averageResponseTime: Math.round(metrics.averageResponseTime),
-        statusCodes: metrics.statusCodes
-      }
-    }
-  } catch (error) {
-    logger.error('Metrics retrieval failed', { error })
   }
 
   // If all services are down, mark as unhealthy

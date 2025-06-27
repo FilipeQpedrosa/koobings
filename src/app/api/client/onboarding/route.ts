@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
@@ -10,35 +8,35 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      name,
+      firstName,
+      lastName,
       email,
       phone,
-      businessId,
-      preferredContactMethod,
-      notificationPreferences,
-      servicePreferences,
-      medicalInfo,
+      insuranceInfo,
+      preferences
     } = body;
 
     // Create the client with all related information
     const client = await prisma.client.create({
       data: {
-        name,
+        name: `${firstName} ${lastName}`,
         email,
         phone,
-        businessId,
         status: 'ACTIVE',
         preferences: {
-          emailNotifications: notificationPreferences?.email ?? true,
-          smsNotifications: notificationPreferences?.sms ?? false,
-          reminderTime: notificationPreferences?.reminderTime ?? 24,
-          marketingEmails: notificationPreferences?.marketing ?? true,
-          preferredContactMethod,
-          servicePreferences,
+          emailNotifications: preferences?.email ?? true,
+          smsNotifications: preferences?.sms ?? false,
+          reminderTime: preferences?.reminderTime ?? 24,
+          marketingEmails: preferences?.marketing ?? true,
+          preferredContactMethod: preferences?.preferredContactMethod ?? 'EMAIL',
+          servicePreferences: preferences?.servicePreferences ?? [],
+        },
+        business: {
+          connect: { id: insuranceInfo?.businessId ?? '' }
         },
         clientRelationships: {
           create: {
-            businessId,
+            businessId: insuranceInfo?.businessId ?? '',
             status: 'ACTIVE',
           },
         },

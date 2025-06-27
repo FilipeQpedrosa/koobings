@@ -1,4 +1,4 @@
-import { AdminActivity, SystemAdmin } from '@prisma/client';
+import { AdminActivity } from '@prisma/client';
 
 export interface AdminActivityWithAdmin extends AdminActivity {
   admin: {

@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
+import prisma from '@/lib/prisma';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(request: Request) {

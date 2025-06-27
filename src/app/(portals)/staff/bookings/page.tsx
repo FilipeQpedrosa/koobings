@@ -452,7 +452,7 @@ export default function StaffBookingsPage() {
         setBookings(append ? [...bookings, ...data.data.appointments] : data.data.appointments);
         setHasMore(data.data.appointments.length === PAGE_SIZE);
       })
-      .catch(err => console.error("Failed to fetch bookings"))
+      .catch(() => console.error("Failed to fetch bookings"))
       .finally(() => setLoading(false));
   }
 
@@ -475,7 +475,7 @@ export default function StaffBookingsPage() {
         setServices(servicesData.data || []);
         setClients(clientsData.data || []);
         setStaffList(staffData.data || []);
-      } catch (err) {
+      } catch (_err) {
         console.error("Failed to load initial data.");
       } finally {
         setLoading(false);

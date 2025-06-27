@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { addMinutes } from 'date-fns';
 
 export async function POST(request: Request) {
   try {
@@ -37,8 +36,25 @@ export async function POST(request: Request) {
     const [hours, minutes] = time.split(':').map(Number);
     startDateTime.setHours(hours, minutes, 0, 0);
 
-    // Calculate end time based on service duration
-    const endDateTime = addMinutes(startDateTime, service.duration);
+    // Check if the slot is available
+    const existingAppointment = await prisma.appointment.findFirst({
+      where: {
+        scheduledFor: startDateTime,
+        service: { id: serviceId },
+        staff: { id: staffId }
+      },
+      include: {
+        service: true,
+        staff: true
+      }
+    });
+
+    if (existingAppointment) {
+      return NextResponse.json(
+        { success: false, error: { code: 'SLOT_NOT_AVAILABLE', message: 'Slot not available' } },
+        { status: 400 }
+      );
+    }
 
     // First, ensure the client exists
     const clientData = session?.user?.email ? {

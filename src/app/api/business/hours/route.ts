@@ -23,7 +23,7 @@ const businessHoursSchema = z.object({
   }, 'End time must be after start time')
 });
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 

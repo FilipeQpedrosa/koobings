@@ -2,15 +2,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
-import { z } from 'zod';
-
-const categorySchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  color: z.string().optional(),
-});
-
-type CategoryInput = z.infer<typeof categorySchema>;
 
 function getPaginationParams(url: URL) {
   const page = Number(url.searchParams.get('page')) || 1;
@@ -73,18 +64,10 @@ export async function POST(request: Request) {
     } catch (err) {
       return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
-    let validatedData;
-    try {
-      validatedData = categorySchema.parse(body);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return NextResponse.json({ success: false, error: { code: 'INVALID_CATEGORY_DATA', message: 'Invalid category data', details: error.errors } }, { status: 400 });
-      }
-      throw error;
-    }
+    
     const category = await prisma.serviceCategory.create({
       data: {
-        ...validatedData,
+        ...body,
         businessId,
       },
       include: { services: true },
@@ -112,15 +95,7 @@ export async function PUT(request: Request) {
     } catch (err) {
       return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
-    let validatedData;
-    try {
-      validatedData = categorySchema.parse(body);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return NextResponse.json({ success: false, error: { code: 'INVALID_CATEGORY_DATA', message: 'Invalid category data', details: error.errors } }, { status: 400 });
-      }
-      throw error;
-    }
+    
     const existingCategory = await prisma.serviceCategory.findFirst({
       where: { id: categoryId, businessId, isDeleted: false },
     });
@@ -129,7 +104,7 @@ export async function PUT(request: Request) {
     }
     const category = await prisma.serviceCategory.update({
       where: { id: categoryId },
-      data: { ...validatedData },
+      data: { ...body },
       include: { services: true },
     });
     return NextResponse.json({ success: true, data: category });

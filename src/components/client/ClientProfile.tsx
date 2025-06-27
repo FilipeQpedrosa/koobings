@@ -19,7 +19,7 @@ interface ClientProfile {
 }
 
 export default function ClientProfile() {
-  const { data: session } = useSession();
+  useSession();
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState('');

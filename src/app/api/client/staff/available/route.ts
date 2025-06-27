@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { startOfDay, endOfDay, addMinutes, isWithinInterval, areIntervalsOverlapping, parse, format } from 'date-fns';
+import { startOfDay, endOfDay, addMinutes, isWithinInterval, areIntervalsOverlapping, parse } from 'date-fns';
 
 export async function GET(request: Request) {
   try {

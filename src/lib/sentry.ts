@@ -1,6 +1,5 @@
 // Sentry integration removed because @sentry/nextjs is not installed and not compatible with Next.js 15+
 // import * as Sentry from '@sentry/nextjs'
-import { env } from './env'
 
 // if (SENTRY_DSN) {
 //   Sentry.init({

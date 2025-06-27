@@ -7,7 +7,7 @@ import { addDays, startOfDay, endOfDay } from 'date-fns';
 const VALID_STATUSES = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
 type AppointmentStatus = typeof VALID_STATUSES[number];
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
