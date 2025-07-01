@@ -67,15 +67,6 @@ interface StaffSidebarProps {
   onClose?: () => void;
 }
 
-function StaffAvatar({ name }: { name?: string }) {
-  const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
-  return (
-    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-      {initials}
-    </div>
-  );
-}
-
 const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, onClose }) => {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -97,40 +88,44 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
   const desktopSidebar = (
     <nav
       className={cn(
-        'hidden sm:block w-64 bg-white shadow-none pb-12',
+        'hidden sm:block w-64 bg-gradient-to-b from-slate-50 to-gray-100 shadow-lg border-r border-gray-200 pb-12',
         className
       )}
       style={{ minWidth: '16rem' }}
       aria-label="Sidebar"
     >
-      <div className="space-y-4 py-4">
+      <div className="space-y-4 py-6">
         <Link
           href="/staff/profile"
-          className="flex items-center gap-3 px-3 py-2 mb-2 hover:bg-gray-100 rounded-lg transition"
+          className="flex items-center gap-3 px-4 py-3 mx-3 bg-white hover:bg-blue-50 hover:shadow-md rounded-xl transition-all duration-200 border border-gray-100"
         >
           <div className="flex items-center gap-3 w-full">
-            <StaffAvatar name={staffName} />
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+              {staffName ? staffName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+            </div>
             <div>
-              <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
-              <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
+              <div className="font-semibold leading-tight text-gray-800">{staffName || 'Staff'}</div>
+              <div className="text-xs text-blue-600 capitalize font-medium">{staffRole?.toLowerCase() || ''}</div>
             </div>
           </div>
         </Link>
         <div className="px-3 py-2">
-          <div className="space-y-1">
+          <div className="space-y-2">
             {filteredNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
+                  'flex items-center rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200',
                   pathname === item.href
-                    ? 'bg-accent text-accent-foreground'
-                    : 'transparent'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105'
+                    : 'text-gray-700 hover:bg-white hover:text-blue-600 hover:shadow-md hover:transform hover:scale-102'
                 )}
               >
                 <div className="flex items-center w-full">
-                  {item.icon}
+                  <div className={pathname === item.href ? 'text-white' : 'text-gray-500'}>
+                    {item.icon}
+                  </div>
                   <span className="ml-3">{item.title}</span>
                 </div>
               </Link>
@@ -141,7 +136,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
       <div className="px-3 py-2 mt-auto">
         <button
           onClick={() => signOut()}
-          className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
+          className="flex w-full items-center rounded-xl px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 hover:shadow-md"
         >
           <LogOut className="h-5 w-5" />
           <span className="ml-3">Sign Out</span>
@@ -153,55 +148,82 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
   // Mobile sidebar
   const mobileSidebar = open ? (
     <>
+      {/* Backdrop overlay */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-40 z-40 sm:hidden cursor-pointer"
+        className="fixed inset-0 bg-black bg-opacity-60 z-40 sm:hidden backdrop-blur-sm"
         onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+        }}
         aria-label="Close sidebar backdrop"
       />
+      {/* Sidebar panel */}
       <nav
-        className={cn(
-          'fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 flex flex-col pb-12 transform transition-transform duration-200 sm:hidden',
-          open ? 'translate-x-0' : '-translate-x-full',
-          className
-        )}
-        style={{ minWidth: '16rem' }}
-        aria-label="Sidebar"
+        className="fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-white via-slate-50 to-gray-100 shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-in-out sm:hidden border-r border-gray-200"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '16rem',
+          height: '100vh',
+          maxHeight: '100vh',
+          transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        }}
+        aria-label="Mobile Sidebar"
       >
-        <div className="flex items-center justify-between px-4 py-4 border-b">
-          <span className="font-bold text-lg">Menu</span>
-          <button onClick={onClose} aria-label="Close sidebar">
-            <CloseIcon className="h-6 w-6" />
+        {/* Header with close button */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600">
+          <span className="font-bold text-lg text-white">Menu</span>
+          <button 
+            onClick={onClose} 
+            aria-label="Close sidebar"
+            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+          >
+            <CloseIcon className="h-6 w-6 text-white" />
           </button>
         </div>
+        
+        {/* Profile section */}
         <Link
           href="/staff/profile"
-          className="flex items-center gap-3 px-4 py-4 border-b hover:bg-gray-100 transition"
+          className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 bg-white hover:bg-blue-50 transition-colors mx-3 mt-3 rounded-xl shadow-sm"
+          onClick={onClose}
         >
-          <div className="flex items-center gap-3 w-full">
-            <StaffAvatar name={staffName} />
-            <div>
-              <div className="font-semibold leading-tight">{staffName || 'Staff'}</div>
-              <div className="text-xs text-gray-500 capitalize">{staffRole?.toLowerCase() || ''}</div>
-            </div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+            {staffName ? staffName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-gray-900 truncate">{staffName || 'Staff'}</div>
+            <div className="text-xs text-blue-600 capitalize font-medium">{staffRole?.toLowerCase() || ''}</div>
           </div>
         </Link>
-        <div className="space-y-4 py-4">
-          <div className="px-3 py-2">
-            <div className="space-y-1">
+        
+        {/* Navigation links */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-3 py-4">
+            <div className="space-y-2">
               {filteredNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
+                    'flex items-center rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200',
                     pathname === item.href
-                      ? 'bg-accent text-accent-foreground'
-                      : 'transparent'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                      : 'text-gray-700 hover:bg-white hover:text-blue-600 hover:shadow-md'
                   )}
                   onClick={onClose}
                 >
                   <div className="flex items-center w-full">
-                    {item.icon}
+                    <div className={pathname === item.href ? 'text-white' : 'text-gray-500'}>
+                      {item.icon}
+                    </div>
                     <span className="ml-3">{item.title}</span>
                   </div>
                 </Link>
@@ -209,10 +231,15 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
             </div>
           </div>
         </div>
-        <div className="px-3 py-2 mt-auto">
+        
+        {/* Sign out button */}
+        <div className="px-3 py-4 border-t border-gray-200 bg-gray-50">
           <button
-            onClick={() => { signOut(); if (onClose) onClose(); }}
-            className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
+            onClick={() => { 
+              signOut(); 
+              if (onClose) onClose(); 
+            }}
+            className="flex w-full items-center rounded-xl px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 hover:shadow-md bg-white"
           >
             <LogOut className="h-5 w-5" />
             <span className="ml-3">Sign Out</span>

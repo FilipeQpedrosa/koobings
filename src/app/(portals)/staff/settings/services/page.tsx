@@ -22,9 +22,10 @@ interface ServiceModalProps {
   handleAddOrEditService: (e: React.FormEvent) => void;
   categories: { id: string; name: string }[];
   editService: Service | null;
+  isSubmitting: boolean;
 }
 
-function ServiceModal({ form, setForm, formError, setShowModal, handleAddOrEditService, categories, editService }: ServiceModalProps) {
+function ServiceModal({ form, setForm, formError, setShowModal, handleAddOrEditService, categories, editService, isSubmitting }: ServiceModalProps) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
@@ -86,11 +87,23 @@ function ServiceModal({ form, setForm, formError, setShowModal, handleAddOrEditS
           </div>
           {formError && <div className="text-red-600 text-sm">{formError}</div>}
           <div className="flex justify-end gap-2 mt-6">
-            <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setShowModal(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit">
-              {editService ? "Save Changes" : "Add Service"}
+            <Button 
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                editService ? "Saving..." : "Adding..."
+              ) : (
+                editService ? "Save Changes" : "Add Service"
+              )}
             </Button>
           </div>
         </form>
@@ -121,6 +134,7 @@ export default function StaffSettingsServicesPage() {
   const [deleteService, setDeleteService] = useState<Service | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (status === 'loading' || !session) return;
@@ -223,6 +237,7 @@ export default function StaffSettingsServicesPage() {
       return;
     }
     try {
+      setIsSubmitting(true);
       const payload: any = {
         name: form.name,
         duration: Number(form.duration),
@@ -288,6 +303,8 @@ export default function StaffSettingsServicesPage() {
       } else {
         setFormError("Failed to save service");
       }
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -447,6 +464,7 @@ export default function StaffSettingsServicesPage() {
           handleAddOrEditService={handleAddOrEditService}
           categories={categories}
           editService={editService}
+          isSubmitting={isSubmitting}
         />
       )}
     </>

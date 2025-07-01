@@ -2,22 +2,34 @@
 
 import { useState, useEffect } from "react";
 import StaffSidebar from '@/components/Staff/StaffSidebar';
-import { Menu, X as CloseIcon } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { usePathname } from "next/navigation";
 
 export default function StaffPortalLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
-  // Prevent background scroll (vertical and horizontal) when sidebar is open
+  // Prevent background scroll when sidebar is open
   useEffect(() => {
     if (sidebarOpen) {
-      document.body.classList.add('overflow-hidden', 'overflow-x-hidden');
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
     } else {
-      document.body.classList.remove('overflow-hidden', 'overflow-x-hidden');
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
     }
+    
     // Clean up on unmount
-    return () => document.body.classList.remove('overflow-hidden', 'overflow-x-hidden');
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    };
   }, [sidebarOpen]);
 
   // Close sidebar automatically on route change
@@ -26,24 +38,26 @@ export default function StaffPortalLayout({ children }: { children: React.ReactN
   }, [pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Hamburger for mobile */}
-      <button
-        className={`sm:hidden fixed top-4 left-4 z-50 bg-white rounded-full shadow p-2 border border-gray-200 transition-all ${sidebarOpen ? 'ring-2 ring-primary' : ''}`}
-        onClick={() => setSidebarOpen((open) => !open)}
-        aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-      >
-        {sidebarOpen ? <CloseIcon className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
-      {/* Mobile sidebar and backdrop overlay at top level */}
-      {sidebarOpen && (
-        <StaffSidebar className="block sm:hidden fixed inset-0 z-50" open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div className="min-h-screen flex flex-col overflow-x-hidden max-w-full">
+      {/* Hamburger for mobile - only show when sidebar is closed */}
+      {!sidebarOpen && (
+        <button
+          className="sm:hidden fixed top-4 left-4 z-40 bg-white rounded-full shadow-lg p-3 border border-gray-200 transition-all hover:shadow-xl"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open sidebar"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
       )}
-      <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-        {/* Desktop sidebar (always visible on sm+) */}
-        <StaffSidebar className="hidden sm:block" />
+      
+      <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-x-hidden max-w-full">
+        {/* Sidebar - handles its own mobile/desktop rendering */}
+        <StaffSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        
         {/* Main content */}
-        <main className="flex-1 w-full p-2 sm:p-8 overflow-y-auto max-w-full">{children}</main>
+        <main className="flex-1 w-full min-w-0 p-2 sm:p-8 overflow-y-auto overflow-x-hidden">
+          {children}
+        </main>
       </div>
     </div>
   );

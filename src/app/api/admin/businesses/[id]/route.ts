@@ -31,6 +31,42 @@ export async function GET(request: NextRequest, { params }: any) {
       where: { id: params.id },
       include: {
         verification: true,
+        staff: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        },
+        services: {
+          select: {
+            id: true,
+            name: true,
+            duration: true,
+            price: true
+          }
+        },
+        appointments: {
+          select: {
+            id: true,
+            scheduledFor: true,
+            client: {
+              select: {
+                name: true
+              }
+            },
+            service: {
+              select: {
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            scheduledFor: 'desc'
+          },
+          take: 10
+        },
         _count: {
           select: {
             clients: true,

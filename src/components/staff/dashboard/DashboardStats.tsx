@@ -12,14 +12,16 @@ interface StatsCardProps {
 }
 
 const StatsCard = ({ title, value, description, icon }: StatsCardProps) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      {icon}
+  <Card className="bg-white border-2 border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-200">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 bg-gradient-to-r from-blue-50 to-purple-50">
+      <CardTitle className="text-sm font-bold text-gray-800">{title}</CardTitle>
+      <div className="text-blue-600">
+        {icon}
+      </div>
     </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-      <p className="text-xs text-muted-foreground">{description}</p>
+    <CardContent className="pt-4">
+      <div className="text-3xl font-black text-gray-900 mb-1">{value}</div>
+      <p className="text-sm text-gray-600 font-medium">{description}</p>
     </CardContent>
   </Card>
 );
@@ -41,17 +43,17 @@ export default function DashboardStats({
 
   // Mobile summary bar
   const summary = (
-    <div className="sm:hidden flex items-center justify-between bg-white rounded-lg shadow px-4 py-3 mb-2 border">
+    <div className="sm:hidden flex items-center justify-between bg-white rounded-xl shadow-lg px-4 py-4 mb-4 border-2 border-gray-200">
       <div className="flex flex-col text-sm">
-        <span className="font-semibold">{upcomingAppointments} Upcoming</span>
-        <span className="text-xs text-gray-500">{totalAppointments} Total • {totalClients} Clients • {completionRate}% Complete</span>
+        <span className="font-black text-lg text-gray-900">{upcomingAppointments} Upcoming</span>
+        <span className="text-sm text-gray-700 font-semibold">{totalAppointments} Total • {totalClients} Clients • {completionRate}% Complete</span>
       </div>
       <button
-        className="ml-4 p-2 rounded-full hover:bg-gray-100 transition"
+        className="ml-4 p-3 rounded-full bg-blue-100 hover:bg-blue-200 transition-colors border border-blue-200"
         onClick={() => setCollapsed((c) => !c)}
         aria-label={collapsed ? 'Show stats' : 'Hide stats'}
       >
-        {collapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+        {collapsed ? <ChevronDown className="h-6 w-6 text-blue-600" /> : <ChevronUp className="h-6 w-6 text-blue-600" />}
       </button>
     </div>
   );
@@ -62,30 +64,30 @@ export default function DashboardStats({
       {summary}
       {/* Desktop: always show grid; Mobile: show grid if expanded */}
       <div className={collapsed ? 'hidden sm:block' : 'block sm:block'}>
-        <div className="grid grid-cols-1 gap-4 gap-y-4 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 w-full">
       <StatsCard
         title="Total Appointments"
         value={totalAppointments}
         description="All time appointments"
-        icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />}
+        icon={<CalendarDays className="h-5 w-5" />}
       />
       <StatsCard
         title="Upcoming"
         value={upcomingAppointments}
         description="Next 7 days"
-        icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+        icon={<Clock className="h-5 w-5" />}
       />
       <StatsCard
         title="Total Clients"
         value={totalClients}
         description="Unique clients served"
-        icon={<Users className="h-4 w-4 text-muted-foreground" />}
+        icon={<Users className="h-5 w-5" />}
       />
       <StatsCard
         title="Completion Rate"
         value={`${completionRate}%`}
         description="Last 30 days"
-        icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}
+        icon={<CheckCircle className="h-5 w-5" />}
       />
     </div>
       </div>

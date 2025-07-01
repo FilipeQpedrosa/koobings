@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/Calendar';
+import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 
@@ -36,10 +36,24 @@ function getStatusColor(status: Appointment['status']) {
   }
 }
 
+function getStatusLabel(status: Appointment['status']) {
+  switch (status) {
+    case 'COMPLETED':
+      return 'Concluído';
+    case 'CANCELLED':
+      return 'Cancelado';
+    case 'PENDING':
+      return 'Pendente';
+    default:
+      return status;
+  }
+}
+
 export default function RecentAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dateFilter, setDateFilter] = useState('ALL');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -47,10 +61,52 @@ export default function RecentAppointments() {
     async function fetchAppointments() {
       setIsLoading(true);
       let url = '/api/business/appointments?limit=10';
-      if (dateRange?.from) {
-        url = `/api/business/appointments?startDate=${format(dateRange.from, 'yyyy-MM-dd')}`;
-        if (dateRange.to) {
-          url += `&endDate=${format(dateRange.to, 'yyyy-MM-dd')}`;
+      
+      // Calculate date range based on dateFilter
+      const now = new Date();
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+      
+      switch (dateFilter) {
+        case 'TODAY':
+          startDate = format(now, 'yyyy-MM-dd');
+          endDate = format(now, 'yyyy-MM-dd');
+          break;
+        case 'TOMORROW':
+          const tomorrow = new Date(now);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          startDate = format(tomorrow, 'yyyy-MM-dd');
+          endDate = format(tomorrow, 'yyyy-MM-dd');
+          break;
+        case 'THIS_WEEK':
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() - now.getDay());
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          startDate = format(startOfWeek, 'yyyy-MM-dd');
+          endDate = format(endOfWeek, 'yyyy-MM-dd');
+          break;
+        case 'NEXT_WEEK':
+          const nextWeekStart = new Date(now);
+          nextWeekStart.setDate(now.getDate() + (7 - now.getDay()));
+          const nextWeekEnd = new Date(nextWeekStart);
+          nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
+          startDate = format(nextWeekStart, 'yyyy-MM-dd');
+          endDate = format(nextWeekEnd, 'yyyy-MM-dd');
+          break;
+        case 'THIS_MONTH':
+          startDate = format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd');
+          endDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), 'yyyy-MM-dd');
+          break;
+        default:
+          // ALL - no date filter
+          break;
+      }
+      
+      if (startDate) {
+        url = `/api/business/appointments?startDate=${startDate}`;
+        if (endDate) {
+          url += `&endDate=${endDate}`;
         }
       }
       
@@ -67,7 +123,7 @@ export default function RecentAppointments() {
       }
     }
     fetchAppointments();
-  }, [dateRange]);
+  }, [dateFilter]);
 
   const filteredAppointments = statusFilter === 'ALL'
     ? appointments
@@ -84,71 +140,50 @@ export default function RecentAppointments() {
       if (!res.ok) throw new Error('Failed to update status');
       setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
     } catch (err) {
-      alert('Failed to update status');
+      alert('Falha ao atualizar status');
     } finally {
       setUpdatingId(null);
     }
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 md:p-8 w-full">
-      <h2 className="text-2xl md:text-3xl font-bold mb-6">Recent Appointments</h2>
+    <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 w-full max-w-full border-2 border-gray-200">
+      <h2 className="text-2xl sm:text-3xl font-black mb-6 text-gray-900">Agendamentos Recentes</h2>
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {/* Status Filter */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="status-filter" className="font-medium">Status:</label>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <label htmlFor="status-filter" className="font-bold text-gray-800 whitespace-nowrap">Status:</label>
           <select
             id="status-filter"
-            className="border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border-2 border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full max-w-[150px] bg-white text-gray-800 font-semibold"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
           >
-            <option value="ALL">All</option>
-            <option value="PENDING">Pending</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
+            <option value="ALL">Todos</option>
+            <option value="PENDING">Pendente</option>
+            <option value="CONFIRMED">Confirmado</option>
+            <option value="COMPLETED">Concluído</option>
+            <option value="CANCELLED">Cancelado</option>
+            <option value="NO_SHOW">Não Compareceu</option>
           </select>
         </div>
 
-        {/* Date Range Picker */}
-        <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                id="date"
-                variant={"outline"}
-                className={cn(
-                  "w-[240px] justify-start text-left font-normal",
-                  !dateRange && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y", { locale: enUS })} -{" "}
-                      {format(dateRange.to, "LLL dd, y", { locale: enUS })}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y", { locale: enUS })
-                  )
-                ) : (
-                  <span>Pick a date</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-                locale={enUS}
-              />
-            </PopoverContent>
-          </Popover>
+        {/* Date Filter */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <label htmlFor="date-filter" className="font-bold text-gray-800 whitespace-nowrap">Período:</label>
+          <select
+            id="date-filter"
+            className="border-2 border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full max-w-[150px] bg-white text-gray-800 font-semibold"
+            value={dateFilter}
+            onChange={e => setDateFilter(e.target.value)}
+          >
+            <option value="ALL">Todos</option>
+            <option value="TODAY">Hoje</option>
+            <option value="TOMORROW">Amanhã</option>
+            <option value="THIS_WEEK">Esta Semana</option>
+            <option value="NEXT_WEEK">Próxima Semana</option>
+            <option value="THIS_MONTH">Este Mês</option>
+          </select>
         </div>
       </div>
       
@@ -161,18 +196,18 @@ export default function RecentAppointments() {
           {/* Mobile Card View */}
           <div className="sm:hidden space-y-4">
             {filteredAppointments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No appointments match the current filters.</div>
+              <div className="text-center py-8 text-gray-500">Nenhum agendamento encontrado com os filtros atuais.</div>
             ) : (
               filteredAppointments.map((apt) => (
                 <div key={apt.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-lg">{apt.client.name}</h3>
                     <Badge className={cn(getStatusColor(apt.status), "text-xs")}>
-                      {apt.status}
+                      {getStatusLabel(apt.status)}
                     </Badge>
                   </div>
                   <div className="text-gray-700">{apt.services?.[0]?.name}</div>
-                  <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: enUS })}</div>
+                  <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
                   <div className="text-sm text-gray-500">{apt.duration} min</div>
                   <div className="mt-4">
                      <select
@@ -181,9 +216,9 @@ export default function RecentAppointments() {
                         disabled={updatingId === apt.id}
                         onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'COMPLETED' | 'CANCELLED')}
                       >
-                        <option value="PENDING">Pending</option>
-                        <option value="COMPLETED">Completed</option>
-                        <option value="CANCELLED">Cancelled</option>
+                        <option value="PENDING">Pendente</option>
+                        <option value="COMPLETED">Concluído</option>
+                        <option value="CANCELLED">Cancelado</option>
                       </select>
                   </div>
                 </div>
@@ -191,52 +226,54 @@ export default function RecentAppointments() {
             )}
           </div>
           {/* Desktop Table View */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="min-w-full w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Client</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Service</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Date & Time</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Duration</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAppointments.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-500">No appointments match the current filters.</td>
+          <div className="hidden sm:block w-full">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead>
+                  <tr className="border-b">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Cliente</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Serviço</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Data & Hora</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Duração</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Ação</th>
                   </tr>
-                ) : (
-                  filteredAppointments.map((apt) => (
-                    <tr key={apt.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">{apt.client.name}</td>
-                      <td className="px-4 py-3">{apt.services?.[0]?.name}</td>
-                      <td className="px-4 py-3">{format(new Date(apt.scheduledFor), 'PP p', { locale: enUS })}</td>
-                      <td className="px-4 py-3">{apt.duration} min</td>
-                      <td className="px-4 py-3">
-                        <Badge className={cn(getStatusColor(apt.status), "text-xs")}>
-                          {apt.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          className="border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                          value={apt.status}
-                          disabled={updatingId === apt.id}
-                          onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'COMPLETED' | 'CANCELLED')}
-                        >
-                          <option value="PENDING">Pending</option>
-                          <option value="COMPLETED">Completed</option>
-                          <option value="CANCELLED">Cancelled</option>
-                        </select>
-                      </td>
+                </thead>
+                <tbody>
+                  {filteredAppointments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-gray-500">Nenhum agendamento encontrado com os filtros atuais.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredAppointments.map((apt) => (
+                      <tr key={apt.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                        <td className="px-4 py-4 font-medium text-sm">{apt.client.name}</td>
+                        <td className="px-4 py-4 text-sm">{apt.services?.[0]?.name}</td>
+                        <td className="px-4 py-4 text-sm whitespace-nowrap">{format(new Date(apt.scheduledFor), 'dd/MM HH:mm', { locale: ptBR })}</td>
+                        <td className="px-4 py-4 text-sm">{apt.duration}min</td>
+                        <td className="px-4 py-4">
+                          <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap")}>
+                            {getStatusLabel(apt.status)}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <select
+                            className="border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm min-w-[120px]"
+                            value={apt.status}
+                            disabled={updatingId === apt.id}
+                            onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'COMPLETED' | 'CANCELLED')}
+                          >
+                            <option value="PENDING">Pendente</option>
+                            <option value="COMPLETED">Concluído</option>
+                            <option value="CANCELLED">Cancelado</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
