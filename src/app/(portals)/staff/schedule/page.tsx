@@ -97,7 +97,7 @@ export default function StaffSchedulePage() {
       const data = await res.json();
       const newEvents = (data.data.appointments || []).map((apt: any) => ({
         id: apt.id,
-        title: (apt.services?.[0]?.name) || 'Appointment',
+        title: (apt.services?.[0]?.name) || 'Agendamento',
         start: new Date(apt.scheduledFor),
         end: moment(apt.scheduledFor).add(apt.duration, 'minutes').toDate(),
         allDay: false,
@@ -161,13 +161,13 @@ export default function StaffSchedulePage() {
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-8 py-4 sm:py-8 w-full">
       <div className="flex items-center justify-between mb-4 mt-8">
-        <h1 className="text-2xl sm:text-3xl font-bold">My Schedule</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Minha Agenda</h1>
         <Button variant="outline" size="sm" onClick={() => fetchAppointments(range?.start, range?.end)} disabled={loading}>
-          {loading ? 'Refreshing...' : 'Refresh'}
+          {loading ? 'Atualizando...' : 'Atualizar'}
         </Button>
       </div>
       {loading ? (
-        <div>Loading schedule...</div>
+        <div>Carregando agenda...</div>
       ) : isMobile ? (
         <MobileMonthCalendar
           appointments={appointmentEvents}
@@ -200,9 +200,9 @@ export default function StaffSchedulePage() {
           toolbar
           onSelectEvent={event => setSelectedEvent(event)}
           messages={{
-            month: 'Month',
-            week: 'Week',
-            day: 'Day',
+            month: 'Mês',
+            week: 'Semana',
+            day: 'Dia',
             agenda: 'Agenda',
           }}
         />
@@ -210,17 +210,17 @@ export default function StaffSchedulePage() {
       {/* Event details modal */}
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
         <DialogContent>
-          <DialogTitle>Appointment Details</DialogTitle>
+          <DialogTitle>Detalhes do Agendamento</DialogTitle>
           <DialogDescription asChild>
             <div>
-              <div><b>Service:</b> {selectedEvent?.serviceName || selectedEvent?.service?.name || '—'}</div>
+              <div><b>Serviço:</b> {selectedEvent?.serviceName || selectedEvent?.service?.name || '—'}</div>
               <div><b>Status:</b> {selectedEvent?.status}</div>
-              <div><b>Start:</b> {selectedEvent ? moment(selectedEvent.start || selectedEvent.startTime).format('LLLL') : ''}</div>
-              <div><b>End:</b> {selectedEvent ? moment(selectedEvent.end || selectedEvent.endTime).format('LLLL') : ''}</div>
+              <div><b>Início:</b> {selectedEvent ? moment(selectedEvent.start || selectedEvent.startTime).format('LLLL') : ''}</div>
+              <div><b>Fim:</b> {selectedEvent ? moment(selectedEvent.end || selectedEvent.endTime).format('LLLL') : ''}</div>
             </div>
           </DialogDescription>
           <DialogFooter>
-            <Button onClick={() => setSelectedEvent(null)}>Close</Button>
+            <Button onClick={() => setSelectedEvent(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

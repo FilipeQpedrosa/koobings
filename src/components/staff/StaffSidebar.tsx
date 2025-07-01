@@ -29,33 +29,33 @@ const navItems: NavItem[] = [
     icon: <Home className="h-5 w-5" />,
   },
   {
-    title: 'Schedule',
+    title: 'Agenda',
     href: '/staff/schedule',
     icon: <Calendar className="h-5 w-5" />,
   },
   {
-    title: 'Staff',
+    title: 'Equipe',
     href: '/staff/settings/staff',
     icon: <Users className="h-5 w-5" />,
     adminOnly: true,
   },
   {
-    title: 'Clients',
+    title: 'Clientes',
     href: '/staff/clients',
     icon: <Users className="h-5 w-5" />,
   },
   {
-    title: 'Bookings',
+    title: 'Agendamentos',
     href: '/staff/bookings',
     icon: <Calendar className="h-5 w-5" />,
   },
   {
-    title: 'Settings',
+    title: 'Configurações',
     href: '/staff/settings',
     icon: <Settings className="h-5 w-5" />,
   },
   {
-    title: 'Profile',
+    title: 'Perfil',
     href: '/staff/profile',
     icon: <User className="h-5 w-5" />,
   },
@@ -75,7 +75,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
   const _canViewSettings = session?.user?.staffRole === 'ADMIN' || session?.user?.permissions?.includes('canViewSettings');
 
   const filteredNavItems = navItems.filter(item => {
-    if (item.title === 'Settings') {
+    if (item.title === 'Configurações') {
       return _canViewSettings;
     }
     if (item.adminOnly) {
@@ -104,7 +104,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
               {staffName ? staffName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
             </div>
             <div>
-              <div className="font-semibold leading-tight text-gray-800">{staffName || 'Staff'}</div>
+              <div className="font-semibold leading-tight text-gray-800">{staffName || 'Funcionário'}</div>
               <div className="text-xs text-blue-600 capitalize font-medium">{staffRole?.toLowerCase() || ''}</div>
             </div>
           </div>
@@ -139,7 +139,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
           className="flex w-full items-center rounded-xl px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 hover:shadow-md"
         >
           <LogOut className="h-5 w-5" />
-          <span className="ml-3">Sign Out</span>
+          <span className="ml-3">Sair</span>
         </button>
       </div>
     </nav>
@@ -199,7 +199,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
             {staffName ? staffName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-gray-900 truncate">{staffName || 'Staff'}</div>
+            <div className="font-semibold text-gray-900 truncate">{staffName || 'Funcionário'}</div>
             <div className="text-xs text-blue-600 capitalize font-medium">{staffRole?.toLowerCase() || ''}</div>
           </div>
         </Link>
@@ -242,7 +242,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
             className="flex w-full items-center rounded-xl px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 hover:shadow-md bg-white"
           >
             <LogOut className="h-5 w-5" />
-            <span className="ml-3">Sign Out</span>
+            <span className="ml-3">Sair</span>
           </button>
         </div>
       </nav>

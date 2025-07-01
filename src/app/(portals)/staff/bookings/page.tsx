@@ -19,9 +19,9 @@ interface Booking {
 
 function StatusBadge({ status }: { status: string }) {
   const statusMap: Record<string, { label: string; color: string }> = {
-    PENDING: { label: 'Booked', color: 'bg-yellow-200 text-yellow-800' },
-    COMPLETED: { label: 'Completed', color: 'bg-green-200 text-green-800' },
-    CANCELLED: { label: 'Cancelled', color: 'bg-red-200 text-red-800' },
+    PENDING: { label: 'Marcado', color: 'bg-yellow-200 text-yellow-800' },
+    COMPLETED: { label: 'Concluído', color: 'bg-green-200 text-green-800' },
+    CANCELLED: { label: 'Cancelado', color: 'bg-red-200 text-red-800' },
   };
   const s = statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
   return (
@@ -504,17 +504,17 @@ export default function StaffBookingsPage() {
   const filteredBookings = bookings; // Filtering is now done on the server
 
   const statusOptions = [
-    { value: 'ALL', label: 'All Statuses' },
-    { value: 'PENDING', label: 'Booked' },
-    { value: 'COMPLETED', label: 'Completed' },
-    { value: 'CANCELLED', label: 'Cancelled' },
+    { value: 'ALL', label: 'Todos os Status' },
+    { value: 'PENDING', label: 'Marcado' },
+    { value: 'COMPLETED', label: 'Concluído' },
+    { value: 'CANCELLED', label: 'Cancelado' },
   ];
 
   const dateFilterOptions = [
-    { value: 'ALL', label: 'All Dates' },
-    { value: 'TODAY', label: 'Today' },
-    { value: 'THIS_WEEK', label: 'This Week' },
-    { value: 'THIS_MONTH', label: 'This Month' },
+    { value: 'ALL', label: 'Todas as Datas' },
+    { value: 'TODAY', label: 'Hoje' },
+    { value: 'THIS_WEEK', label: 'Esta Semana' },
+    { value: 'THIS_MONTH', label: 'Este Mês' },
   ];
 
   const handleDateFilterChange = (value: string) => {
@@ -541,11 +541,11 @@ export default function StaffBookingsPage() {
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold leading-tight text-gray-900">
-          Bookings
+          Agendamentos
         </h1>
         <Button onClick={openAddModal}>
           <Plus className="h-5 w-5 sm:mr-2" />
-          <span className="hidden sm:inline">Add Booking</span>
+          <span className="hidden sm:inline">Adicionar Agendamento</span>
         </Button>
       </header>
 
@@ -554,10 +554,10 @@ export default function StaffBookingsPage() {
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label htmlFor="date-filter" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <label htmlFor="date-filter" className="block text-sm font-medium text-gray-700 mb-1">Data</label>
               <Select onValueChange={handleDateFilterChange} value={dateFilter}>
                 <SelectTrigger id="date-filter">
-                  <SelectValue placeholder="All Dates" />
+                  <SelectValue placeholder="Todas as Datas" />
                 </SelectTrigger>
                 <SelectContent>
                   {dateFilterOptions.map(option => (
@@ -567,13 +567,13 @@ export default function StaffBookingsPage() {
               </Select>
             </div>
             <div>
-              <label htmlFor="staff-filter" className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
+              <label htmlFor="staff-filter" className="block text-sm font-medium text-gray-700 mb-1">Funcionário</label>
               <Select onValueChange={(value) => setStaffFilter(value)} value={staffFilter}>
                 <SelectTrigger id="staff-filter">
-                  <SelectValue placeholder="All Staff" />
+                  <SelectValue placeholder="Todos os Funcionários" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All Staff</SelectItem>
+                  <SelectItem value="ALL">Todos os Funcionários</SelectItem>
                   {staffList.map(s => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
@@ -597,16 +597,16 @@ export default function StaffBookingsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12">Loading bookings...</div>
+          <div className="text-center py-12">Carregando agendamentos...</div>
         ) : filteredBookings.length === 0 ? (
           <div className="text-center py-12">
-            <h3 className="text-lg font-medium text-gray-900">No bookings found</h3>
+            <h3 className="text-lg font-medium text-gray-900">Nenhum agendamento encontrado</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Try adjusting your filters or add a new booking.
+              Tente ajustar seus filtros ou adicionar um novo agendamento.
             </p>
             <Button onClick={openAddModal} className="mt-4">
               <Plus className="h-5 w-5 mr-2" />
-              Add Booking
+              Adicionar Agendamento
             </Button>
           </div>
         ) : (
@@ -617,7 +617,7 @@ export default function StaffBookingsPage() {
                   <div>
                     <p className="font-bold text-lg">{booking.client.name}</p>
                     <p className="text-sm text-gray-600">
-                      Staff: {booking.staff.name}
+                      Funcionário: {booking.staff.name}
                     </p>
                     <p className="text-sm text-gray-600">
                       {format(new Date(booking.scheduledFor), "PPP p")}
@@ -626,8 +626,8 @@ export default function StaffBookingsPage() {
                   <StatusBadge status={booking.status} />
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" size="sm" onClick={() => openEditModal(booking)}>Edit</Button>
-                  <Button variant="destructive" size="sm">Remove</Button>
+                  <Button variant="outline" size="sm" onClick={() => openEditModal(booking)}>Editar</Button>
+                  <Button variant="destructive" size="sm">Remover</Button>
                 </div>
               </div>
             ))}
@@ -637,7 +637,7 @@ export default function StaffBookingsPage() {
         {hasMore && !loading && (
           <div className="text-center mt-6">
             <Button onClick={handleShowMore} disabled={loading}>
-              {loading ? 'Loading...' : 'Show More'}
+              {loading ? 'Carregando...' : 'Mostrar Mais'}
             </Button>
           </div>
         )}
