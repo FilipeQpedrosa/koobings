@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 
 interface Client {
@@ -39,7 +40,7 @@ export function RecentClients() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Recent Clients</CardTitle>
+          <CardTitle>Clientes Recentes</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-8">
@@ -61,7 +62,7 @@ export function RecentClients() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Clients</CardTitle>
+        <CardTitle>Clientes Recentes</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-8">
@@ -80,21 +81,21 @@ export function RecentClients() {
                   <p className="text-sm font-medium leading-none">{client.name}</p>
                   {client.lastVisit && (
                     <p className="text-sm text-muted-foreground">
-                      Last visit: {formatDistanceToNow(new Date(client.lastVisit), { addSuffix: true })}
+                      Última visita: {formatDistanceToNow(new Date(client.lastVisit), { addSuffix: true, locale: ptBR })}
                     </p>
                   )}
                 </div>
               </div>
               <Link href={`/staff/clients/${client.id}`}>
                 <Button variant="ghost" size="sm">
-                  View Profile
+                  Ver Perfil
                 </Button>
               </Link>
             </div>
           ))}
           {clients.length === 0 && (
             <div className="text-center py-4 text-muted-foreground">
-              No recent clients
+              Nenhum cliente recente
             </div>
           )}
         </div>
