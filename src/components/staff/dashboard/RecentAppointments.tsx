@@ -4,12 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
 
 interface Appointment {
   id: string;
@@ -54,7 +50,6 @@ export default function RecentAppointments() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dateFilter, setDateFilter] = useState('ALL');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -279,4 +274,4 @@ export default function RecentAppointments() {
       )}
     </div>
   );
-} /* Cache buster 1751389687 */
+} /* Cache buster 1751397005 */
