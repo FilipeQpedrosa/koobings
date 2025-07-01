@@ -96,7 +96,7 @@ export default function StaffDashboardPage() {
           <span className="text-2xl sm:text-3xl font-bold text-blue-600 ml-2">Dashboard</span>
         </div>
         <p className="text-gray-700 text-center text-base sm:text-lg font-medium">
-          {`Welcome back${session?.user?.name ? ', ' + session.user.name.split(' ')[0] : ''}! Here's an overview of your schedule`}
+          {`Bem-vindo de volta${session?.user?.name ? ', ' + session.user.name.split(' ')[0] : ''}! Aqui está uma visão geral da sua agenda`}
         </p>
       </div>
 
@@ -105,7 +105,7 @@ export default function StaffDashboardPage() {
         <div className="bg-white rounded-xl shadow-md p-8 w-full max-w-4xl mx-auto border border-gray-200">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-            <p className="text-gray-800 font-medium text-lg">Loading dashboard...</p>
+            <p className="text-gray-800 font-medium text-lg">Carregando painel...</p>
           </div>
         </div>
       )}

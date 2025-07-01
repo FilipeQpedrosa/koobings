@@ -45,13 +45,13 @@ export default function DashboardStats({
   const summary = (
     <div className="sm:hidden flex items-center justify-between bg-white rounded-xl shadow-lg px-4 py-4 mb-4 border-2 border-gray-200">
       <div className="flex flex-col text-sm">
-        <span className="font-black text-lg text-gray-900">{upcomingAppointments} Upcoming</span>
-        <span className="text-sm text-gray-700 font-semibold">{totalAppointments} Total • {totalClients} Clients • {completionRate}% Complete</span>
+        <span className="font-black text-lg text-gray-900">{upcomingAppointments} Próximos</span>
+        <span className="text-sm text-gray-700 font-semibold">{totalAppointments} Total • {totalClients} Clientes • {completionRate}% Completos</span>
       </div>
       <button
         className="ml-4 p-3 rounded-full bg-blue-100 hover:bg-blue-200 transition-colors border border-blue-200"
         onClick={() => setCollapsed((c) => !c)}
-        aria-label={collapsed ? 'Show stats' : 'Hide stats'}
+        aria-label={collapsed ? 'Mostrar estatísticas' : 'Ocultar estatísticas'}
       >
         {collapsed ? <ChevronDown className="h-6 w-6 text-blue-600" /> : <ChevronUp className="h-6 w-6 text-blue-600" />}
       </button>
@@ -66,27 +66,27 @@ export default function DashboardStats({
       <div className={collapsed ? 'hidden sm:block' : 'block sm:block'}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 w-full">
       <StatsCard
-        title="Total Appointments"
+        title="Total de Agendamentos"
         value={totalAppointments}
-        description="All time appointments"
+        description="Todos os agendamentos"
         icon={<CalendarDays className="h-5 w-5" />}
       />
       <StatsCard
-        title="Upcoming"
+        title="Próximos"
         value={upcomingAppointments}
-        description="Next 7 days"
+        description="Próximos 7 dias"
         icon={<Clock className="h-5 w-5" />}
       />
       <StatsCard
-        title="Total Clients"
+        title="Total de Clientes"
         value={totalClients}
-        description="Unique clients served"
+        description="Clientes únicos atendidos"
         icon={<Users className="h-5 w-5" />}
       />
       <StatsCard
-        title="Completion Rate"
+        title="Taxa de Conclusão"
         value={`${completionRate}%`}
-        description="Last 30 days"
+        description="Últimos 30 dias"
         icon={<CheckCircle className="h-5 w-5" />}
       />
     </div>
