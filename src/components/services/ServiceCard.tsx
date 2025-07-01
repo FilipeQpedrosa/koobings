@@ -26,7 +26,7 @@ export default function ServiceCard({ service, categories, providers }: ServiceC
   const { toast } = useToast()
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this service?')) return
+    if (!confirm('Tem certeza de que deseja excluir este serviço?')) return
 
     setIsDeleting(true)
     try {
@@ -37,15 +37,15 @@ export default function ServiceCard({ service, categories, providers }: ServiceC
       if (!response.ok) throw new Error('Failed to delete service')
 
       toast({
-        title: 'Success',
-        description: 'Service deleted successfully'
+        title: 'Sucesso',
+        description: 'Serviço excluído com sucesso'
       })
       router.refresh()
     } catch (error) {
       console.error('Error deleting service:', error)
       toast({
-        title: 'Error',
-        description: 'Failed to delete service. Please try again.',
+        title: 'Erro',
+        description: 'Falha ao excluir serviço. Tente novamente.',
         variant: 'destructive'
       })
       setIsDeleting(false)
@@ -73,7 +73,7 @@ export default function ServiceCard({ service, categories, providers }: ServiceC
               <button
                 onClick={() => setIsEditing(true)}
                 className="text-gray-600 hover:text-blue-600 p-1"
-                aria-label="Edit service"
+                aria-label="Editar serviço"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -83,7 +83,7 @@ export default function ServiceCard({ service, categories, providers }: ServiceC
                 onClick={handleDelete}
                 disabled={isDeleting}
                 className="text-gray-600 hover:text-red-600 p-1 disabled:opacity-50"
-                aria-label="Delete service"
+                aria-label="Excluir serviço"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -99,7 +99,7 @@ export default function ServiceCard({ service, categories, providers }: ServiceC
         
         {service.providers.length > 0 && (
           <div className="mt-4">
-            <p className="text-sm text-gray-500">Available Providers:</p>
+            <p className="text-sm text-gray-500">Provedores Disponíveis:</p>
             <div className="flex flex-wrap gap-2 mt-1">
               {service.providers.map(provider => (
                 <span key={provider.id} className="text-sm bg-blue-50 text-blue-700 rounded-full px-2 py-1">
