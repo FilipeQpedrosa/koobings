@@ -13,11 +13,12 @@ async function main() {
   // Create or update the admin
   const _admin = await prisma.systemAdmin.upsert({
     where: { email },
-    update: { password: hashedPassword },
+    update: { passwordHash: hashedPassword },
     create: {
       email,
-      password: hashedPassword,
-      name: 'System Admin'
+      passwordHash: hashedPassword,
+      name: 'System Admin',
+      role: 'SUPER_ADMIN'
     }
   })
   
