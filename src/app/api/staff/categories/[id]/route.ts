@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function PATCH(request: NextRequest, { params }: any) {
   try {
+    // Try to get business from subdomain header first, then fall back to session
+    let business;
     const businessName = request.headers.get('x-business');
-    if (!businessName) {
-      return NextResponse.json({ success: false, error: { code: 'BUSINESS_SUBDOMAIN_MISSING', message: 'Business subdomain missing' } }, { status: 400 });
+    
+    if (businessName) {
+      business = await prisma.business.findFirst({ where: { name: businessName } });
+    } else {
+      // Fallback: get business from session
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.businessId) {
+        return NextResponse.json({ success: false, error: { code: 'BUSINESS_SUBDOMAIN_MISSING', message: 'Business subdomain missing and no valid session' } }, { status: 400 });
+      }
+      business = await prisma.business.findFirst({ where: { id: session.user.businessId } });
     }
-    const business = await prisma.business.findFirst({ where: { name: businessName } });
+    
     if (!business) {
       return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }
@@ -35,11 +47,21 @@ export async function PATCH(request: NextRequest, { params }: any) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function DELETE(request: NextRequest, { params }: any) {
   try {
+    // Try to get business from subdomain header first, then fall back to session
+    let business;
     const businessName = request.headers.get('x-business');
-    if (!businessName) {
-      return NextResponse.json({ success: false, error: { code: 'BUSINESS_SUBDOMAIN_MISSING', message: 'Business subdomain missing' } }, { status: 400 });
+    
+    if (businessName) {
+      business = await prisma.business.findFirst({ where: { name: businessName } });
+    } else {
+      // Fallback: get business from session
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.businessId) {
+        return NextResponse.json({ success: false, error: { code: 'BUSINESS_SUBDOMAIN_MISSING', message: 'Business subdomain missing and no valid session' } }, { status: 400 });
+      }
+      business = await prisma.business.findFirst({ where: { id: session.user.businessId } });
     }
-    const business = await prisma.business.findFirst({ where: { name: businessName } });
+    
     if (!business) {
       return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar } from '@/components/ui/Calendar';
+import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, isSameDay } from 'date-fns';
 import { AppointmentStatus } from '@prisma/client';

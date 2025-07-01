@@ -126,39 +126,39 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
     }
   }
 
-  useEffect(() => {
-    async function checkAvailability() {
-      setAvailabilityError('');
-      if (!staff || !date || !time || !duration) return;
-      const startTime = new Date(date + 'T' + time).toISOString();
-      try {
-        const res = await fetch('/api/business/appointments/check-availability', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ staffId: staff, date, startTime, duration }),
-        });
-        const result = await res.json();
-        if (result.data && !result.data.available) {
-          setAvailabilityError('Staff is not available at this time.');
-        }
-      } catch (err) {
-        setAvailabilityError('Error checking availability.');
-      }
-    }
-    checkAvailability();
-    let interval: NodeJS.Timeout | null = null;
-    if (open) {
-      interval = setInterval(checkAvailability, 15000); // every 15 seconds
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [staff, date, time, duration, open]);
+  // useEffect(() => {
+  //   async function checkAvailability() {
+  //     setAvailabilityError('');
+  //     if (!staff || !date || !time || !duration) return;
+  //     const startTime = new Date(date + 'T' + time).toISOString();
+  //     try {
+  //       const res = await fetch('/api/business/appointments/check-availability', {
+  //         method: 'POST',
+  //         headers: { 'Content-Type': 'application/json' },
+  //         body: JSON.stringify({ staffId: staff, date, startTime, duration }),
+  //       });
+  //       const result = await res.json();
+  //       if (result.data && !result.data.available) {
+  //         setAvailabilityError('Staff is not available at this time.');
+  //       }
+  //     } catch (err) {
+  //       setAvailabilityError('Error checking availability.');
+  //     }
+  //   }
+  //   checkAvailability();
+  //   let interval: NodeJS.Timeout | null = null;
+  //   if (open) {
+  //     interval = setInterval(checkAvailability, 15000); // every 15 seconds
+  //   }
+  //   return () => {
+  //     if (interval) clearInterval(interval);
+  //   };
+  // }, [staff, date, time, duration, open]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log('Submitting booking...', { client, staff, date, time, selectedServices, availabilityError });
-    if (!client || !staff || !date || !time || selectedServices.length === 0 || availabilityError) return;
+    console.log('Submitting booking...', { client, staff, date, time, selectedServices });
+    if (!client || !staff || !date || !time || selectedServices.length === 0) return;
     setSaving(true);
     setSaveError('');
     try {
@@ -368,7 +368,6 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   <textarea placeholder="Notes" className="w-full border rounded-lg p-2" value={notes} onChange={e => setNotes(e.target.value)} />
                 </div>
-                {availabilityError && <div className="text-red-600 text-sm mt-2">{availabilityError}</div>}
               </div>
             )}
             {/* Action buttons inside the form */}
@@ -377,18 +376,7 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
               {step < 3 && <Button type="button" className="w-full sm:w-auto" onClick={() => setStep(step + 1)} disabled={step === 1 ? !client : selectedServices.length === 0}>Next</Button>}
               {step === 3 && (
                 <>
-                  <Button type="submit" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" disabled={saving || !client || !staff || !date || !time || selectedServices.length === 0 || !!availabilityError}>{saving ? <span className="flex items-center justify-center"><span className="loader mr-2" />Saving...</span> : (editBooking ? 'Save Changes' : 'Add Booking')}</Button>
-                  {/* UI feedback for why the button is disabled */}
-                  {(!client || !staff || !date || !time || selectedServices.length === 0 || !!availabilityError) && (
-                    <div className="text-xs text-red-500 mt-2">
-                      {!client && <div>Please select a client.</div>}
-                      {selectedServices.length === 0 && <div>Please select a service.</div>}
-                      {!staff && <div>Please select a staff member.</div>}
-                      {!date && <div>Please select a date.</div>}
-                      {!time && <div>Please select a time.</div>}
-                      {availabilityError && <div>{availabilityError}</div>}
-                    </div>
-                  )}
+                  <Button type="submit" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" disabled={saving || !client || !staff || !date || !time || selectedServices.length === 0}>{saving ? <span className="flex items-center justify-center"><span className="loader mr-2" />Saving...</span> : (editBooking ? 'Save Changes' : 'Add Booking')}</Button>
                 </>
               )}
               <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cancel</Button>

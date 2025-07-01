@@ -79,28 +79,46 @@ export default function StaffDashboardPage() {
   const displayName = isLong ? companyName.slice(0, maxLen - 3) + '...' : companyName;
 
   return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-8 py-4 sm:py-8 overflow-x-hidden w-full flex flex-col items-center">
-      <div className="flex items-center gap-3 mb-1 w-full justify-center">
-        {logo && (
-          <img src={logo} alt="Logo" className="w-8 h-8 rounded-full object-cover" />
-        )}
-        <span
-          className="text-2xl sm:text-3xl font-bold truncate max-w-xs"
-          style={{ maxWidth: 220 }}
-          title={isLong ? companyName : undefined}
-        >
-          {displayName}
-        </span>
-        <span className="text-2xl sm:text-3xl font-bold ml-2">Dashboard</span>
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 bg-gray-50 min-h-screen">
+      {/* Header Section with Better Contrast */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 w-full max-w-4xl mx-auto border border-gray-200">
+        <div className="flex items-center gap-3 mb-2 w-full justify-center">
+          {logo && (
+            <img src={logo} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-blue-200" />
+          )}
+          <span
+            className="text-2xl sm:text-3xl font-bold text-gray-900 truncate max-w-xs"
+            style={{ maxWidth: 220 }}
+            title={isLong ? companyName : undefined}
+          >
+            {displayName}
+          </span>
+          <span className="text-2xl sm:text-3xl font-bold text-blue-600 ml-2">Dashboard</span>
+        </div>
+        <p className="text-gray-700 text-center text-base sm:text-lg font-medium">
+          {`Welcome back${session?.user?.name ? ', ' + session.user.name.split(' ')[0] : ''}! Here's an overview of your schedule`}
+        </p>
       </div>
-      <p className="text-muted-foreground mb-6 sm:mb-8 text-sm sm:text-base">
-        {`Welcome back${session?.user?.name ? ', ' + session.user.name.split(' ')[0] : ''}! Here's an overview of your schedule`}
-      </p>
-      {loading && <p>Loading dashboard...</p>}
-      {error && <p className="text-red-600">{error}</p>}
+
+      {/* Loading and Error States with Better Visibility */}
+      {loading && (
+        <div className="bg-white rounded-xl shadow-md p-8 w-full max-w-4xl mx-auto border border-gray-200">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+            <p className="text-gray-800 font-medium text-lg">Loading dashboard...</p>
+          </div>
+        </div>
+      )}
+      
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 w-full max-w-4xl mx-auto">
+          <p className="text-red-800 font-semibold text-center">{error}</p>
+        </div>
+      )}
+      
       {stats && (
         <>
-          <div className="w-full mb-6 sm:mb-8">
+          <div className="w-full mb-6 sm:mb-8 max-w-4xl mx-auto">
             <DashboardStats
               totalAppointments={stats.totalAppointments}
               upcomingAppointments={stats.upcomingAppointments}
@@ -108,7 +126,7 @@ export default function StaffDashboardPage() {
               completionRate={stats.completionRate}
             />
           </div>
-          <div className="w-full">
+          <div className="w-full max-w-4xl mx-auto">
             <RecentAppointments />
           </div>
         </>

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // PATCH: Update a service (staff with ADMIN or canViewSettings)
@@ -9,14 +11,25 @@ export async function PATCH(request: Request) {
   const id = segments[segments.length - 1];
   
   try {
+    // Try to get business from subdomain header first, then fall back to session
+    let business;
     const businessName = request.headers.get('x-business');
-    if (!businessName) {
-      return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+    
+    if (businessName) {
+      business = await prisma.business.findFirst({ where: { name: businessName } });
+    } else {
+      // Fallback: get business from session
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.businessId) {
+        return NextResponse.json({ error: 'Business subdomain missing and no valid session' }, { status: 400 });
+      }
+      business = await prisma.business.findFirst({ where: { id: session.user.businessId } });
     }
-    const business = await prisma.business.findFirst({ where: { name: businessName } });
+    
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
+    
     const serviceId = id;
     const body = await request.json();
     const { name, duration, price, categoryId, description } = body;
@@ -55,11 +68,21 @@ export async function DELETE(request: NextRequest) {
   const serviceId = segments[segments.length - 1];
   
   try {
+    // Try to get business from subdomain header first, then fall back to session
+    let business;
     const businessName = request.headers.get('x-business');
-    if (!businessName) {
-      return NextResponse.json({ error: 'Business subdomain missing' }, { status: 400 });
+    
+    if (businessName) {
+      business = await prisma.business.findFirst({ where: { name: businessName } });
+    } else {
+      // Fallback: get business from session
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.businessId) {
+        return NextResponse.json({ error: 'Business subdomain missing and no valid session' }, { status: 400 });
+      }
+      business = await prisma.business.findFirst({ where: { id: session.user.businessId } });
     }
-    const business = await prisma.business.findFirst({ where: { name: businessName } });
+    
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
