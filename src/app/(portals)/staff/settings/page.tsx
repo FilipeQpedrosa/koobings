@@ -7,10 +7,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
 const settingsTabs = [
-  { label: 'General', href: '/staff/settings' },
-  { label: 'Services', href: '/staff/settings/services' },
-  { label: 'Staff', href: '/staff/settings/staff' },
-  { label: 'Categories', href: '/staff/settings/categories' },
+  { label: 'Geral', href: '/staff/settings' },
+  { label: 'Serviços', href: '/staff/settings/services' },
+  { label: 'Equipe', href: '/staff/settings/staff' },
+  { label: 'Categorias', href: '/staff/settings/categories' },
 ];
 
 export default function StaffSettingsPage() {
@@ -101,11 +101,11 @@ export default function StaffSettingsPage() {
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold leading-tight text-gray-900">
-          Settings
+          Configurações
         </h1>
         <div className="mt-4">
           <div className="sm:hidden">
-            <label htmlFor="tabs" className="sr-only">Select a tab</label>
+            <label htmlFor="tabs" className="sr-only">Selecione uma aba</label>
             <select
               id="tabs"
               name="tabs"
@@ -142,17 +142,17 @@ export default function StaffSettingsPage() {
 
       <main>
         {isLoading ? (
-          <div className="text-center py-12">Loading settings...</div>
+          <div className="text-center py-12">Carregando configurações...</div>
         ) : (
           <div className="bg-white shadow sm:rounded-lg">
             <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">General Settings</h3>
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Configurações Gerais</h3>
               <div className="mt-2 max-w-xl text-xs text-gray-500">
-                <p>Manage general business settings and staff permissions.</p>
+                <p>Gerencie configurações gerais do negócio e permissões da equipe.</p>
               </div>
               <div className="mt-5 space-y-6">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="allowStaffToViewAllBookings" className="text-sm font-medium text-gray-700">Allow staff to view all bookings</label>
+                  <label htmlFor="allowStaffToViewAllBookings" className="text-sm font-medium text-gray-700">Permitir que funcionários vejam todos os agendamentos</label>
                   <Switch
                     id="allowStaffToViewAllBookings"
                     checked={businessInfo.allowStaffToViewAllBookings}
@@ -160,7 +160,7 @@ export default function StaffSettingsPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <label htmlFor="restrictStaffToViewAllClients" className="text-sm font-medium text-gray-700">Restrict staff from viewing all clients</label>
+                  <label htmlFor="restrictStaffToViewAllClients" className="text-sm font-medium text-gray-700">Restringir funcionários de visualizar todos os clientes</label>
                   <Switch
                     id="restrictStaffToViewAllClients"
                     checked={businessInfo.restrictStaffToViewAllClients}
@@ -168,7 +168,7 @@ export default function StaffSettingsPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <label htmlFor="restrictStaffToViewAllNotes" className="text-sm font-medium text-gray-700">Restrict staff from viewing all client notes</label>
+                  <label htmlFor="restrictStaffToViewAllNotes" className="text-sm font-medium text-gray-700">Restringir funcionários de visualizar todas as notas de clientes</label>
                   <Switch
                     id="restrictStaffToViewAllNotes"
                     checked={businessInfo.restrictStaffToViewAllNotes}
@@ -176,7 +176,7 @@ export default function StaffSettingsPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <label htmlFor="requireAdminCancelApproval" className="text-sm font-medium text-gray-700">Require admin approval for staff appointment cancellations</label>
+                  <label htmlFor="requireAdminCancelApproval" className="text-sm font-medium text-gray-700">Exigir aprovação de admin para cancelamentos de agendamentos por funcionários</label>
                   <Switch
                     id="requireAdminCancelApproval"
                     checked={businessInfo.requireAdminCancelApproval}
@@ -189,7 +189,7 @@ export default function StaffSettingsPage() {
               {error && <div className="text-red-500 text-sm text-left mb-2">{error}</div>}
               {success && <div className="text-green-500 text-sm text-left mb-2">{success}</div>}
               <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
             </div>
           </div>

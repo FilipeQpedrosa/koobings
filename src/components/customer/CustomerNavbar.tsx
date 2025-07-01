@@ -12,22 +12,22 @@ export default function CustomerNavbar({ session }: CustomerNavbarProps) {
       <div className="container mx-auto px-4">
         <div className="flex h-16 justify-between items-center">
           <Link href="/customer" className="text-xl font-semibold text-gray-900">
-            Book Services
+            Agendar Serviços
           </Link>
 
           <div className="flex items-center gap-4">
             {session ? (
               <>
                 <Link href="/customer/appointments">
-                  <Button variant="ghost">My Appointments</Button>
+                  <Button variant="ghost">Meus Agendamentos</Button>
                 </Link>
                 <Link href="/auth/signout">
-                  <Button variant="outline">Sign Out</Button>
+                  <Button variant="outline">Sair</Button>
                 </Link>
               </>
             ) : (
               <Link href="/auth/signin">
-                <Button variant="outline">Sign In</Button>
+                <Button variant="outline">Entrar</Button>
               </Link>
             )}
           </div>

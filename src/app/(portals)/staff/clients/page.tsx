@@ -56,36 +56,36 @@ export default function StaffClientsPage() {
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold leading-tight text-gray-900">
-          Clients
+          Clientes
         </h1>
         <Link href="/staff/clients/new">
           <Button>
             <Plus className="h-5 w-5 mr-2" />
-            Add Client
+            Adicionar Cliente
           </Button>
         </Link>
       </header>
       
       <main>
         <Input
-          placeholder="Search clients by name, email, or phone..."
+          placeholder="Buscar clientes por nome, email ou telefone..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="mb-6 w-full"
         />
         
         {loading ? (
-          <div className="text-center py-12">Loading clients...</div>
+          <div className="text-center py-12">Carregando clientes...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
-            <h3 className="text-lg font-medium text-gray-900">No clients found</h3>
+            <h3 className="text-lg font-medium text-gray-900">Nenhum cliente encontrado</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {search ? "Try adjusting your search." : "Get started by adding a new client."}
+              {search ? "Tente ajustar sua busca." : "Comece adicionando um novo cliente."}
             </p>
             <Link href="/staff/clients/new" className="mt-4 inline-block">
               <Button>
                 <Plus className="h-5 w-5 mr-2" />
-                Add Client
+                Adicionar Cliente
               </Button>
             </Link>
           </div>
@@ -102,10 +102,10 @@ export default function StaffClientsPage() {
                       <div className="mt-2 sm:flex sm:justify-between">
                         <div className="sm:flex">
                           <p className="flex items-center text-sm text-gray-500">
-                            {client.email || "No email"}
+                            {client.email || "Sem email"}
                           </p>
                           <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                            {client.phone || "No phone"}
+                            {client.phone || "Sem telefone"}
                           </p>
                         </div>
                       </div>
