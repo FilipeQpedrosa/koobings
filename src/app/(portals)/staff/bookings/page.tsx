@@ -47,6 +47,16 @@ function AddBookingStepperModal({ open, onClose, onAddBooking, editBooking, serv
   const [saveError, setSaveError] = useState('');
   const [availabilityError, setAvailabilityError] = useState('');
   const [serviceSearch, setServiceSearch] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [_duration, _setDuration] = useState(0);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [editingBooking, setEditingBooking] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState(null);
+  const [_availabilityError, _setAvailabilityError] = useState('');
 
   useEffect(() => {
     if (editBooking && open) {
