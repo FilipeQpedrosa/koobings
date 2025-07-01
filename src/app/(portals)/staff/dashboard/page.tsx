@@ -74,30 +74,46 @@ export default function StaffDashboardPage() {
 
   const companyName = business?.name || '';
   const logo = business?.logo;
-  const maxLen = 18;
-  const isLong = companyName.length > maxLen;
-  const displayName = isLong ? companyName.slice(0, maxLen - 3) + '...' : companyName;
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 bg-gray-50 min-h-screen">
-      {/* Header Section with Better Contrast */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 w-full max-w-4xl mx-auto border border-gray-200">
-        <div className="flex items-center gap-3 mb-2 w-full justify-center">
-          {logo && (
-            <img src={logo} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-blue-200" />
-          )}
-          <span
-            className="text-2xl sm:text-3xl font-bold text-gray-900 truncate max-w-xs"
-            style={{ maxWidth: 220 }}
-            title={isLong ? companyName : undefined}
-          >
-            {displayName}
-          </span>
-          <span className="text-2xl sm:text-3xl font-bold text-blue-600 ml-2">Dashboard</span>
+      {/* Header Section with Better Responsive Design */}
+      <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6 w-full max-w-4xl mx-auto border border-gray-200">
+        {/* Mobile Layout: Stack vertically */}
+        <div className="block sm:hidden">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            {logo && (
+              <img src={logo} alt="Logo" className="w-8 h-8 rounded-full object-cover border-2 border-blue-200 flex-shrink-0" />
+            )}
+            <h1 className="text-lg font-bold text-gray-900 text-center break-words">
+              {companyName}
+            </h1>
+          </div>
+          <div className="text-center">
+            <span className="text-xl font-bold text-blue-600">Dashboard</span>
+          </div>
+          <p className="text-gray-700 text-center text-sm font-medium mt-3">
+            {`Bem-vindo de volta${session?.user?.name ? ', ' + session.user.name.split(' ')[0] : ''}! Aqui está uma visão geral da sua agenda`}
+          </p>
         </div>
-        <p className="text-gray-700 text-center text-base sm:text-lg font-medium">
-          {`Bem-vindo de volta${session?.user?.name ? ', ' + session.user.name.split(' ')[0] : ''}! Aqui está uma visão geral da sua agenda`}
-        </p>
+
+        {/* Desktop Layout: Horizontal with flexible sizing */}
+        <div className="hidden sm:block">
+          <div className="flex items-center justify-center gap-3 mb-2 flex-wrap">
+            {logo && (
+              <img src={logo} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-blue-200 flex-shrink-0" />
+            )}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center break-words max-w-none">
+                {companyName}
+              </h1>
+              <span className="text-2xl md:text-3xl font-bold text-blue-600">Dashboard</span>
+            </div>
+          </div>
+          <p className="text-gray-700 text-center text-base sm:text-lg font-medium">
+            {`Bem-vindo de volta${session?.user?.name ? ', ' + session.user.name.split(' ')[0] : ''}! Aqui está uma visão geral da sua agenda`}
+          </p>
+        </div>
       </div>
 
       {/* Loading and Error States with Better Visibility */}
