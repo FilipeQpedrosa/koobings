@@ -17,6 +17,7 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false)
   const [showContactForm, setShowContactForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Contact form state - company field removed for simplicity
   const [formData, setFormData] = useState({
     name: '',
     email: '',
