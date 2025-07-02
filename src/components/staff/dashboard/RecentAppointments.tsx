@@ -17,6 +17,7 @@ interface Appointment {
   scheduledFor: string;
   duration: number;
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  notes?: string;
 }
 
 function getStatusColor(status: Appointment['status']) {
@@ -204,6 +205,12 @@ export default function RecentAppointments() {
                   <div className="text-gray-700">{apt.services?.[0]?.name}</div>
                   <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
                   <div className="text-sm text-gray-500">{apt.duration} min</div>
+                  {apt.notes && apt.notes.trim() !== "" && (
+                    <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                      <p className="text-xs font-medium text-blue-800">Notas:</p>
+                      <p className="text-sm text-blue-700">{apt.notes}</p>
+                    </div>
+                  )}
                   <div className="mt-4">
                      <select
                         className="w-full border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
@@ -230,6 +237,7 @@ export default function RecentAppointments() {
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Serviço</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Data & Hora</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Duração</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Notas</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Status</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-600 uppercase">Ação</th>
                   </tr>
@@ -237,7 +245,7 @@ export default function RecentAppointments() {
                 <tbody>
                   {filteredAppointments.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-500">Nenhum agendamento encontrado com os filtros atuais.</td>
+                      <td colSpan={7} className="text-center py-8 text-gray-500">Nenhum agendamento encontrado com os filtros atuais.</td>
                     </tr>
                   ) : (
                     filteredAppointments.map((apt) => (
@@ -246,6 +254,15 @@ export default function RecentAppointments() {
                         <td className="px-4 py-4 text-sm">{apt.services?.[0]?.name}</td>
                         <td className="px-4 py-4 text-sm whitespace-nowrap">{format(new Date(apt.scheduledFor), 'dd/MM HH:mm', { locale: ptBR })}</td>
                         <td className="px-4 py-4 text-sm">{apt.duration}min</td>
+                        <td className="px-4 py-4 text-sm max-w-xs">
+                          {apt.notes && apt.notes.trim() !== "" ? (
+                            <div className="text-xs text-gray-600 truncate" title={apt.notes}>
+                              {apt.notes}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">-</span>
+                          )}
+                        </td>
                         <td className="px-4 py-4">
                           <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap")}>
                             {getStatusLabel(apt.status)}
