@@ -10,8 +10,8 @@ import { ReactNode } from 'react';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Beauty & Wellness Center',
-  description: 'Professional beauty and wellness service scheduling platform',
+  title: 'Koobings - Parceiro Digital de Microempresas',
+  description: 'O parceiro digital de confiança das microempresas de serviços. Gestão simples e eficiente para o seu negócio.',
 };
 
 export default async function RootLayout({

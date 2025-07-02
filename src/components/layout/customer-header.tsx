@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSession, signOut } from "next-auth/react";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, Calendar } from "lucide-react";
 
 const publicNavigation = [
   { name: "Home", href: "/" },
@@ -26,10 +26,11 @@ export function CustomerHeader() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 hidden md:flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="hidden font-bold sm:inline-block">
-              Beauty & Wellness Center
-            </span>
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900">Koobings</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {publicNavigation.map((item) => (
