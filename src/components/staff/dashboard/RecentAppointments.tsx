@@ -151,6 +151,7 @@ export default function RecentAppointments() {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 w-full max-w-full border-2 border-gray-200">
+      {/* Header with title and add button */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Agendamentos Recentes</h2>
         <Button onClick={handleCreateAppointment} className="bg-blue-600 hover:bg-blue-700 text-white">
