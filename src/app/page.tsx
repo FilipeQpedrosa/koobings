@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Loader2, Calendar, Users, Clock, Star, CheckCircle, ArrowRight, Smartphone, MapPin, Mail } from 'lucide-react'
+import { Loader2, Calendar, Users, Clock, Star, CheckCircle, ArrowRight, Smartphone, MapPin, Mail, Building2, TrendingUp, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -51,12 +51,12 @@ export default function HomePage() {
 
   // If user is logged in, they'll be redirected. This content is for visitors.
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
+      <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Calendar className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold text-gray-900">Koobings</span>
@@ -65,40 +65,38 @@ export default function HomePage() {
             <Link href="/auth/signin">
               <Button variant="ghost">Entrar</Button>
             </Link>
-            <Link href="/book">
-              <Button>Agendar Agora</Button>
+            <Link href="/auth/signin">
+              <Button>Começar Agora</Button>
             </Link>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
+      <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
-          <Badge className="mb-6 bg-blue-100 text-blue-800 hover:bg-blue-100">
-            ✨ Plataforma de Agendamento Profissional
+          <Badge className="mb-6 bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200">
+            ✨ Muito mais do que uma ferramenta de agendamentos
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Agende seus serviços
+            O seu parceiro digital de 
             <br />
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              de forma simples
-            </span>
+            <span className="text-blue-600">confiança</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            A melhor plataforma para agendar consultas, tratamentos e serviços profissionais. 
-            Rápido, fácil e totalmente online.
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+            Ajudamos microempresas de serviços a ganharem eficiência, organização e autonomia. 
+            Comece pela gestão do dia a dia e cresça connosco.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/book">
+            <Link href="/auth/signin">
               <Button size="lg" className="text-lg px-8 py-3">
-                <Calendar className="w-5 h-5 mr-2" />
-                Agendar Serviço
+                <Building2 className="w-5 h-5 mr-2" />
+                Começar Agora
               </Button>
             </Link>
-            <Link href="#servicos">
+            <Link href="#como-funciona">
               <Button variant="outline" size="lg" className="text-lg px-8 py-3">
-                Ver Serviços
+                Como Funciona
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
@@ -106,153 +104,124 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Por que escolher a Koobings?
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Oferecemos a melhor experiência de agendamento para você e sua clínica
-          </p>
-        </div>
-        
-        <div className="grid md:grid-cols-3 gap-8">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Clock className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Agendamento 24/7</h3>
-              <p className="text-gray-600">
-                Agende seus serviços a qualquer hora, em qualquer lugar. 
-                Nossa plataforma está sempre disponível.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Confirmação Instantânea</h3>
-              <p className="text-gray-600">
-                Receba confirmação imediata do seu agendamento por email 
-                e notificações de lembrete.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Profissionais Qualificados</h3>
-              <p className="text-gray-600">
-                Trabalhe com os melhores profissionais da área. 
-                Qualidade e excelência garantidas.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Services Preview */}
-      <section id="servicos" className="bg-gray-50 py-16">
+      {/* Value Proposition */}
+      <section className="bg-gray-50 py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Nossos Serviços
+              Pensado para a sua realidade
             </h2>
-            <p className="text-lg text-gray-600">
-              Oferecemos uma ampla gama de serviços profissionais
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Entendemos os desafios dos pequenos negócios. Por isso criámos uma solução simples, 
+              adaptável e que cresce consigo.
             </p>
           </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <Heart className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Parceria e Proximidade</h3>
+                <p className="text-gray-600">
+                  Não somos apenas uma ferramenta. Somos o seu parceiro digital, 
+                  que entende e adapta-se à sua forma de trabalhar.
+                </p>
+              </CardContent>
+            </Card>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { icon: "💄", title: "Beleza", desc: "Tratamentos faciais e corporais" },
-              { icon: "💆‍♀️", title: "Spa & Wellness", desc: "Massagens e relaxamento" },
-              { icon: "⚕️", title: "Saúde", desc: "Consultas e exames" },
-              { icon: "✂️", title: "Cabeleireiro", desc: "Corte, penteados e coloração" }
-            ].map((service, index) => (
-              <Card key={index} className="text-center hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="text-3xl mb-3">{service.icon}</div>
-                  <h3 className="font-semibold mb-2">{service.title}</h3>
-                  <p className="text-sm text-gray-600">{service.desc}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Gestão Descomplicada</h3>
+                <p className="text-gray-600">
+                  Interface simples e intuitiva. Menos tempo a gerir, 
+                  mais tempo a trabalhar com os seus clientes.
+                </p>
+              </CardContent>
+            </Card>
 
-          <div className="text-center mt-8">
-            <Link href="/book">
-              <Button size="lg">
-                Ver Todos os Serviços
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Visão de Crescimento</h3>
+                <p className="text-gray-600">
+                  Comece pela organização interna e evolua para ganhar 
+                  visibilidade e novas oportunidades de negócio.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="container mx-auto px-4 py-16">
+      {/* How it Works */}
+      <section id="como-funciona" className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            O que dizem nossos clientes
+            Como o Koobings o ajuda
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {[
-            {
-              name: "Maria Silva",
-              rating: 5,
-              comment: "Excelente serviço! Agendamento super fácil e profissionais muito competentes."
-            },
-            {
-              name: "João Santos",
-              rating: 5,
-              comment: "Plataforma intuitiva e prática. Recomendo para todos que precisam de agendamentos."
-            },
-            {
-              name: "Ana Costa",
-              rating: 5,
-              comment: "Adorei a experiência! Notificações em tempo real e atendimento de qualidade."
-            }
-          ].map((testimonial, index) => (
-            <Card key={index} className="border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex mb-3">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
+        <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <div className="space-y-6">
+              <div className="flex items-start space-x-4">
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">1</div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Organize o seu dia a dia</h3>
+                  <p className="text-gray-600">Gerir marcações, clientes, horários e equipa numa só plataforma. Simples e eficiente.</p>
                 </div>
-                <p className="text-gray-600 mb-4">"{testimonial.comment}"</p>
-                <p className="font-semibold">{testimonial.name}</p>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+              
+              <div className="flex items-start space-x-4">
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">2</div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Ganhe autonomia</h3>
+                  <p className="text-gray-600">Adaptamos a plataforma à sua forma de trabalhar. Os seus clientes continuam a ser seus.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start space-x-4">
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">3</div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Cresça connosco</h3>
+                  <p className="text-gray-600">No futuro, ajudamos também a ganhar visibilidade e atrair novos clientes.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8">
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="text-center">
+                <Calendar className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+                <h4 className="font-semibold mb-2">Dashboard do seu negócio</h4>
+                <p className="text-sm text-gray-600">Tudo o que precisa numa interface clara e organizada</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 py-16">
+      <section className="bg-blue-600 py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">
-            Pronto para começar?
+            Pronto para simplificar o seu negócio?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Junte-se a milhares de clientes satisfeitos e agende seu próximo serviço hoje mesmo.
+            Junte-se aos empreendedores que já descobriram como a tecnologia pode ser simples e útil.
           </p>
-          <Link href="/book">
+          <Link href="/auth/signin">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-3">
-              <Calendar className="w-5 h-5 mr-2" />
-              Agendar Agora
+              <Building2 className="w-5 h-5 mr-2" />
+              Começar Gratuitamente
             </Button>
           </Link>
         </div>
@@ -264,46 +233,42 @@ export default function HomePage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-bold">Koobings</span>
               </div>
               <p className="text-gray-400">
-                A melhor plataforma de agendamento online.
+                O parceiro digital de confiança das microempresas de serviços.
               </p>
             </div>
             
             <div>
-              <h3 className="font-semibold mb-4">Serviços</h3>
+              <h3 className="font-semibold mb-4">Produto</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>Beleza</li>
-                <li>Spa & Wellness</li>
-                <li>Saúde</li>
-                <li>Cabeleireiro</li>
+                <li>Gestão de Marcações</li>
+                <li>Clientes</li>
+                <li>Equipa</li>
+                <li>Relatórios</li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4">Suporte</h3>
+              <h3 className="font-semibold mb-4">Empresa</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>Central de Ajuda</li>
-                <li>Contato</li>
-                <li>Política de Privacidade</li>
-                <li>Termos de Uso</li>
+                <li>Sobre Nós</li>
+                <li>Contacto</li>
+                <li>Privacidade</li>
+                <li>Termos</li>
               </ul>
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4">Contato</h3>
+              <h3 className="font-semibold mb-4">Contacto</h3>
               <div className="space-y-2 text-gray-400">
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4" />
-                  <span>contato@koobings.com</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Smartphone className="w-4 h-4" />
-                  <span>+351 xxx xxx xxx</span>
+                  <span>ola@koobings.com</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4" />
@@ -314,7 +279,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 Koobings. Todos os direitos reservados.</p>
+            <p>&copy; 2025 Koobings. Crescemos consigo.</p>
           </div>
         </div>
       </footer>
