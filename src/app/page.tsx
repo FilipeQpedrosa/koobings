@@ -20,7 +20,6 @@ export default function HomePage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    company: '',
     phone: '',
     message: ''
   })
@@ -68,7 +67,6 @@ export default function HomePage() {
         setFormData({
           name: '',
           email: '',
-          company: '',
           phone: '',
           message: ''
         })
@@ -386,20 +384,6 @@ export default function HomePage() {
                     value={formData.email}
                     onChange={handleInputChange}
                     placeholder="o.seu.email@exemplo.com"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
-                    Empresa/Negócio
-                  </label>
-                  <Input
-                    id="company"
-                    name="company"
-                    type="text"
-                    value={formData.company}
-                    onChange={handleInputChange}
-                    placeholder="Nome do seu negócio"
                   />
                 </div>
 
