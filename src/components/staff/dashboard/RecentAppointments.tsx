@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface Appointment {
   id: string;
@@ -52,6 +54,7 @@ export default function RecentAppointments() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dateFilter, setDateFilter] = useState('ALL');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchAppointments() {
@@ -142,9 +145,19 @@ export default function RecentAppointments() {
     }
   }
 
+  function handleCreateAppointment() {
+    router.push('/staff/bookings');
+  }
+
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 w-full max-w-full border-2 border-gray-200">
-      <h2 className="text-2xl sm:text-3xl font-black mb-6 text-gray-900">Agendamentos Recentes</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Agendamentos Recentes</h2>
+        <Button onClick={handleCreateAppointment} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar
+        </Button>
+      </div>
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         {/* Status Filter */}
         <div className="flex items-center gap-2 flex-shrink-0">
