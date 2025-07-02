@@ -3,16 +3,27 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Loader2, Calendar, Users, Clock, Star, CheckCircle, ArrowRight, Smartphone, MapPin, Mail, Building2, TrendingUp, Heart } from 'lucide-react'
+import { Loader2, Calendar, Users, Clock, Star, CheckCircle, ArrowRight, Smartphone, MapPin, Mail, Building2, TrendingUp, Heart, X, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import Link from 'next/link'
 
 export default function HomePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [isClient, setIsClient] = useState(false)
+  const [showContactForm, setShowContactForm] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    company: '',
+    phone: '',
+    message: ''
+  })
 
   useEffect(() => {
     setIsClient(true)
@@ -37,6 +48,48 @@ export default function HomePage() {
       }
     }
   }, [session, status, router, isClient])
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        alert('Mensagem enviada com sucesso! Entraremos em contacto consigo em breve.')
+        setShowContactForm(false)
+        setFormData({
+          name: '',
+          email: '',
+          company: '',
+          phone: '',
+          message: ''
+        })
+      } else {
+        alert('Erro ao enviar mensagem. Tente novamente.')
+      }
+    } catch (error) {
+      console.error('Error sending contact form:', error)
+      alert('Erro ao enviar mensagem. Tente novamente.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
 
   if (status === 'loading' || !isClient) {
     return (
@@ -65,9 +118,9 @@ export default function HomePage() {
             <Link href="/auth/signin">
               <Button variant="ghost">Entrar</Button>
             </Link>
-            <Link href="/auth/signin">
-              <Button>Começar Agora</Button>
-            </Link>
+            <Button onClick={() => setShowContactForm(true)}>
+              Fale connosco
+            </Button>
           </div>
         </div>
       </nav>
@@ -88,12 +141,14 @@ export default function HomePage() {
             Comece pela gestão do dia a dia e cresça connosco.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/signin">
-              <Button size="lg" className="text-lg px-8 py-3">
-                <Building2 className="w-5 h-5 mr-2" />
-                Começar Agora
-              </Button>
-            </Link>
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-3"
+              onClick={() => setShowContactForm(true)}
+            >
+              <Mail className="w-5 h-5 mr-2" />
+              Fale connosco
+            </Button>
             <Link href="#como-funciona">
               <Button variant="outline" size="lg" className="text-lg px-8 py-3">
                 Como Funciona
@@ -218,12 +273,15 @@ export default function HomePage() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Junte-se aos empreendedores que já descobriram como a tecnologia pode ser simples e útil.
           </p>
-          <Link href="/auth/signin">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-3">
-              <Building2 className="w-5 h-5 mr-2" />
-              Começar Gratuitamente
-            </Button>
-          </Link>
+          <Button 
+            size="lg" 
+            variant="secondary" 
+            className="text-lg px-8 py-3"
+            onClick={() => setShowContactForm(true)}
+          >
+            <Mail className="w-5 h-5 mr-2" />
+            Fale connosco
+          </Button>
         </div>
       </section>
 
@@ -268,7 +326,7 @@ export default function HomePage() {
               <div className="space-y-2 text-gray-400">
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4" />
-                  <span>ola@koobings.com</span>
+                  <span>Admin@koobings.com</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4" />
@@ -283,6 +341,129 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Contact Form Modal */}
+      {showContactForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Fale connosco</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowContactForm(false)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome *
+                  </label>
+                  <Input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="O seu nome"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="o.seu.email@exemplo.com"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
+                    Empresa/Negócio
+                  </label>
+                  <Input
+                    id="company"
+                    name="company"
+                    type="text"
+                    value={formData.company}
+                    onChange={handleInputChange}
+                    placeholder="Nome do seu negócio"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                    Telefone
+                  </label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="+351 xxx xxx xxx"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                    Mensagem *
+                  </label>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    required
+                    value={formData.message}
+                    onChange={handleInputChange}
+                    placeholder="Conte-nos sobre o seu negócio e como podemos ajudar..."
+                    rows={4}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowContactForm(false)}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Enviar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 
