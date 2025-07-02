@@ -622,6 +622,17 @@ export default function StaffBookingsPage() {
                     <p className="text-sm text-gray-600">
                       {format(new Date(booking.scheduledFor), "PPP p")}
                     </p>
+                    {booking.services && booking.services.length > 0 && (
+                      <p className="text-sm text-gray-600">
+                        Serviço: {booking.services[0].name}
+                      </p>
+                    )}
+                    {booking.notes && booking.notes.trim() !== "" && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                        <p className="text-xs font-medium text-blue-800">Notas:</p>
+                        <p className="text-sm text-blue-700">{booking.notes}</p>
+                      </div>
+                    )}
                   </div>
                   <StatusBadge status={booking.status} />
                 </div>
