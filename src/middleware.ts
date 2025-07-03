@@ -41,6 +41,7 @@ const publicRoutes = [
   '/api/debug-auth',
   '/api/test-admin',
   '/api/admin/fix-password',
+  '/api/simple-test',
   '/',
 ]
 
