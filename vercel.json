@@ -9,7 +9,7 @@
   },
   "regions": ["sfo1"],
   "functions": {
-    "app/api/**/*": {
+    "src/app/api/**/*": {
       "memory": 1024,
       "maxDuration": 10
     }
