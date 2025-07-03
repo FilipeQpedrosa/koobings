@@ -231,12 +231,9 @@ export default function HomePage() {
               <h3 className="font-semibold mb-4">Empresa</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>
-                  <button 
-                    onClick={openContactModal}
-                    className="hover:text-white transition-colors text-left"
-                  >
+                  <Link href="/about" className="hover:text-white transition-colors">
                     Sobre Nós
-                  </button>
+                  </Link>
                 </li>
                 <li>
                   <button 
@@ -247,41 +244,31 @@ export default function HomePage() {
                   </button>
                 </li>
                 <li>
-                  <button 
-                    onClick={openContactModal}
-                    className="hover:text-white transition-colors text-left"
-                  >
+                  <Link href="/privacy" className="hover:text-white transition-colors">
                     Privacidade
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button 
-                    onClick={openContactModal}
-                    className="hover:text-white transition-colors text-left"
-                  >
+                  <Link href="/terms" className="hover:text-white transition-colors">
                     Termos
-                  </button>
+                  </Link>
                 </li>
               </ul>
             </div>
 
             <div>
               <h3 className="font-semibold mb-4">Contacto</h3>
-              <div className="space-y-2 text-gray-400">
-                <div className="flex items-center space-x-2">
-                  <Mail className="w-4 h-4" />
-                  <button 
-                    onClick={openContactModal}
-                    className="hover:text-white transition-colors text-left"
+              <ul className="space-y-2 text-gray-400">
+                <li>
+                  <a 
+                    href="mailto:admin@koobings.com"
+                    className="hover:text-white transition-colors"
                   >
                     admin@koobings.com
-                  </button>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>Portugal</span>
-                </div>
-              </div>
+                  </a>
+                </li>
+                <li className="text-gray-400">Portugal</li>
+              </ul>
             </div>
           </div>
 
