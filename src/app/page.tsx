@@ -205,22 +205,22 @@ export default function HomePage() {
               <h3 className="font-semibold mb-4">Produto</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>
-                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                  <Link href="/produto/marcacoes" className="hover:text-white transition-colors">
                     Gestão de Marcações
                   </Link>
                 </li>
                 <li>
-                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                  <Link href="/produto/clientes" className="hover:text-white transition-colors">
                     Clientes
                   </Link>
                 </li>
                 <li>
-                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                  <Link href="/produto/equipa" className="hover:text-white transition-colors">
                     Equipa
                   </Link>
                 </li>
                 <li>
-                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                  <Link href="/produto/relatorios" className="hover:text-white transition-colors">
                     Relatórios
                   </Link>
                 </li>
