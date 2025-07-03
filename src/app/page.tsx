@@ -204,20 +204,64 @@ export default function HomePage() {
             <div>
               <h3 className="font-semibold mb-4">Produto</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>Gestão de Marcações</li>
-                <li>Clientes</li>
-                <li>Equipa</li>
-                <li>Relatórios</li>
+                <li>
+                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                    Gestão de Marcações
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                    Clientes
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                    Equipa
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/signin" className="hover:text-white transition-colors">
+                    Relatórios
+                  </Link>
+                </li>
               </ul>
             </div>
 
             <div>
               <h3 className="font-semibold mb-4">Empresa</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>Sobre Nós</li>
-                <li>Contacto</li>
-                <li>Privacidade</li>
-                <li>Termos</li>
+                <li>
+                  <button 
+                    onClick={openContactModal}
+                    className="hover:text-white transition-colors text-left"
+                  >
+                    Sobre Nós
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={openContactModal}
+                    className="hover:text-white transition-colors text-left"
+                  >
+                    Contacto
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={openContactModal}
+                    className="hover:text-white transition-colors text-left"
+                  >
+                    Privacidade
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={openContactModal}
+                    className="hover:text-white transition-colors text-left"
+                  >
+                    Termos
+                  </button>
+                </li>
               </ul>
             </div>
 
@@ -226,7 +270,12 @@ export default function HomePage() {
               <div className="space-y-2 text-gray-400">
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4" />
-                  <span>admin@koobings.com</span>
+                  <button 
+                    onClick={openContactModal}
+                    className="hover:text-white transition-colors text-left"
+                  >
+                    admin@koobings.com
+                  </button>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4" />
