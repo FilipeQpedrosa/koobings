@@ -142,20 +142,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Input validation
+    // Input validation - updated to match modal data structure
     const schema = z.object({
       clientId: z.string().min(1),
-      serviceId: z.string().min(1),
-      startTime: z.string().min(1),
+      serviceIds: z.array(z.string()).min(1), // Changed from serviceId to serviceIds array
+      scheduledFor: z.string().min(1), // Changed from startTime to scheduledFor
       notes: z.string().optional(),
-      staffId: z.string().optional()
+      staffId: z.string().min(1) // Made required since modal always sends it
     });
+    
     let body;
     try {
       body = await request.json();
     } catch (err) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
+    
     let parsed;
     try {
       parsed = schema.parse(body);
@@ -165,14 +167,14 @@ export async function POST(request: Request) {
       }
       throw error;
     }
-    const { clientId, serviceId, startTime, notes, staffId: staffIdFromPayload } = parsed;
-    console.log('[POST /api/business/appointments] body:', parsed, 'staffId used:', staffIdFromPayload || staff.id);
+    
+    const { clientId, serviceIds, scheduledFor, notes, staffId } = parsed;
+    console.log('[POST /api/business/appointments] body:', parsed);
 
-    if (!clientId || !serviceId || !startTime) {
-      return NextResponse.json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields: clientId, serviceId, startTime' } }, { status: 400 });
-    }
+    // For now, we'll just use the first service ID (can be enhanced later for multiple services)
+    const serviceId = serviceIds[0];
 
-    // Get service to calculate endTime
+    // Get service to calculate duration
     const service = await prisma.service.findUnique({
       where: { id: serviceId }
     });
@@ -181,12 +183,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 });
     }
 
-    let start;
+    let scheduledDateTime;
     try {
-      start = new Date(startTime);
-      if (isNaN(start.getTime())) throw new Error('Invalid startTime');
+      scheduledDateTime = new Date(scheduledFor);
+      if (isNaN(scheduledDateTime.getTime())) throw new Error('Invalid scheduledFor');
     } catch (err) {
-      return NextResponse.json({ success: false, error: { code: 'INVALID_STARTTIME', message: 'Invalid startTime format' } }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'INVALID_DATETIME', message: 'Invalid scheduledFor format' } }, { status: 400 });
     }
 
     const appointment = await prisma.appointment.create({
@@ -194,8 +196,8 @@ export async function POST(request: Request) {
         businessId: staff.businessId,
         clientId: clientId,
         serviceId,
-        staffId: staffIdFromPayload || staff.id,
-        scheduledFor: start,
+        staffId: staffId,
+        scheduledFor: scheduledDateTime,
         duration: service.duration,
         notes,
         status: 'PENDING',
