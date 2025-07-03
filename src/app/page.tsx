@@ -1,10 +1,19 @@
+'use client';
+
+import { useState } from 'react';
 import { Calendar, CheckCircle, ArrowRight, MapPin, Mail, TrendingUp, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+import ContactModal from '@/components/ContactModal'
 
 export default function HomePage() {
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+
+  const openContactModal = () => setIsContactModalOpen(true);
+  const closeContactModal = () => setIsContactModalOpen(false);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -20,9 +29,7 @@ export default function HomePage() {
             <Link href="/auth/signin">
               <Button variant="ghost">Entrar</Button>
             </Link>
-            <Link href="/auth/signin">
-              <Button>Fale connosco</Button>
-            </Link>
+            <Button onClick={openContactModal}>Fale connosco</Button>
           </div>
         </div>
       </nav>
@@ -43,12 +50,10 @@ export default function HomePage() {
             Comece pela gestão do dia a dia e cresça connosco.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/signin">
-              <Button size="lg" className="text-lg px-8 py-3">
-                <Mail className="w-5 h-5 mr-2" />
-                Fale connosco
-              </Button>
-            </Link>
+            <Button size="lg" className="text-lg px-8 py-3" onClick={openContactModal}>
+              <Mail className="w-5 h-5 mr-2" />
+              Fale connosco
+            </Button>
             <Link href="#como-funciona">
               <Button variant="outline" size="lg" className="text-lg px-8 py-3">
                 Como Funciona
@@ -173,12 +178,10 @@ export default function HomePage() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Junte-se aos empreendedores que já descobriram como a tecnologia pode ser simples e útil.
           </p>
-          <Link href="/auth/signin">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-3">
-              <Mail className="w-5 h-5 mr-2" />
-              Comece Agora
-            </Button>
-          </Link>
+          <Button size="lg" variant="secondary" className="text-lg px-8 py-3" onClick={openContactModal}>
+            <Mail className="w-5 h-5 mr-2" />
+            Comece Agora
+          </Button>
         </div>
       </section>
 
@@ -238,6 +241,12 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Contact Modal */}
+      <ContactModal 
+        isOpen={isContactModalOpen} 
+        onClose={closeContactModal} 
+      />
     </div>
   )
 } 
