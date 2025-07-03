@@ -20,17 +20,17 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   // Initialize services in development
-  // if (process.env.NODE_ENV === 'development') {
-  //   initializeServices();
-  // }
+  if (process.env.NODE_ENV === 'development') {
+    initializeServices();
+  }
 
   // In production, initialize services only on the server side
-  // if (process.env.NODE_ENV === 'production') {
-  //   const hdrs = await headers();
-  //   if (!hdrs.get('x-powered-by')) {
-  //     initializeServices();
-  //   }
-  // }
+  if (process.env.NODE_ENV === 'production') {
+    const hdrs = await headers();
+    if (!hdrs.get('x-powered-by')) {
+      initializeServices();
+    }
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
