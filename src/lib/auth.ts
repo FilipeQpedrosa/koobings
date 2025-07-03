@@ -43,25 +43,43 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.log('❌ Missing credentials:', { email: !!credentials?.email, password: !!credentials?.password });
           return null;
         }
+
+        console.log('🔍 Attempting login:', { email: credentials.email, role: credentials.role });
 
         try {
           // Check if it's an admin login
           if (credentials.role === 'ADMIN') {
+            console.log('🔑 Admin login attempt for:', credentials.email);
+            
             const admin = await prisma.systemAdmin.findUnique({
               where: { email: credentials.email }
             });
 
-            if (admin && await compare(credentials.password, admin.passwordHash)) {
-              return {
-                id: admin.id,
-                email: admin.email,
-                name: admin.name,
-                role: 'ADMIN',
-                staffRole: admin.role,
-                permissions: ['canViewAll', 'canManageBusinesses', 'canManageUsers']
-              };
+            console.log('👤 Admin found:', !!admin);
+            
+            if (admin) {
+              console.log('🔒 Comparing password...');
+              const passwordMatch = await compare(credentials.password, admin.passwordHash);
+              console.log('🔐 Password match:', passwordMatch);
+              
+              if (passwordMatch) {
+                console.log('✅ Admin login successful');
+                return {
+                  id: admin.id,
+                  email: admin.email,
+                  name: admin.name,
+                  role: 'ADMIN',
+                  staffRole: admin.role,
+                  permissions: ['canViewAll', 'canManageBusinesses', 'canManageUsers']
+                };
+              } else {
+                console.log('❌ Password mismatch for admin');
+              }
+            } else {
+              console.log('❌ Admin not found with email:', credentials.email);
             }
           } else {
             // Check staff/business owner login
