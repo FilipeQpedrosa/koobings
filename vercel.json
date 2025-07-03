@@ -3,6 +3,11 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "env": {
     "NEXTAUTH_URL": "https://${VERCEL_URL}",
     "NODE_ENV": "production"

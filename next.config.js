@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output for proper Vercel deployment
-  output: 'standalone',
+  // Disable standalone output for Vercel serverless functions
+  // output: 'standalone',
   
   // Disable image optimization in development
   images: {
