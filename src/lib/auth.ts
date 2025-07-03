@@ -42,12 +42,17 @@ export const authOptions: NextAuthOptions = {
         role: { label: "Role", type: "text" }
       },
       async authorize(credentials) {
+        console.log('🚀 NEXTAUTH AUTHORIZE CALLED');
+        console.log('📥 Raw credentials received:', JSON.stringify(credentials, null, 2));
+        
         if (!credentials?.email || !credentials?.password) {
           console.log('❌ Missing credentials:', { email: !!credentials?.email, password: !!credentials?.password });
+          console.log('❌ RETURNING NULL - Missing credentials');
           return null;
         }
 
         console.log('🔍 Attempting login:', { email: credentials.email, role: credentials.role });
+        console.log('🔑 Password length:', credentials.password?.length);
 
         try {
           // Check if it's an admin login
@@ -55,21 +60,31 @@ export const authOptions: NextAuthOptions = {
             console.log('🔑 Admin login attempt for:', credentials.email);
             
             try {
+              console.log('🏗️ Creating Prisma connection...');
               const admin = await prisma.systemAdmin.findUnique({
                 where: { email: credentials.email }
               });
 
               console.log('👤 Admin found:', !!admin);
+              console.log('📊 Admin data:', admin ? {
+                id: admin.id,
+                email: admin.email,
+                name: admin.name,
+                role: admin.role,
+                hashLength: admin.passwordHash?.length
+              } : 'null');
               
               if (admin) {
                 console.log('🔒 Comparing password...');
                 console.log('🏷️ Admin role in DB:', admin.role);
+                console.log('🔐 Hash to compare against:', admin.passwordHash?.substring(0, 10) + '...');
+                
                 const passwordMatch = await compare(credentials.password, admin.passwordHash);
-                console.log('🔐 Password match:', passwordMatch);
+                console.log('🔐 Password match result:', passwordMatch);
                 
                 if (passwordMatch) {
                   console.log('✅ Admin login successful');
-                  return {
+                  const userObject = {
                     id: admin.id,
                     email: admin.email,
                     name: admin.name,
@@ -77,14 +92,21 @@ export const authOptions: NextAuthOptions = {
                     staffRole: admin.role,
                     permissions: ['canViewAll', 'canManageBusinesses', 'canManageUsers']
                   };
+                  console.log('✅ RETURNING USER OBJECT:', JSON.stringify(userObject, null, 2));
+                  return userObject;
                 } else {
                   console.log('❌ Password mismatch for admin');
+                  console.log('❌ RETURNING NULL - Password mismatch');
+                  return null;
                 }
               } else {
                 console.log('❌ Admin not found with email:', credentials.email);
+                console.log('❌ RETURNING NULL - Admin not found');
+                return null;
               }
             } catch (dbError) {
               console.error('❌ Database error during admin lookup:', dbError);
+              console.log('❌ RETURNING NULL - Database error');
               return null;
             }
           } else {
