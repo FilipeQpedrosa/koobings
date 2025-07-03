@@ -48,10 +48,7 @@ const nextConfig = {
         // Add API rewrite rules here if needed
       ],
       afterFiles: [
-        {
-          source: '/api/health',
-          destination: '/api/health/route',
-        },
+        // Removed problematic API rewrite that was interfering with routing
       ],
     }
   },
