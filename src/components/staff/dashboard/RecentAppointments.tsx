@@ -234,7 +234,7 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                   <input
                     type="text"
                     placeholder="Procurar cliente por nome ou email..."
-                    className="border border-gray-300 rounded-lg p-3 w-full"
+                    className="border border-gray-300 rounded-lg p-3 w-full bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     value={clientSearch}
                     onChange={e => setClientSearch(e.target.value)}
                   />
@@ -253,21 +253,21 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                       <input 
                         type="text" 
                         placeholder="Nome" 
-                        className="w-full border rounded p-2" 
+                        className="w-full border border-gray-300 rounded p-2 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                         value={newClient.name} 
                         onChange={e => setNewClient(n => ({ ...n, name: e.target.value }))} 
                       />
                       <input 
                         type="email" 
                         placeholder="Email" 
-                        className="w-full border rounded p-2" 
+                        className="w-full border border-gray-300 rounded p-2 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                         value={newClient.email} 
                         onChange={e => setNewClient(n => ({ ...n, email: e.target.value }))} 
                       />
                       <input 
                         type="text" 
                         placeholder="Telefone" 
-                        className="w-full border rounded p-2" 
+                        className="w-full border border-gray-300 rounded p-2 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                         value={newClient.phone} 
                         onChange={e => setNewClient(n => ({ ...n, phone: e.target.value }))} 
                       />
@@ -291,8 +291,8 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                           {client.name?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div>
-                          <div className="font-semibold">{client.name}</div>
-                          <div className="text-sm text-gray-500">{client.email}</div>
+                          <div className="font-semibold text-gray-900">{client.name}</div>
+                          <div className="text-sm text-gray-600">{client.email}</div>
                         </div>
                       </button>
                     ))}
@@ -316,18 +316,18 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                         }`}
                         onClick={() => setSelectedServices([service.id])}
                       >
-                        <div className="font-semibold flex items-center gap-2">
+                        <div className="font-semibold flex items-center gap-2 text-gray-900">
                           {service.name}
                           {selectedServices.includes(service.id) && (
                             <span className="text-blue-600">✓</span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-600">
                           Duração: {service.duration} min
                           {service.price && ` • €${service.price}`}
                         </div>
                         {service.description && (
-                          <div className="text-sm text-gray-400 mt-1">{service.description}</div>
+                          <div className="text-sm text-gray-500 mt-1">{service.description}</div>
                         )}
                       </button>
                     ))}
@@ -342,9 +342,9 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                   
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Funcionário</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-2">Funcionário</label>
                       <select 
-                        className="w-full border rounded-lg p-2" 
+                        className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                         value={selectedStaff} 
                         onChange={e => setSelectedStaff(e.target.value)}
                       >
@@ -357,10 +357,10 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Data</label>
+                        <label className="block text-sm font-medium text-gray-800 mb-2">Data</label>
                         <input 
                           type="date" 
-                          className="w-full border rounded-lg p-2" 
+                          className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                           value={selectedDate} 
                           min={format(new Date(), 'yyyy-MM-dd')} 
                           onChange={e => setSelectedDate(e.target.value)} 
@@ -368,9 +368,9 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Hora</label>
+                        <label className="block text-sm font-medium text-gray-800 mb-2">Hora</label>
                         <select 
-                          className="w-full border rounded-lg p-2" 
+                          className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                           value={selectedTime} 
                           onChange={e => setSelectedTime(e.target.value)}
                         >
@@ -383,10 +383,10 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Notas (opcional)</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-2">Notas (opcional)</label>
                       <textarea 
                         placeholder="Notas sobre o agendamento..." 
-                        className="w-full border rounded-lg p-2 h-16 resize-none" 
+                        className="w-full border border-gray-300 rounded-lg p-2 h-16 resize-none bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                         value={notes} 
                         onChange={e => setNotes(e.target.value)} 
                       />
