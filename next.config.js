@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove standalone output to fix API routes
-  // output: 'standalone',
+  // Enable standalone output for proper Vercel deployment
+  output: 'standalone',
   
   // Disable image optimization in development
   images: {
