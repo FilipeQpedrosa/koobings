@@ -17,7 +17,7 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false)
   const [showContactForm, setShowContactForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Contact form state - company field removed for simplicity
+  // Contact form state - company field removed for simplicity - v1.1
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -356,6 +356,7 @@ export default function HomePage() {
                   <X className="w-5 h-5" />
                 </Button>
               </div>
+              <p className="text-xs text-gray-400 mb-4">v1.1 - Formulário simplificado</p>
 
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div>
