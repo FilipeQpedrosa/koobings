@@ -93,3 +93,148 @@ Please make sure your database server is running at `localhost:54322`.
  ✓ Compiled / in 407ms (1118 modules)
 Scheduler service started
  GET / 200 in 669ms
+Error processing reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+Failed to process reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+Error processing reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+Failed to process reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+Error processing reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+Failed to process reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+Error processing reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+Failed to process reminders: Error [PrismaClientInitializationError]: 
+Invalid `prisma.appointment.findMany()` invocation:
+
+
+Can't reach database server at `localhost:54322`
+
+Please make sure your database server is running at `localhost:54322`.
+    at async SchedulerService.processReminders (src/services/scheduler.ts:44:27)
+  42 |     try {
+  43 |       const now = new Date();
+> 44 |       const appointments = await prisma.appointment.findMany({
+     |                           ^
+  45 |         where: {
+  46 |           status: 'CONFIRMED',
+  47 |           scheduledFor: { {
+  clientVersion: '6.10.1',
+  errorCode: undefined
+}
+[?25h
