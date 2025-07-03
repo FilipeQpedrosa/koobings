@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Disable standalone output for Vercel serverless functions
-  // output: 'standalone',
-  
   // Disable image optimization in development
   images: {
     unoptimized: process.env.NODE_ENV === 'development',
@@ -41,21 +38,11 @@ const nextConfig = {
     ]
   },
 
-  // Configure rewrites for API endpoints
-  async rewrites() {
-    return {
-      beforeFiles: [
-        // Add API rewrite rules here if needed
-      ],
-      afterFiles: [
-        // Removed problematic API rewrite that was interfering with routing
-      ],
+  // Webpack configuration for Prisma
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push('@prisma/client')
     }
-  },
-
-  // Webpack configuration
-  webpack: (config, { dev, isServer }) => {
-    // Add custom webpack configuration here if needed
     return config
   },
 
@@ -64,18 +51,18 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
 
-  // Disable ESLint during production builds to unblock build process
+  // Disable ESLint during production builds
   eslint: {
     ignoreDuringBuilds: true,
   },
 
-  experimental: {
-    optimizePackageImports: ['@prisma/client']
-  },
-
+  // Disable TypeScript errors during builds
   typescript: {
     ignoreBuildErrors: true,
   },
+
+  // External packages for server-side rendering
+  serverExternalPackages: ['@prisma/client', 'prisma'],
 };
 
 module.exports = nextConfig; 

@@ -1,19 +1,14 @@
 {
   "version": 2,
   "framework": "nextjs",
-  "functions": {
-    "src/app/api/**/route.ts": {
-      "runtime": "nodejs20.x"
-    }
-  },
-  "env": {
-    "NEXTAUTH_URL": "https://${VERCEL_URL}",
-    "NODE_ENV": "production"
-  },
-  "regions": ["sfo1"],
   "build": {
     "env": {
       "PRISMA_GENERATE": "true"
+    }
+  },
+  "functions": {
+    "src/app/api/**/route.ts": {
+      "includeFiles": "node_modules/.prisma/client/**"
     }
   }
 } 
