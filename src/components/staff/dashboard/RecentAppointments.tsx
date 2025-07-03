@@ -46,6 +46,8 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // Load data when modal opens
   useEffect(() => {
@@ -53,6 +55,16 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
       fetchData();
     }
   }, [isOpen]);
+
+  // Fetch available time slots when staff and date are selected
+  useEffect(() => {
+    if (selectedStaff && selectedDate) {
+      fetchAvailableSlots();
+    } else {
+      setAvailableSlots([]);
+      setSelectedTime("");
+    }
+  }, [selectedStaff, selectedDate]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -159,6 +171,8 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     setSelectedDate("");
     setSelectedTime("");
     setNotes("");
+    setAvailableSlots([]);
+    setLoadingSlots(false);
     onClose();
   };
 
@@ -169,6 +183,53 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
   );
 
   const getTimeSlots = () => {
+    const slots = [];
+    for (let h = 8; h <= 20; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const hour = h.toString().padStart(2, '0');
+        const min = m.toString().padStart(2, '0');
+        slots.push(`${hour}:${min}`);
+      }
+    }
+    if (selectedDate === format(new Date(), 'yyyy-MM-dd')) {
+      const now = new Date();
+      return slots.filter((t) => {
+        const [h, m] = t.split(':').map(Number);
+        return h > now.getHours() || (h === now.getHours() && m > now.getMinutes());
+      });
+    }
+    return slots;
+  };
+
+  const fetchAvailableSlots = async () => {
+    if (!selectedStaff || !selectedDate) return;
+    
+    setLoadingSlots(true);
+    try {
+      const response = await fetch(`/api/staff/${selectedStaff}/availability?date=${selectedDate}&duration=${getSelectedServiceDuration()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableSlots(data.availableSlots || []);
+      } else {
+        // Fallback to basic time slots if API fails
+        setAvailableSlots(getBasicTimeSlots());
+      }
+    } catch (error) {
+      console.error('Failed to fetch available slots:', error);
+      // Fallback to basic time slots
+      setAvailableSlots(getBasicTimeSlots());
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const getSelectedServiceDuration = () => {
+    if (selectedServices.length === 0) return 30;
+    const service = services.find(s => s.id === selectedServices[0]);
+    return service?.duration || 30;
+  };
+
+  const getBasicTimeSlots = () => {
     const slots = [];
     for (let h = 8; h <= 20; h++) {
       for (let m = 0; m < 60; m += 30) {
@@ -341,12 +402,18 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                   <h3 className="font-semibold text-gray-900">Agendar</h3>
                   
                   <div className="grid grid-cols-1 gap-4">
+                    {/* Staff Selection - First */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-800 mb-2">Funcionário</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-2">
+                        Funcionário *
+                      </label>
                       <select 
                         className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                         value={selectedStaff} 
-                        onChange={e => setSelectedStaff(e.target.value)}
+                        onChange={e => {
+                          setSelectedStaff(e.target.value);
+                          setSelectedTime(""); // Reset time when staff changes
+                        }}
                       >
                         <option value="">Selecionar funcionário</option>
                         {staffList.map((staff: any) => (
@@ -355,33 +422,64 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Date Selection - Second */}
+                    {selectedStaff && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-800 mb-2">Data</label>
+                        <label className="block text-sm font-medium text-gray-800 mb-2">
+                          Data *
+                        </label>
                         <input 
                           type="date" 
                           className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                           value={selectedDate} 
                           min={format(new Date(), 'yyyy-MM-dd')} 
-                          onChange={e => setSelectedDate(e.target.value)} 
+                          onChange={e => {
+                            setSelectedDate(e.target.value);
+                            setSelectedTime(""); // Reset time when date changes
+                          }} 
                         />
                       </div>
+                    )}
 
+                    {/* Time Selection - Third (only after staff and date) */}
+                    {selectedStaff && selectedDate && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-800 mb-2">Hora</label>
+                        <label className="block text-sm font-medium text-gray-800 mb-2">
+                          Hora disponível *
+                          {loadingSlots && (
+                            <span className="ml-2 text-xs text-blue-600">
+                              <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
+                              Verificando disponibilidade...
+                            </span>
+                          )}
+                        </label>
                         <select 
                           className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                           value={selectedTime} 
                           onChange={e => setSelectedTime(e.target.value)}
+                          disabled={loadingSlots}
                         >
-                          <option value="">Selecionar hora</option>
-                          {getTimeSlots().map((time: string) => (
+                          <option value="">
+                            {loadingSlots ? "Verificando..." : availableSlots.length === 0 ? "Nenhuma hora disponível" : "Selecionar hora"}
+                          </option>
+                          {availableSlots.map((time: string) => (
                             <option key={time} value={time}>{time}</option>
                           ))}
                         </select>
+                        {!loadingSlots && availableSlots.length === 0 && selectedStaff && selectedDate && (
+                          <p className="text-sm text-amber-600 mt-1">
+                            ⚠️ Não há horários disponíveis para esta data. Tente outra data.
+                          </p>
+                        )}
+                        {!loadingSlots && availableSlots.length > 0 && (
+                          <p className="text-sm text-green-600 mt-1">
+                            ✅ {availableSlots.length} horário(s) disponível(eis)
+                          </p>
+                        )}
                       </div>
-                    </div>
+                    )}
 
+                    {/* Notes - Always visible */}
                     <div>
                       <label className="block text-sm font-medium text-gray-800 mb-2">Notas (opcional)</label>
                       <textarea 
