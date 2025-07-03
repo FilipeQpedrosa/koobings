@@ -28,7 +28,7 @@ function isRateLimited(ip: string): boolean {
 const protectedRoutes = {
   business: /^\/portals\/business\/.*/,
   staff: /^\/portals\/staff\/.*/,
-  admin: /^\/portals\/admin\/.*/,
+  admin: /^\/admin\/.*/,
   api: /^\/api\/v1\/.*/,
 }
 
@@ -43,7 +43,7 @@ const publicRoutes = [
 
 // Configure role-based path access
 const roleBasedPaths = {
-  ADMIN: ['/portals/admin'],
+  ADMIN: ['/admin'],
   BUSINESS: ['/portals/business'],
   STAFF: ['/portals/staff'],
 } as const;
@@ -94,7 +94,7 @@ export async function middleware(request: NextRequest) {
     // Redirect to appropriate dashboard based on role
     switch (userRole) {
       case 'ADMIN':
-        return NextResponse.redirect(new URL('/portals/admin/dashboard', request.url))
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url))
       case 'BUSINESS':
         return NextResponse.redirect(new URL('/portals/business/dashboard', request.url))
       case 'STAFF':
