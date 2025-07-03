@@ -26,7 +26,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Apply to all routes except static files, Next.js internals, auth routes, init route, and admin routes
-    '/((?!_next|static|favicon.ico|api/auth|api/init|setup-database|admin).*)',
+    // Apply to all routes except static files, Next.js internals, API routes, and admin routes
+    '/((?!_next|static|favicon.ico|api|setup-database|admin).*)',
   ],
 }; 
