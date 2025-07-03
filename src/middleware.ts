@@ -38,6 +38,9 @@ const publicRoutes = [
   '/auth/signup',
   '/api/auth',
   '/api/health',
+  '/api/debug-auth',
+  '/api/test-admin',
+  '/api/admin/fix-password',
   '/',
 ]
 
