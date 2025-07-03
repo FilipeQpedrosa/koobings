@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
@@ -48,6 +48,7 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
   const [notes, setNotes] = useState("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [searchDebounce, setSearchDebounce] = useState("");
 
   // Load data when modal opens
   useEffect(() => {
@@ -55,6 +56,14 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
       fetchData();
     }
   }, [isOpen]);
+
+  // Debounce search input for better performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchDebounce(clientSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [clientSearch]);
 
   // Fetch available time slots when staff and date are selected
   useEffect(() => {
@@ -66,7 +75,7 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     }
   }, [selectedStaff, selectedDate]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [clientsRes, servicesRes, staffRes] = await Promise.all([
@@ -94,7 +103,7 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleAddClient = async () => {
     if (!newClient.name || !newClient.email) return;
@@ -176,11 +185,14 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     onClose();
   };
 
-  const filteredClients = clients.filter(
-    (c: any) =>
-      (c.name?.toLowerCase() || '').includes(clientSearch.toLowerCase()) ||
-      (c.email?.toLowerCase() || '').includes(clientSearch.toLowerCase())
-  );
+  const filteredClients = useMemo(() => {
+    if (!searchDebounce.trim()) return clients;
+    return clients.filter(
+      (c: any) =>
+        (c.name?.toLowerCase() || '').includes(searchDebounce.toLowerCase()) ||
+        (c.email?.toLowerCase() || '').includes(searchDebounce.toLowerCase())
+    );
+  }, [clients, searchDebounce]);
 
   const getTimeSlots = () => {
     const slots = [];
@@ -201,7 +213,7 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     return slots;
   };
 
-  const fetchAvailableSlots = async () => {
+  const fetchAvailableSlots = useCallback(async () => {
     if (!selectedStaff || !selectedDate) return;
     
     setLoadingSlots(true);
@@ -221,7 +233,7 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     } finally {
       setLoadingSlots(false);
     }
-  };
+  }, [selectedStaff, selectedDate, selectedServices]);
 
   const getSelectedServiceDuration = () => {
     if (selectedServices.length === 0) return 30;
@@ -560,6 +572,44 @@ function getStatusLabel(status: Appointment['status']) {
   }
 }
 
+// Memoized appointment card component for better mobile performance
+const AppointmentCard = React.memo(({ apt, onStatusChange, updatingId }: {
+  apt: Appointment;
+  onStatusChange: (id: string, status: 'PENDING' | 'COMPLETED' | 'CANCELLED') => void;
+  updatingId: string | null;
+}) => (
+  <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+    <div className="flex justify-between items-start mb-2">
+      <h3 className="font-bold text-lg">{apt.client.name}</h3>
+      <Badge className={cn(getStatusColor(apt.status), "text-xs")}>
+        {getStatusLabel(apt.status)}
+      </Badge>
+    </div>
+    <div className="text-gray-700">{apt.services?.[0]?.name}</div>
+    <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
+    <div className="text-sm text-gray-500">{apt.duration} min</div>
+    {apt.notes && apt.notes.trim() !== "" && (
+      <div className="mt-2 p-2 bg-blue-50 rounded-md">
+        <p className="text-xs font-medium text-blue-800">Notas:</p>
+        <p className="text-sm text-blue-700">{apt.notes}</p>
+      </div>
+    )}
+    <div className="mt-4">
+      <select
+        className="w-full border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+        value={apt.status}
+        disabled={updatingId === apt.id}
+        onChange={e => onStatusChange(apt.id, e.target.value as 'PENDING' | 'COMPLETED' | 'CANCELLED')}
+      >
+        <option value="PENDING">Pendente</option>
+        <option value="COMPLETED">Concluído</option>
+        <option value="CANCELLED">Cancelado</option>
+      </select>
+    </div>
+  </div>
+));
+AppointmentCard.displayName = 'AppointmentCard';
+
 export default function RecentAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -570,10 +620,10 @@ export default function RecentAppointments() {
   const router = useRouter();
 
   // Fetch appointments function
-  function fetchAppointments() {
+  const fetchAppointments = useCallback(() => {
     setIsLoading(true);
     
-    async function fetchAppointments() {
+    async function fetchAppointmentsAsync() {
       let url = '/api/business/appointments';
       
       const params = new URLSearchParams();
@@ -626,8 +676,8 @@ export default function RecentAppointments() {
         setIsLoading(false);
       }
     }
-    fetchAppointments();
-  }
+    fetchAppointmentsAsync();
+  }, [dateFilter]);
 
   useEffect(() => {
     fetchAppointments();
@@ -637,7 +687,7 @@ export default function RecentAppointments() {
     ? appointments
     : Array.isArray(appointments) ? appointments.filter(a => a.status === statusFilter) : [];
 
-  async function handleStatusChange(id: string, newStatus: 'PENDING' | 'COMPLETED' | 'CANCELLED') {
+  const handleStatusChange = useCallback(async (id: string, newStatus: 'PENDING' | 'COMPLETED' | 'CANCELLED') => {
     setUpdatingId(id);
     try {
       const res = await fetch(`/api/appointments/${id}`, {
@@ -652,7 +702,7 @@ export default function RecentAppointments() {
     } finally {
       setUpdatingId(null);
     }
-  }
+  }, []);
 
   function handleCreateAppointment() {
     setShowBookingModal(true);
@@ -729,35 +779,12 @@ export default function RecentAppointments() {
                 <div className="text-center py-8 text-gray-500">Nenhum agendamento encontrado com os filtros atuais.</div>
               ) : (
                 filteredAppointments.map((apt) => (
-                  <div key={apt.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-lg">{apt.client.name}</h3>
-                      <Badge className={cn(getStatusColor(apt.status), "text-xs")}>
-                        {getStatusLabel(apt.status)}
-                      </Badge>
-                    </div>
-                    <div className="text-gray-700">{apt.services?.[0]?.name}</div>
-                    <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
-                    <div className="text-sm text-gray-500">{apt.duration} min</div>
-                    {apt.notes && apt.notes.trim() !== "" && (
-                      <div className="mt-2 p-2 bg-blue-50 rounded-md">
-                        <p className="text-xs font-medium text-blue-800">Notas:</p>
-                        <p className="text-sm text-blue-700">{apt.notes}</p>
-                      </div>
-                    )}
-                    <div className="mt-4">
-                       <select
-                          className="w-full border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-                          value={apt.status}
-                          disabled={updatingId === apt.id}
-                          onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'COMPLETED' | 'CANCELLED')}
-                        >
-                          <option value="PENDING">Pendente</option>
-                          <option value="COMPLETED">Concluído</option>
-                          <option value="CANCELLED">Cancelado</option>
-                        </select>
-                    </div>
-                  </div>
+                  <AppointmentCard 
+                    key={apt.id} 
+                    apt={apt} 
+                    onStatusChange={handleStatusChange} 
+                    updatingId={updatingId}
+                  />
                 ))
               )}
             </div>

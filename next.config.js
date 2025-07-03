@@ -12,7 +12,18 @@ const nextConfig = {
   // Enable strict mode for better development experience
   reactStrictMode: true,
 
-  // Configure headers for security
+  // Performance optimizations
+  experimental: {
+    optimizeCss: true,
+    scrollRestoration: true,
+  },
+
+  // Optimize bundle size
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+
+  // Configure headers for security and performance
   async headers() {
     return [
       {
@@ -21,6 +32,10 @@ const nextConfig = {
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'on'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },
