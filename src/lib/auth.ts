@@ -62,6 +62,7 @@ export const authOptions: NextAuthOptions = {
             
             if (admin) {
               console.log('🔒 Comparing password...');
+              console.log('🏷️ Admin role in DB:', admin.role);
               const passwordMatch = await compare(credentials.password, admin.passwordHash);
               console.log('🔐 Password match:', passwordMatch);
               
