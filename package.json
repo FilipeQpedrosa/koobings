@@ -11,7 +11,8 @@
     "test:watch": "NODE_ENV=test jest --watch",
     "prisma:seed": "ts-node prisma/seed.ts",
     "vercel-build": "prisma generate && prisma db push && next build",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "create-super-admin": "ts-node scripts/create-super-admin.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
