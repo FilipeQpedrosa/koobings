@@ -95,12 +95,36 @@
     overflow-x: hidden;
     width: 100%;
     max-width: 100vw;
+    /* Enable hardware acceleration for better mobile performance */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
   }
   
   /* Prevent horizontal scrolling globally */
   *, *::before, *::after {
     max-width: 100%;
     box-sizing: border-box;
+  }
+
+  /* Optimize animations for mobile */
+  @media (max-width: 768px) {
+    * {
+      /* Reduce motion for better performance on mobile */
+      animation-duration: 0.1s !important;
+      transition-duration: 0.1s !important;
+    }
+    
+    /* Force hardware acceleration on mobile elements */
+    .animate-spin,
+    .animate-pulse,
+    .animate-bounce {
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      -webkit-perspective: 1000;
+      perspective: 1000;
+    }
   }
 }
 
