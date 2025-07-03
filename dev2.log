@@ -1,0 +1,18 @@
+
+> service-scheduler@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.3.4
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.149:3000
+   - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 1181ms
+ ✓ Compiled /middleware in 205ms (253 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1778ms (1117 modules)
+Scheduler service started
+ GET / 200 in 2125ms
+ ✓ Compiled in 445ms (461 modules)
+[?25h
