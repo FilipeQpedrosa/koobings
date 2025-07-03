@@ -22,6 +22,8 @@ export default function AdminSignInPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
+    console.log('🔑 Admin login attempt:', { email, role: 'ADMIN' });
+
     try {
       const result = await signIn('credentials', {
         email,
@@ -30,17 +32,31 @@ export default function AdminSignInPage() {
         redirect: false,
       });
 
+      console.log('🔍 SignIn result:', result);
+
       if (result?.error) {
+        console.error('❌ SignIn error:', result.error);
         toast({
           title: 'Error',
-          description: result.error,
+          description: `Authentication failed: ${result.error}`,
           variant: 'destructive',
         });
         return;
       }
 
-      router.push('/admin/dashboard');
+      if (result?.ok) {
+        console.log('✅ Login successful, redirecting...');
+        router.push('/admin/dashboard');
+      } else {
+        console.error('❌ Login failed without specific error');
+        toast({
+          title: 'Error',
+          description: 'Login failed. Please check your credentials.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
+      console.error('❌ Login exception:', error);
       toast({
         title: 'Error',
         description: 'An error occurred. Please try again.',

@@ -54,33 +54,38 @@ export const authOptions: NextAuthOptions = {
           if (credentials.role === 'ADMIN') {
             console.log('🔑 Admin login attempt for:', credentials.email);
             
-            const admin = await prisma.systemAdmin.findUnique({
-              where: { email: credentials.email }
-            });
+            try {
+              const admin = await prisma.systemAdmin.findUnique({
+                where: { email: credentials.email }
+              });
 
-            console.log('👤 Admin found:', !!admin);
-            
-            if (admin) {
-              console.log('🔒 Comparing password...');
-              console.log('🏷️ Admin role in DB:', admin.role);
-              const passwordMatch = await compare(credentials.password, admin.passwordHash);
-              console.log('🔐 Password match:', passwordMatch);
+              console.log('👤 Admin found:', !!admin);
               
-              if (passwordMatch) {
-                console.log('✅ Admin login successful');
-                return {
-                  id: admin.id,
-                  email: admin.email,
-                  name: admin.name,
-                  role: 'ADMIN',
-                  staffRole: admin.role,
-                  permissions: ['canViewAll', 'canManageBusinesses', 'canManageUsers']
-                };
+              if (admin) {
+                console.log('🔒 Comparing password...');
+                console.log('🏷️ Admin role in DB:', admin.role);
+                const passwordMatch = await compare(credentials.password, admin.passwordHash);
+                console.log('🔐 Password match:', passwordMatch);
+                
+                if (passwordMatch) {
+                  console.log('✅ Admin login successful');
+                  return {
+                    id: admin.id,
+                    email: admin.email,
+                    name: admin.name,
+                    role: 'ADMIN',
+                    staffRole: admin.role,
+                    permissions: ['canViewAll', 'canManageBusinesses', 'canManageUsers']
+                  };
+                } else {
+                  console.log('❌ Password mismatch for admin');
+                }
               } else {
-                console.log('❌ Password mismatch for admin');
+                console.log('❌ Admin not found with email:', credentials.email);
               }
-            } else {
-              console.log('❌ Admin not found with email:', credentials.email);
+            } catch (dbError) {
+              console.error('❌ Database error during admin lookup:', dbError);
+              return null;
             }
           } else {
             // Check staff/business owner login
