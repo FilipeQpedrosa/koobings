@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable static optimization where possible
-  output: 'standalone',
+  // Remove standalone output to fix API routes
+  // output: 'standalone',
   
   // Disable image optimization in development
   images: {
