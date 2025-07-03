@@ -14,10 +14,9 @@ import Link from 'next/link'
 export default function HomePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [isClient, setIsClient] = useState(false)
   const [showContactForm, setShowContactForm] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  // Contact form state - company field removed for simplicity - v1.1
+  // Contact form state - company field removed for simplicity - v1.2
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -26,11 +25,7 @@ export default function HomePage() {
   })
 
   useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  useEffect(() => {
-    if (status === 'loading' || !isClient) return
+    if (status === 'loading') return
 
     if (session) {
       // Check user type and redirect accordingly
@@ -47,7 +42,7 @@ export default function HomePage() {
         router.push('/staff/dashboard')
       }
     }
-  }, [session, status, router, isClient])
+  }, [session, status, router])
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,7 +85,7 @@ export default function HomePage() {
     }))
   }
 
-  if (status === 'loading' || !isClient) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -356,7 +351,7 @@ export default function HomePage() {
                   <X className="w-5 h-5" />
                 </Button>
               </div>
-              <p className="text-xs text-gray-400 mb-4">v1.1 - Formulário simplificado</p>
+              <p className="text-xs text-gray-400 mb-4">v1.2 - Formulário simplificado</p>
 
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div>
