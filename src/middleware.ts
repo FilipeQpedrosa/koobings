@@ -42,6 +42,7 @@ const publicRoutes = [
   '/api/test-admin',
   '/api/admin/fix-password',
   '/api/simple-test',
+  '/api/test-nextauth',
   '/',
 ]
 
