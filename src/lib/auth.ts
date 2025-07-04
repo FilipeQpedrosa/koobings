@@ -9,6 +9,7 @@ export interface CustomUser {
   name: string;
   role: string;
   businessId?: string;
+  businessName?: string;
   staffRole?: string;
   permissions?: string[];
 }
@@ -110,7 +111,8 @@ export const authOptions: NextAuthOptions = {
           } else {
             console.log('🏢 Non-admin login attempt for:', credentials.email);
             
-            // Check staff/business owner login
+            // PRIORITY: Check staff/business owner login FIRST
+            // This ensures business owners login as staff admins of their business
             console.log('👥 Checking staff table...');
             const staff = await prisma.staff.findUnique({
               where: { email: credentials.email },
@@ -144,15 +146,17 @@ export const authOptions: NextAuthOptions = {
                   role: 'STAFF',
                   businessId: staff.businessId,
                   staffRole: staff.role,
-                  permissions: staff.role === 'ADMIN' ? ['canManageBusiness'] : ['canViewSchedule']
+                  businessName: staff.business?.name,
+                  permissions: staff.role === 'ADMIN' ? ['canManageBusiness', 'canManageStaff', 'canViewAll'] : ['canViewSchedule']
                 };
                 console.log('✅ RETURNING STAFF USER OBJECT:', JSON.stringify(userObject, null, 2));
                 return userObject;
               }
             }
 
-            // Check business owner login
-            console.log('🏢 Checking business table...');
+            // FALLBACK: Check business table only if no staff found
+            // This should rarely be used since business owners should have staff records
+            console.log('🏢 No staff found, checking business table as fallback...');
             const business = await prisma.business.findUnique({
               where: { email: credentials.email }
             });
@@ -166,6 +170,9 @@ export const authOptions: NextAuthOptions = {
                 ownerName: business.ownerName,
                 passwordHashLength: business.passwordHash?.length
               });
+              
+              console.log('⚠️ WARNING: Business owner logging in without staff record!');
+              console.log('💡 This should be rare - business owners should have staff admin records');
             }
 
             if (business) {
@@ -174,17 +181,18 @@ export const authOptions: NextAuthOptions = {
               console.log('🔐 Business password match:', passwordMatch);
               
               if (passwordMatch) {
-                console.log('✅ Business login successful');
+                console.log('✅ Business login successful (fallback mode)');
                 const userObject = {
                   id: business.id,
                   email: business.email,
                   name: business.ownerName || business.name,
-                  role: 'BUSINESS_OWNER',
+                  role: 'STAFF', // Treat business owners as staff for consistency
                   businessId: business.id,
                   staffRole: 'ADMIN',
-                  permissions: ['canManageBusiness', 'canManageStaff']
+                  businessName: business.name,
+                  permissions: ['canManageBusiness', 'canManageStaff', 'canViewAll']
                 };
-                console.log('✅ RETURNING BUSINESS USER OBJECT:', JSON.stringify(userObject, null, 2));
+                console.log('✅ RETURNING BUSINESS USER OBJECT (as staff):', JSON.stringify(userObject, null, 2));
                 return userObject;
               }
             }
@@ -210,12 +218,24 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
+      console.log('🔄 REDIRECT CALLBACK CALLED:', { url, baseUrl });
+      
       // Redirect admin users to admin dashboard
       if (url.includes('admin-signin') || url.includes('role=ADMIN')) {
+        console.log('🔄 Redirecting to admin dashboard');
         return `${baseUrl}/admin/dashboard`;
       }
-      // Default redirect for other users
-      return url.startsWith(baseUrl) ? url : baseUrl;
+      
+      // If redirecting from successful login, check user type
+      if (url.includes('staff/dashboard') || url.includes('callbackUrl')) {
+        console.log('🔄 Redirecting to staff dashboard');
+        return `${baseUrl}/staff/dashboard`;
+      }
+      
+      // Default redirect for other users (staff/business owners go to staff portal)
+      const finalUrl = url.startsWith(baseUrl) ? url : `${baseUrl}/staff/dashboard`;
+      console.log('🔄 Final redirect URL:', finalUrl);
+      return finalUrl;
     }
   }
 }; 
