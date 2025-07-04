@@ -72,6 +72,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
   const { data: session } = useSession();
   const staffRole = session?.user?.staffRole;
   const staffName = session?.user?.name;
+  const businessName = session?.user?.businessName;
   const _canViewSettings = session?.user?.staffRole === 'ADMIN' || session?.user?.permissions?.includes('canViewSettings');
 
   // Debug logging to track session data
@@ -83,6 +84,7 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
         role: session.user.role,
         staffRole: session.user.staffRole,
         businessId: session.user.businessId,
+        businessName: session.user.businessName,
         timestamp: new Date().toISOString()
       });
     }
@@ -117,9 +119,12 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
               {staffName ? staffName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
             </div>
-            <div>
-              <div className="font-semibold leading-tight text-gray-800">{staffName || 'Funcionário'}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold leading-tight text-gray-800 truncate">{staffName || 'Funcionário'}</div>
               <div className="text-xs text-blue-600 capitalize font-medium">{staffRole?.toLowerCase() || ''}</div>
+              {businessName && (
+                <div className="text-xs text-gray-500 truncate">{businessName}</div>
+              )}
             </div>
           </div>
         </Link>
@@ -215,6 +220,9 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-gray-900 truncate">{staffName || 'Funcionário'}</div>
             <div className="text-xs text-blue-600 capitalize font-medium">{staffRole?.toLowerCase() || ''}</div>
+            {businessName && (
+              <div className="text-xs text-gray-500 truncate">{businessName}</div>
+            )}
           </div>
         </Link>
         
