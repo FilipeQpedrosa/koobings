@@ -108,39 +108,85 @@ export const authOptions: NextAuthOptions = {
               return null;
             }
           } else {
+            console.log('🏢 Non-admin login attempt for:', credentials.email);
+            
             // Check staff/business owner login
+            console.log('👥 Checking staff table...');
             const staff = await prisma.staff.findUnique({
               where: { email: credentials.email },
               include: { business: true }
             });
 
-            if (staff && await compare(credentials.password, staff.password)) {
-              return {
+            console.log('👤 Staff found:', !!staff);
+            if (staff) {
+              console.log('📊 Staff data:', {
                 id: staff.id,
                 email: staff.email,
                 name: staff.name,
-                role: 'STAFF',
+                role: staff.role,
                 businessId: staff.businessId,
-                staffRole: staff.role,
-                permissions: staff.role === 'ADMIN' ? ['canManageBusiness'] : ['canViewSchedule']
-              };
+                businessName: staff.business?.name,
+                passwordLength: staff.password?.length
+              });
+            }
+
+            if (staff) {
+              console.log('🔒 Comparing staff password...');
+              const passwordMatch = await compare(credentials.password, staff.password);
+              console.log('🔐 Staff password match:', passwordMatch);
+              
+              if (passwordMatch) {
+                console.log('✅ Staff login successful');
+                const userObject = {
+                  id: staff.id,
+                  email: staff.email,
+                  name: staff.name,
+                  role: 'STAFF',
+                  businessId: staff.businessId,
+                  staffRole: staff.role,
+                  permissions: staff.role === 'ADMIN' ? ['canManageBusiness'] : ['canViewSchedule']
+                };
+                console.log('✅ RETURNING STAFF USER OBJECT:', JSON.stringify(userObject, null, 2));
+                return userObject;
+              }
             }
 
             // Check business owner login
+            console.log('🏢 Checking business table...');
             const business = await prisma.business.findUnique({
               where: { email: credentials.email }
             });
 
-            if (business && await compare(credentials.password, business.passwordHash)) {
-              return {
+            console.log('🏢 Business found:', !!business);
+            if (business) {
+              console.log('📊 Business data:', {
                 id: business.id,
                 email: business.email,
-                name: business.ownerName || business.name,
-                role: 'BUSINESS_OWNER',
-                businessId: business.id,
-                staffRole: 'ADMIN',
-                permissions: ['canManageBusiness', 'canManageStaff']
-              };
+                name: business.name,
+                ownerName: business.ownerName,
+                passwordHashLength: business.passwordHash?.length
+              });
+            }
+
+            if (business) {
+              console.log('🔒 Comparing business password...');
+              const passwordMatch = await compare(credentials.password, business.passwordHash);
+              console.log('🔐 Business password match:', passwordMatch);
+              
+              if (passwordMatch) {
+                console.log('✅ Business login successful');
+                const userObject = {
+                  id: business.id,
+                  email: business.email,
+                  name: business.ownerName || business.name,
+                  role: 'BUSINESS_OWNER',
+                  businessId: business.id,
+                  staffRole: 'ADMIN',
+                  permissions: ['canManageBusiness', 'canManageStaff']
+                };
+                console.log('✅ RETURNING BUSINESS USER OBJECT:', JSON.stringify(userObject, null, 2));
+                return userObject;
+              }
             }
           }
 
