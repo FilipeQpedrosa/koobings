@@ -74,6 +74,20 @@ const StaffSidebar: React.FC<StaffSidebarProps> = ({ className, open = false, on
   const staffName = session?.user?.name;
   const _canViewSettings = session?.user?.staffRole === 'ADMIN' || session?.user?.permissions?.includes('canViewSettings');
 
+  // Debug logging to track session data
+  React.useEffect(() => {
+    if (session?.user) {
+      console.log('🔍 StaffSidebar session debug:', {
+        name: session.user.name,
+        email: session.user.email,
+        role: session.user.role,
+        staffRole: session.user.staffRole,
+        businessId: session.user.businessId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [session]);
+
   const filteredNavItems = navItems.filter(item => {
     if (item.title === 'Configurações') {
       return _canViewSettings;

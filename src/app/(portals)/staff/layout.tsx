@@ -4,10 +4,33 @@ import { useState, useEffect } from "react";
 import StaffSidebar from '@/components/Staff/StaffSidebar';
 import { Menu } from 'lucide-react';
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 export default function StaffPortalLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session, update } = useSession();
+
+  // Debug session data
+  useEffect(() => {
+    if (session?.user) {
+      console.log('🔍 StaffPortalLayout session debug:', {
+        name: session.user.name,
+        email: session.user.email,
+        role: session.user.role,
+        staffRole: session.user.staffRole,
+        businessId: session.user.businessId,
+        id: session.user.id,
+        timestamp: new Date().toISOString()
+      });
+
+      // If session data seems wrong, force an update
+      if (session.user.name === 'Julia' && session.user.email !== 'julia@julia.com') {
+        console.log('⚠️  Detected stale session data, forcing update...');
+        update();
+      }
+    }
+  }, [session, update]);
 
   // Prevent background scroll when sidebar is open
   useEffect(() => {
