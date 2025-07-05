@@ -30,9 +30,6 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
-  pages: {
-    signIn: '/auth/signin',
-  },
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -274,21 +271,24 @@ export const authOptions: NextAuthOptions = {
         return `${baseUrl}/admin/dashboard`;
       }
       
-      // For all other cases, use default behavior
-      console.log('🔄 Default redirect behavior');
+      // For all other cases, use default NextAuth behavior
+      console.log('🔄 Using default NextAuth redirect behavior');
+      
+      // If it's a relative URL, make it absolute
       if (url.startsWith('/')) {
         console.log('🔄 Relative URL redirect:', url);
         return `${baseUrl}${url}`;
       }
       
+      // If it's already a full URL with the same base, return it
       if (url.startsWith(baseUrl)) {
         console.log('🔄 Base URL redirect:', url);
         return url;
       }
       
-      // Default fallback
-      console.log('🔄 Fallback to staff dashboard');
-      return `${baseUrl}/staff/dashboard`;
+      // Default fallback - let NextAuth handle it
+      console.log('🔄 Fallback to baseUrl');
+      return baseUrl;
     }
   }
 }; 
