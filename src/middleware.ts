@@ -202,6 +202,29 @@ export default withAuth(
         }
       }
     }
+
+    // SPECIAL CASE: Handle authenticated users accessing admin-signin page
+    if (token && pathname === '/auth/admin-signin') {
+      console.log('🔄 [Middleware] Authenticated user accessing admin-signin, role:', token.role);
+      
+      if (token.role === 'ADMIN' && token.email === 'f.queirozpedrosa@gmail.com') {
+        console.log('🔄 [Middleware] Redirecting authenticated admin to admin dashboard');
+        return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+      } else if (token.role === 'STAFF' && token.businessId) {
+        console.log('🔄 [Middleware] Redirecting staff to business dashboard');
+        
+        // Find business slug for this user
+        const businessSlug = Object.keys(BUSINESS_SLUGS).find(
+          slug => BUSINESS_SLUGS[slug] === token.businessId
+        );
+        
+        if (businessSlug) {
+          const redirectUrl = `/${businessSlug}/staff/dashboard`;
+          console.log('🔄 [Middleware] Redirecting staff to business dashboard:', redirectUrl);
+          return NextResponse.redirect(new URL(redirectUrl, req.url));
+        }
+      }
+    }
     
     return NextResponse.next();
   },
