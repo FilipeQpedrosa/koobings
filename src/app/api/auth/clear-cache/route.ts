@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
+  return clearAuthCache(request);
+}
+
+export async function POST(request: NextRequest) {
+  return clearAuthCache(request);
+}
+
+async function clearAuthCache(request: NextRequest) {
   try {
     console.log('🧹 [Clear Cache] Forcing complete authentication reset');
     
@@ -55,8 +63,4 @@ export async function GET(request: NextRequest) {
       error: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
   }
-}
-
-export async function POST(request: NextRequest) {
-  return GET(request);
 } 
