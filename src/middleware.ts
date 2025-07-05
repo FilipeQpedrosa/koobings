@@ -107,8 +107,10 @@ export default withAuth(
         console.log('❌ [Middleware] Required: role=ADMIN AND email=f.queirozpedrosa@gmail.com');
         console.log('❌ [Middleware] Actual: role=' + token?.role + ' AND email=' + token?.email);
         
-        // Force logout and redirect to signin with error
-        const response = NextResponse.redirect(new URL('/auth/signin?error=admin_access_denied', req.url));
+        // CRITICAL: NEVER redirect admin routes to /auth/signin
+        // Always redirect to /auth/admin-signin to maintain admin flow
+        console.log('🔄 [Middleware] Redirecting to ADMIN SIGNIN (not staff signin)');
+        const response = NextResponse.redirect(new URL('/auth/admin-signin?error=admin_access_denied', req.url));
         response.cookies.delete('next-auth.session-token');
         response.cookies.delete('__Secure-next-auth.session-token');
         return response;
