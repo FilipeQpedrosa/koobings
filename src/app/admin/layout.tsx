@@ -18,9 +18,20 @@ export default function AdminLayout({
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('[AdminLayout] session:', session, 'status:', status);
     }
-    // Redirect if not authenticated or not a system admin
-    if (status === 'unauthenticated' || !(['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role || ''))) {
-      router.push('/auth/signin');
+    
+    // Redirect if not authenticated
+    if (status === 'unauthenticated') {
+      console.log('[AdminLayout] Not authenticated, redirecting to admin signin');
+      router.push('/auth/admin-signin');
+      return;
+    }
+    
+    // Redirect if not a system admin with proper email
+    if (status === 'authenticated' && 
+        (session?.user?.role !== 'ADMIN' || session?.user?.email !== 'f.queirozpedrosa@gmail.com')) {
+      console.log('[AdminLayout] Not authorized admin, redirecting to admin signin');
+      router.push('/auth/admin-signin');
+      return;
     }
   }, [status, session, router]);
 
