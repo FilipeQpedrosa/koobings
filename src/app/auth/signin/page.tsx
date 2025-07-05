@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 export default function SignInPage() {
   const router = useRouter();
-  useSearchParams();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,6 +23,8 @@ export default function SignInPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
+    console.log('🔐 [SignIn] Attempting login with:', { email });
+
     try {
       const result = await signIn('credentials', {
         email,
@@ -31,23 +33,41 @@ export default function SignInPage() {
         redirect: false,
       });
 
+      console.log('🔐 [SignIn] Login result:', result);
+
       if (result?.error) {
+        console.log('❌ [SignIn] Login error:', result.error);
         toast({
           title: 'Error',
           description: result.error,
           variant: 'destructive',
         });
+        setIsLoading(false);
         return;
       }
 
-      router.push('/staff/dashboard');
+      if (result?.ok) {
+        console.log('✅ [SignIn] Login successful, redirecting...');
+        
+        // Get the callback URL from search params
+        const callbackUrl = searchParams.get('callbackUrl');
+        
+        if (callbackUrl) {
+          console.log('🔄 [SignIn] Redirecting to callback URL:', callbackUrl);
+          window.location.href = callbackUrl;
+        } else {
+          console.log('🔄 [SignIn] No callback URL, redirecting to /staff/dashboard');
+          // Let the middleware handle the redirect to business-specific URL
+          window.location.href = '/staff/dashboard';
+        }
+      }
     } catch (error) {
+      console.error('❌ [SignIn] Login error:', error);
       toast({
         title: 'Error',
         description: 'An error occurred. Please try again.',
         variant: 'destructive',
       });
-    } finally {
       setIsLoading(false);
     }
   };

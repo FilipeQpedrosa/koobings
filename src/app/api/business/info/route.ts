@@ -111,13 +111,19 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
+    
+    // Essential debug logging
+    console.log('📊 [API] business/info GET - User:', session?.user?.name, 'BusinessId:', session?.user?.businessId);
+    
     if (!session?.user?.businessId) {
+      console.log('❌ [API] No businessId in session - returning 401');
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const business = await prisma.business.findUnique({
       where: { id: session.user.businessId },
       select: {
+        id: true,
         name: true,
         logo: true,
         allowStaffToViewAllBookings: true,
@@ -128,9 +134,11 @@ export async function GET() {
     });
 
     if (!business) {
+      console.log('❌ [API] Business not found with ID:', session.user.businessId);
       return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
     }
 
+    console.log('✅ [API] Returning business:', business.name);
     return NextResponse.json({ success: true, data: business });
   } catch (error) {
     console.error('[GET /api/business/info] error:', error);

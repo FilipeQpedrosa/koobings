@@ -1,11 +1,12 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { Providers, ReactQueryProvider } from './providers';
+import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 import { initializeServices } from '@/lib/init';
 import { headers } from 'next/headers';
 import { ReactNode } from 'react';
+import EnvironmentBanner from '@/components/layout/EnvironmentBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -35,14 +36,13 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ReactQueryProvider>
         <Providers>
           <div className="relative flex min-h-screen flex-col">
+            <EnvironmentBanner />
             <main className="flex-1">{children}</main>
           </div>
           <Toaster />
         </Providers>
-        </ReactQueryProvider>
       </body>
     </html>
   );

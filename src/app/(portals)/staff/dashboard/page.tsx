@@ -20,25 +20,46 @@ export default function StaffDashboardPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
+      console.log('🔍 Dashboard: Starting fetch with session:', {
+        hasSession: !!session,
+        businessId: session?.user?.businessId,
+        businessName: session?.user?.businessName
+      });
+      
       if (!session?.user?.businessId) {
+        console.log('❌ Dashboard: No businessId in session');
         setLoading(false);
         return;
       }
       setLoading(true);
       setError(null);
       try {
+        console.log('📡 Dashboard: Fetching business info...');
         const [statsRes, businessRes] = await Promise.all([
           fetch('/api/business/appointments?limit=1000'), // For stats
           fetch('/api/business/info') // For business name/logo
         ]);
+
+        console.log('📡 Dashboard: API responses:', {
+          statsOk: statsRes.ok,
+          businessOk: businessRes.ok,
+          statsStatus: statsRes.status,
+          businessStatus: businessRes.status
+        });
 
         if (!statsRes.ok) throw new Error('Failed to fetch appointments for stats');
         if (!businessRes.ok) throw new Error('Failed to fetch business info');
         
         const data = await statsRes.json();
         const businessInfo = await businessRes.json();
+        
+        console.log('📊 Dashboard: Business info received:', businessInfo);
+        
         if (businessInfo.success) {
           setBusiness(businessInfo.data);
+          console.log('✅ Dashboard: Business set to:', businessInfo.data.name);
+        } else {
+          console.log('❌ Dashboard: Business info failed:', businessInfo.error);
         }
         
         const appointmentsArr = data?.data?.appointments || [];
@@ -61,8 +82,8 @@ export default function StaffDashboardPage() {
         });
 
       } catch (err: any) {
+        console.error('❌ Dashboard: Error:', err);
         setError(err.message || 'Unknown error');
-        console.error('Dashboard error:', err);
       } finally {
         setLoading(false);
       }
@@ -72,7 +93,7 @@ export default function StaffDashboardPage() {
     
   }, [session]);
 
-  const companyName = business?.name || '';
+  const companyName = business?.name || session?.user?.businessName || '';
   const logo = business?.logo;
 
   return (

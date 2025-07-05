@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
@@ -52,6 +53,31 @@ export const authOptions: NextAuthOptions = {
 
         console.log('🔍 Attempting login:', { email: credentials.email, role: credentials.role });
         console.log('🔑 Password length:', credentials.password?.length);
+
+        // ============================================================================
+        // CRITICAL SECURITY CHECK - THIS SHOULD BLOCK ORLANDO FROM ADMIN ACCESS
+        // ============================================================================
+        console.log('🔒 SECURITY CHECK: Checking if admin role requested...');
+        console.log('🔒 SECURITY CHECK: credentials.role =', credentials.role);
+        console.log('🔒 SECURITY CHECK: credentials.email =', credentials.email);
+        
+        if (credentials.role === 'ADMIN') {
+          console.log('🚨 ADMIN LOGIN DETECTED - PERFORMING SECURITY VALIDATION');
+          console.log('🚨 Required email: f.queirozpedrosa@gmail.com');
+          console.log('🚨 Provided email:', credentials.email);
+          console.log('🚨 Email match:', credentials.email === 'f.queirozpedrosa@gmail.com');
+          
+          if (credentials.email !== 'f.queirozpedrosa@gmail.com') {
+            console.log('❌ SECURITY VIOLATION: Unauthorized email trying to access admin portal');
+            console.log('❌ Email:', credentials.email);
+            console.log('❌ Only f.queirozpedrosa@gmail.com can access admin portal');
+            console.log('❌ RETURNING NULL - Blocking unauthorized admin access attempt');
+            console.log('❌ THIS SHOULD PREVENT LOGIN COMPLETELY');
+            return null;
+          }
+          
+          console.log('✅ SECURITY CHECK PASSED - Email is authorized for admin access');
+        }
 
         try {
           // Check if it's an admin login
@@ -198,9 +224,12 @@ export const authOptions: NextAuthOptions = {
             }
           }
 
+          console.log('❌ No matching user found or password mismatch');
+          console.log('❌ RETURNING NULL - Authentication failed');
           return null;
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error('❌ Auth error:', error);
+          console.log('❌ RETURNING NULL - Exception occurred');
           return null;
         }
       }
@@ -220,21 +249,71 @@ export const authOptions: NextAuthOptions = {
     async redirect({ url, baseUrl }) {
       console.log('🔄 REDIRECT CALLBACK CALLED:', { url, baseUrl });
       
-      // Redirect admin users to admin dashboard
-      if (url.includes('admin-signin') || url.includes('role=ADMIN')) {
-        console.log('🔄 Redirecting to admin dashboard');
+      // Handle admin login redirect - only for actual ADMIN users
+      if (url.includes('admin-signin')) {
+        console.log('🔄 Admin signin page detected - redirecting to admin dashboard');
         return `${baseUrl}/admin/dashboard`;
       }
       
-      // If redirecting from successful login, check user type
-      if (url.includes('staff/dashboard') || url.includes('callbackUrl')) {
-        console.log('🔄 Redirecting to staff dashboard');
+      if (url.includes('role=ADMIN')) {
+        console.log('🔄 Admin role detected - redirecting to admin dashboard');
+        return `${baseUrl}/admin/dashboard`;
+      }
+      
+      // Handle specific admin dashboard access
+      if (url.includes('/admin/dashboard')) {
+        console.log('🔄 Direct admin dashboard access');
+        return `${baseUrl}/admin/dashboard`;
+      }
+      
+      // Handle staff login redirect
+      if (url.includes('auth/signin') && !url.includes('admin-signin')) {
+        console.log('🔄 Staff login detected - redirecting to staff dashboard');
         return `${baseUrl}/staff/dashboard`;
       }
       
-      // Default redirect for other users (staff/business owners go to staff portal)
+      // If user is trying to access a business-specific URL, allow it
+      if (url.match(/\/(barbearia-orlando|ju-unha)\/staff/)) {
+        console.log('🔄 Allowing access to business-specific URL:', url);
+        return url;
+      }
+      
+      // Handle callback URLs
+      if (url.includes('callbackUrl')) {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const callbackUrl = urlParams.get('callbackUrl');
+        
+        if (callbackUrl) {
+          console.log('🔄 Found callback URL:', callbackUrl);
+          
+          // If callback is admin-related, go to admin dashboard
+          if (callbackUrl.includes('/admin/')) {
+            console.log('🔄 Callback is admin-related - redirecting to admin dashboard');
+            return `${baseUrl}/admin/dashboard`;
+          }
+          
+          // If callback is staff-related, let middleware handle business-specific redirect
+          if (callbackUrl.includes('/staff/') || callbackUrl.includes('barbearia-orlando') || callbackUrl.includes('ju-unha')) {
+            console.log('🔄 Callback is staff-related - redirecting to staff dashboard');
+            return `${baseUrl}/staff/dashboard`;
+          }
+          
+          // Return the callback URL if it's safe
+          if (callbackUrl.startsWith('/')) {
+            return `${baseUrl}${callbackUrl}`;
+          }
+        }
+      }
+      
+      // Default redirect for relative URLs
+      if (url.startsWith('/')) {
+        console.log('🔄 Relative URL redirect:', url);
+        return `${baseUrl}${url}`;
+      }
+      
+      // Fallback to staff dashboard
       const finalUrl = url.startsWith(baseUrl) ? url : `${baseUrl}/staff/dashboard`;
-      console.log('🔄 Final redirect URL:', finalUrl);
+      console.log('🔄 Final fallback redirect URL:', finalUrl);
       return finalUrl;
     }
   }
