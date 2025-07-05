@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    
-    // Clear all NextAuth cookies
-    const response = NextResponse.json({ 
-      success: true, 
-      message: 'Cache cleared successfully' 
-    });
+    // Create response with redirect to signin
+    const response = NextResponse.redirect(new URL('/auth/signin', request.url));
     
     // Clear all possible NextAuth cookies
     const cookiesToClear = [
@@ -18,7 +12,8 @@ export async function GET(request: NextRequest) {
       'next-auth.callback-url',
       'next-auth.pkce.code_verifier',
       '__Secure-next-auth.session-token',
-      '__Host-next-auth.csrf-token'
+      '__Host-next-auth.csrf-token',
+      'next-auth.state'
     ];
     
     cookiesToClear.forEach(cookieName => {
@@ -31,15 +26,20 @@ export async function GET(request: NextRequest) {
       });
     });
     
-    console.log('🧹 [Clear Cache] All authentication cookies cleared');
+    // Also clear non-httpOnly cookies
+    response.cookies.set('next-auth.session-token', '', {
+      expires: new Date(0),
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+    
+    console.log('🧹 [Force Logout] All cookies cleared, redirecting to signin');
     
     return response;
   } catch (error) {
-    console.error('❌ [Clear Cache] Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to clear cache' 
-    }, { status: 500 });
+    console.error('❌ [Force Logout] Error:', error);
+    return NextResponse.redirect(new URL('/auth/signin', request.url));
   }
 }
 

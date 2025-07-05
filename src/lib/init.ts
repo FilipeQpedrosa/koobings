@@ -1,12 +1,14 @@
-import { SchedulerService } from '@/services/scheduler';
+// import { SchedulerService } from '@/services/scheduler';
 
-let schedulerService: SchedulerService | null = null;
+let schedulerService: any | null = null;
 
 export function initializeServices() {
-  if (!schedulerService) {
-    schedulerService = new SchedulerService();
-    schedulerService.start();
-  }
+  // Temporarily disabled to fix chunk loading error
+  console.log('Services initialization skipped');
+  // if (!schedulerService) {
+  //   schedulerService = new SchedulerService();
+  //   schedulerService.start();
+  // }
 }
 
 export function shutdownServices() {

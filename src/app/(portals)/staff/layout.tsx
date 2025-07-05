@@ -9,7 +9,7 @@ import { useSession } from "next-auth/react";
 export default function StaffPortalLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const { data: session, update } = useSession();
+  const { data: session } = useSession();
 
   // Debug session data
   useEffect(() => {
@@ -20,17 +20,12 @@ export default function StaffPortalLayout({ children }: { children: React.ReactN
         role: session.user.role,
         staffRole: session.user.staffRole,
         businessId: session.user.businessId,
+        businessName: session.user.businessName,
         id: session.user.id,
         timestamp: new Date().toISOString()
       });
-
-      // If session data seems wrong, force an update
-      if (session.user.name === 'Julia' && session.user.email !== 'julia@julia.com') {
-        console.log('⚠️  Detected stale session data, forcing update...');
-        update();
-      }
     }
-  }, [session, update]);
+  }, [session]);
 
   // Prevent background scroll when sidebar is open
   useEffect(() => {
