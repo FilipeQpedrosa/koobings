@@ -209,12 +209,16 @@ export default withAuth(
     // SPECIAL CASE: Handle authenticated users accessing admin-signin page
     if (token && pathname === '/auth/admin-signin') {
       console.log('🔄 [Middleware] Authenticated user accessing admin-signin, role:', token.role);
+      console.log('🔄 [Middleware] User email:', token.email);
+      console.log('🔄 [Middleware] Expected admin email: f.queirozpedrosa@gmail.com');
       
       if (token.role === 'ADMIN' && token.email === 'f.queirozpedrosa@gmail.com') {
         console.log('🔄 [Middleware] Redirecting authenticated admin to admin dashboard');
         return NextResponse.redirect(new URL('/admin/dashboard', req.url));
       } else if (token.role === 'STAFF' && token.businessId) {
-        console.log('🔄 [Middleware] Redirecting staff to business dashboard');
+        console.log('🔄 [Middleware] STAFF user trying to access admin-signin - redirecting to business dashboard');
+        console.log('🔄 [Middleware] Staff email:', token.email);
+        console.log('🔄 [Middleware] Staff businessId:', token.businessId);
         
         // Find business slug for this user
         const businessSlug = Object.keys(BUSINESS_SLUGS).find(
@@ -226,6 +230,9 @@ export default withAuth(
           console.log('🔄 [Middleware] Redirecting staff to business dashboard:', redirectUrl);
           return NextResponse.redirect(new URL(redirectUrl, req.url));
         }
+      } else {
+        console.log('🔄 [Middleware] User not authorized for admin or staff - allowing access to admin-signin');
+        console.log('🔄 [Middleware] This allows logout and re-login with correct credentials');
       }
     }
     
