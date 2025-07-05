@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Login Flow</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #logs { background: #f8f9fa; padding: 10px; border-radius: 5px; white-space: pre-wrap; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Admin Login Flow Test</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Check Pages Accessibility</h3>
+        <button onclick="testPageAccess()">Test Page Access</button>
+        <div id="pageResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: Authentication Test</h3>
+        <button onclick="testAuth()">Test Authentication</button>
+        <div id="authResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 3: Login Simulation</h3>
+        <button onclick="simulateLogin()">Simulate Login</button>
+        <div id="loginResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Debug Logs</h3>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logs = document.getElementById('logs');
+            logs.textContent += new Date().toISOString() + ': ' + message + '\n';
+        }
+
+        async function testPageAccess() {
+            const results = document.getElementById('pageResults');
+            results.innerHTML = '';
+            
+            const pages = [
+                { url: '/auth/admin-signin', name: 'Admin Signin' },
+                { url: '/admin/dashboard', name: 'Admin Dashboard' },
+                { url: '/auth/signin', name: 'Staff Signin' }
+            ];
+            
+            for (const page of pages) {
+                try {
+                    const response = await fetch('https://koobings.com' + page.url);
+                    const status = response.status;
+                    const className = status === 200 ? 'success' : 'error';
+                    results.innerHTML += `<div class="result ${className}">${page.name}: ${status}</div>`;
+                    log(`${page.name}: ${status}`);
+                } catch (error) {
+                    results.innerHTML += `<div class="result error">${page.name}: Error - ${error.message}</div>`;
+                    log(`${page.name}: Error - ${error.message}`);
+                }
+            }
+        }
+
+        async function testAuth() {
+            const results = document.getElementById('authResults');
+            results.innerHTML = '';
+            
+            try {
+                const response = await fetch('https://koobings.com/api/debug-auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'f.queirozpedrosa@gmail.com',
+                        password: 'admin123',
+                        role: 'ADMIN'
+                    })
+                });
+                
+                const result = await response.json();
+                const className = result.success ? 'success' : 'error';
+                results.innerHTML += `<div class="result ${className}">Auth Test: ${result.success ? 'PASSED' : 'FAILED'}</div>`;
+                
+                if (result.success) {
+                    results.innerHTML += `<div class="result info">User: ${result.user.name} (${result.user.role})</div>`;
+                    log(`Auth test passed: ${result.user.name} (${result.user.role})`);
+                } else {
+                    results.innerHTML += `<div class="result error">Error: ${result.error}</div>`;
+                    log(`Auth test failed: ${result.error}`);
+                }
+            } catch (error) {
+                results.innerHTML += `<div class="result error">Auth Test Error: ${error.message}</div>`;
+                log(`Auth test error: ${error.message}`);
+            }
+        }
+
+        async function simulateLogin() {
+            const results = document.getElementById('loginResults');
+            results.innerHTML = '<div class="result info">Simulating login flow...</div>';
+            
+            log('Starting login simulation...');
+            
+            // This would normally be done by NextAuth, but we'll simulate the flow
+            try {
+                // Step 1: Check if we can access admin-signin
+                const signinResponse = await fetch('https://koobings.com/auth/admin-signin');
+                log(`Admin signin page: ${signinResponse.status}`);
+                
+                // Step 2: Check what happens when we try to access admin dashboard without auth
+                const dashboardResponse = await fetch('https://koobings.com/admin/dashboard');
+                log(`Admin dashboard without auth: ${dashboardResponse.status}`);
+                
+                // Step 3: Check session endpoint
+                const sessionResponse = await fetch('https://koobings.com/api/debug-session');
+                const sessionData = await sessionResponse.json();
+                log(`Session check: ${JSON.stringify(sessionData)}`);
+                
+                results.innerHTML += '<div class="result info">Login simulation completed. Check logs for details.</div>';
+                
+            } catch (error) {
+                results.innerHTML += `<div class="result error">Login simulation error: ${error.message}</div>`;
+                log(`Login simulation error: ${error.message}`);
+            }
+        }
+
+        // Auto-run tests on page load
+        window.onload = function() {
+            log('Page loaded, ready for testing');
+        };
+    </script>
+</body>
+</html> 

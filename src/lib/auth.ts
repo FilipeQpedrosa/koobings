@@ -248,29 +248,46 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       console.log('🔄 REDIRECT CALLBACK CALLED:', { url, baseUrl });
+      console.log('🔄 URL includes admin-signin:', url.includes('admin-signin'));
+      console.log('🔄 URL includes role=ADMIN:', url.includes('role=ADMIN'));
+      console.log('🔄 URL includes admin/dashboard:', url.includes('/admin/dashboard'));
       
-      // If coming from admin-signin, redirect to admin dashboard
-      if (url.includes('admin-signin') || url.includes('role=ADMIN')) {
-        console.log('🔄 Admin login - redirecting to admin dashboard');
-        return `${baseUrl}/admin/dashboard`;
+      // CRITICAL: Always redirect admin-signin to admin dashboard
+      if (url.includes('admin-signin')) {
+        console.log('🔄 ADMIN SIGNIN DETECTED - FORCING REDIRECT TO ADMIN DASHBOARD');
+        const redirectUrl = `${baseUrl}/admin/dashboard`;
+        console.log('🔄 REDIRECT URL:', redirectUrl);
+        return redirectUrl;
+      }
+      
+      // CRITICAL: Always redirect role=ADMIN to admin dashboard
+      if (url.includes('role=ADMIN')) {
+        console.log('🔄 ADMIN ROLE DETECTED - FORCING REDIRECT TO ADMIN DASHBOARD');
+        const redirectUrl = `${baseUrl}/admin/dashboard`;
+        console.log('🔄 REDIRECT URL:', redirectUrl);
+        return redirectUrl;
       }
       
       // If direct admin dashboard access, allow it
       if (url.includes('/admin/dashboard')) {
-        console.log('🔄 Direct admin dashboard access');
+        console.log('🔄 Direct admin dashboard access - allowing');
         return `${baseUrl}/admin/dashboard`;
       }
       
       // For all other cases, use default behavior
+      console.log('🔄 Default redirect behavior');
       if (url.startsWith('/')) {
+        console.log('🔄 Relative URL redirect:', url);
         return `${baseUrl}${url}`;
       }
       
       if (url.startsWith(baseUrl)) {
+        console.log('🔄 Base URL redirect:', url);
         return url;
       }
       
       // Default fallback
+      console.log('🔄 Fallback to staff dashboard');
       return `${baseUrl}/staff/dashboard`;
     }
   }
