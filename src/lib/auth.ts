@@ -249,72 +249,29 @@ export const authOptions: NextAuthOptions = {
     async redirect({ url, baseUrl }) {
       console.log('🔄 REDIRECT CALLBACK CALLED:', { url, baseUrl });
       
-      // Handle admin login redirect - only for actual ADMIN users
-      if (url.includes('admin-signin')) {
-        console.log('🔄 Admin signin page detected - redirecting to admin dashboard');
+      // If coming from admin-signin, redirect to admin dashboard
+      if (url.includes('admin-signin') || url.includes('role=ADMIN')) {
+        console.log('🔄 Admin login - redirecting to admin dashboard');
         return `${baseUrl}/admin/dashboard`;
       }
       
-      if (url.includes('role=ADMIN')) {
-        console.log('🔄 Admin role detected - redirecting to admin dashboard');
-        return `${baseUrl}/admin/dashboard`;
-      }
-      
-      // Handle specific admin dashboard access
+      // If direct admin dashboard access, allow it
       if (url.includes('/admin/dashboard')) {
         console.log('🔄 Direct admin dashboard access');
         return `${baseUrl}/admin/dashboard`;
       }
       
-      // Handle staff login redirect
-      if (url.includes('auth/signin') && !url.includes('admin-signin')) {
-        console.log('🔄 Staff login detected - redirecting to staff dashboard');
-        return `${baseUrl}/staff/dashboard`;
-      }
-      
-      // If user is trying to access a business-specific URL, allow it
-      if (url.match(/\/(barbearia-orlando|ju-unha)\/staff/)) {
-        console.log('🔄 Allowing access to business-specific URL:', url);
-        return url;
-      }
-      
-      // Handle callback URLs
-      if (url.includes('callbackUrl')) {
-        const urlParams = new URLSearchParams(url.split('?')[1]);
-        const callbackUrl = urlParams.get('callbackUrl');
-        
-        if (callbackUrl) {
-          console.log('🔄 Found callback URL:', callbackUrl);
-          
-          // If callback is admin-related, go to admin dashboard
-          if (callbackUrl.includes('/admin/')) {
-            console.log('🔄 Callback is admin-related - redirecting to admin dashboard');
-            return `${baseUrl}/admin/dashboard`;
-          }
-          
-          // If callback is staff-related, let middleware handle business-specific redirect
-          if (callbackUrl.includes('/staff/') || callbackUrl.includes('barbearia-orlando') || callbackUrl.includes('ju-unha')) {
-            console.log('🔄 Callback is staff-related - redirecting to staff dashboard');
-            return `${baseUrl}/staff/dashboard`;
-          }
-          
-          // Return the callback URL if it's safe
-          if (callbackUrl.startsWith('/')) {
-            return `${baseUrl}${callbackUrl}`;
-          }
-        }
-      }
-      
-      // Default redirect for relative URLs
+      // For all other cases, use default behavior
       if (url.startsWith('/')) {
-        console.log('🔄 Relative URL redirect:', url);
         return `${baseUrl}${url}`;
       }
       
-      // Fallback to staff dashboard
-      const finalUrl = url.startsWith(baseUrl) ? url : `${baseUrl}/staff/dashboard`;
-      console.log('🔄 Final fallback redirect URL:', finalUrl);
-      return finalUrl;
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      
+      // Default fallback
+      return `${baseUrl}/staff/dashboard`;
     }
   }
 }; 
