@@ -56,6 +56,8 @@ export default function AdminSignInPage() {
     const password = formData.get('password') as string;
 
     console.log('🔑 Admin login attempt:', { email, role: 'ADMIN' });
+    console.log('🔑 Current URL:', window.location.href);
+    console.log('🔑 Expected redirect after login: /admin/dashboard');
 
     // CLIENT-SIDE SECURITY CHECK
     if (email !== 'f.queirozpedrosa@gmail.com') {
@@ -74,6 +76,7 @@ export default function AdminSignInPage() {
     }
 
     try {
+      console.log('🔐 Calling signIn with redirect: false');
       const result = await signIn('credentials', {
         email,
         password,
@@ -82,6 +85,9 @@ export default function AdminSignInPage() {
       });
 
       console.log('🔍 SignIn result:', result);
+      console.log('🔍 Result OK:', result?.ok);
+      console.log('🔍 Result Error:', result?.error);
+      console.log('🔍 Result URL:', result?.url);
 
       if (result?.error) {
         console.error('❌ SignIn error:', result.error);
@@ -94,10 +100,21 @@ export default function AdminSignInPage() {
       }
 
       if (result?.ok) {
-        console.log('✅ Login successful, redirecting...');
-        router.push('/admin/dashboard');
+        console.log('✅ Login successful!');
+        console.log('🔄 About to redirect to /admin/dashboard');
+        console.log('🔄 Current location before redirect:', window.location.href);
+        
+        // Force redirect to admin dashboard
+        window.location.href = '/admin/dashboard';
+        
+        // Also try router.push as backup
+        setTimeout(() => {
+          console.log('🔄 Backup redirect with router.push');
+          router.push('/admin/dashboard');
+        }, 1000);
       } else {
         console.error('❌ Login failed without specific error');
+        console.error('❌ Result object:', result);
         toast({
           title: 'Error',
           description: 'Login failed. Please check your credentials.',
