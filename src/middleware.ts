@@ -1,15 +1,15 @@
-import { NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 import type { NextRequest } from 'next/server'
-import { env } from './lib/env'
 
 // Rate limiting maps
 const ipMap = new Map<string, number[]>()
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now()
-  const windowMs = Number(env.RATE_LIMIT_DURATION) * 1000
-  const limit = Number(env.RATE_LIMIT_REQUESTS)
+  const windowMs = 60 * 1000 // 60 seconds
+  const limit = 100 // 100 requests per minute
 
   const requests = ipMap.get(ip) || []
   const windowStart = now - windowMs
@@ -36,6 +36,7 @@ const protectedRoutes = {
 const publicRoutes = [
   '/auth/signin',
   '/auth/signup',
+  '/auth/admin-signin', // ALLOW EVERYONE TO ACCESS ADMIN SIGNIN PAGE
   '/api/auth',
   '/api/health',
   '/api/debug-auth',
@@ -66,77 +67,172 @@ function hasPathAccess(role: UserRole, path: string): boolean {
   return allowedPaths.some(prefix => path.startsWith(prefix));
 }
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+// Business slug to businessId mapping
+const BUSINESS_SLUGS: Record<string, string> = {
+  'barbearia-orlando': 'cmckxlexv0000js04ehmx88dq',
+  'ju-unha': 'cmckxlgcd0004js04sh2db333',
+};
 
-  // Skip middleware for public routes and static files
-  if (isPublicPath(pathname)) {
-    return NextResponse.next()
-  }
-
-  // Apply rate limiting
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-  if (isRateLimited(ip)) {
-    return new NextResponse('Too Many Requests', { status: 429 })
-  }
-
-  // Get the token and check authentication
-  const token = await getToken({ req: request })
-
-  // If no token and trying to access protected route, redirect to signin
-  if (!token) {
-    if (Object.values(protectedRoutes).some(pattern => pattern.test(pathname))) {
-      const signInUrl = new URL('/auth/signin', request.url)
-      signInUrl.searchParams.set('callbackUrl', pathname)
-      return NextResponse.redirect(signInUrl)
+export default withAuth(
+  async function middleware(req: NextRequest) {
+    const { pathname } = req.nextUrl;
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    
+    console.log('🔒 [Middleware] Path:', pathname);
+    console.log('🔒 [Middleware] Token exists:', !!token);
+    
+    if (token) {
+      console.log('🔒 [Middleware] User:', {
+        name: token.name,
+        role: token.role,
+        businessId: token.businessId,
+        businessName: token.businessName
+      });
     }
-    return NextResponse.next()
-  }
 
-  // Check role-based access
-  const userRole = token.role as UserRole
-  if (!hasPathAccess(userRole, pathname)) {
-    // Redirect to appropriate dashboard based on role
-    switch (userRole) {
-      case 'ADMIN':
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-      case 'BUSINESS':
-        return NextResponse.redirect(new URL('/portals/business/dashboard', request.url))
-      case 'STAFF':
-        return NextResponse.redirect(new URL('/portals/staff/dashboard', request.url))
-      default:
-        return NextResponse.redirect(new URL('/', request.url))
+    // ============================================
+    // CRITICAL SECURITY: ADMIN PORTAL PROTECTION
+    // ============================================
+    
+    // Block ONLY admin dashboard/routes for non-admin users
+    // But ALLOW everyone to access the admin-signin page
+    if (pathname.startsWith('/admin/')) {
+      console.log('🚨 [Middleware] ADMIN ROUTE ACCESS ATTEMPT');
+      console.log('🚨 [Middleware] User role:', token?.role);
+      console.log('🚨 [Middleware] User email:', token?.email);
+      
+      // Only allow access if user is ADMIN role AND authorized email
+      if (token?.role !== 'ADMIN' || token?.email !== 'f.queirozpedrosa@gmail.com') {
+        console.log('❌ [Middleware] BLOCKING ADMIN ACCESS - Unauthorized user');
+        console.log('❌ [Middleware] Required: role=ADMIN AND email=f.queirozpedrosa@gmail.com');
+        console.log('❌ [Middleware] Actual: role=' + token?.role + ' AND email=' + token?.email);
+        
+        // Force logout and redirect to signin with error
+        const response = NextResponse.redirect(new URL('/auth/signin?error=admin_access_denied', req.url));
+        response.cookies.delete('next-auth.session-token');
+        response.cookies.delete('__Secure-next-auth.session-token');
+        return response;
+      }
+      
+      console.log('✅ [Middleware] Admin access granted to authorized user');
+      return NextResponse.next();
     }
-  }
+    
+    // ALLOW admin-signin page for everyone (staff will be redirected by the page itself)
+    if (pathname === '/auth/admin-signin') {
+      console.log('🔓 [Middleware] Allowing access to admin-signin page');
+      return NextResponse.next();
+    }
 
-  // Add security headers and user info
-  const headers = new Headers(request.headers)
-  headers.set('X-Frame-Options', 'DENY')
-  headers.set('X-Content-Type-Options', 'nosniff')
-  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  headers.set(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
-  )
-
-  // Add user info for API routes
-  if (pathname.startsWith('/api/')) {
-    headers.set('x-user-id', token.sub as string)
-    headers.set('x-user-role', token.role as string)
-  }
-
-  // Continue with added headers
-  return NextResponse.next({
-    request: {
-      headers,
+    // ============================================
+    // BUSINESS-SPECIFIC SECURITY
+    // ============================================
+    
+    // Handle business-specific routes
+    const businessRouteMatch = pathname.match(/^\/([^\/]+)\/staff/);
+    if (businessRouteMatch) {
+      const businessSlug = businessRouteMatch[1];
+      console.log('🔒 [Middleware] Business slug:', businessSlug);
+      
+      const expectedBusinessId = BUSINESS_SLUGS[businessSlug];
+      console.log('🔒 [Middleware] Expected businessId:', expectedBusinessId);
+      console.log('🔒 [Middleware] Session businessId:', token?.businessId);
+      
+      if (!expectedBusinessId) {
+        console.log('❌ [Middleware] Unknown business slug, redirecting to signin');
+        return NextResponse.redirect(new URL('/auth/signin?error=unknown_business', req.url));
+      }
+      
+      if (token?.businessId !== expectedBusinessId) {
+        console.log('❌ [Middleware] Business ID mismatch - SECURITY VIOLATION!');
+        console.log('❌ [Middleware] Expected:', expectedBusinessId);
+        console.log('❌ [Middleware] Actual:', token?.businessId);
+        
+        // Force logout and redirect
+        const response = NextResponse.redirect(new URL('/auth/signin?error=business_mismatch', req.url));
+        response.cookies.delete('next-auth.session-token');
+        response.cookies.delete('__Secure-next-auth.session-token');
+        return response;
+      }
+      
+      console.log('✅ [Middleware] Business access validated');
+      return NextResponse.next();
+    }
+    
+    // Handle legacy /staff routes - redirect to business-specific routes
+    if (pathname.startsWith('/staff/')) {
+      console.log('🔄 [Middleware] Legacy staff route detected');
+      
+      if (token?.businessId) {
+        // Find business slug for this user
+        const businessSlug = Object.keys(BUSINESS_SLUGS).find(
+          slug => BUSINESS_SLUGS[slug] === token.businessId
+        );
+        
+        if (businessSlug) {
+          const newPath = pathname.replace('/staff/', `/${businessSlug}/staff/`);
+          console.log('🔄 [Middleware] Redirecting to business-specific route:', newPath);
+          return NextResponse.redirect(new URL(newPath, req.url));
+        }
+      }
+      
+      console.log('❌ [Middleware] Cannot determine business for staff route');
+      return NextResponse.redirect(new URL('/auth/signin?error=business_required', req.url));
+    }
+    
+    // Handle authenticated users accessing signin pages
+    if (token && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
+      console.log('🔄 [Middleware] Authenticated user accessing signin, role:', token.role);
+      
+      if (token.role === 'ADMIN') {
+        console.log('🔄 [Middleware] Redirecting admin to admin dashboard');
+        return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+      } else if (token.role === 'STAFF' && token.businessId) {
+        console.log('🔄 [Middleware] Redirecting staff to business dashboard');
+        
+        // Find business slug for this user
+        const businessSlug = Object.keys(BUSINESS_SLUGS).find(
+          slug => BUSINESS_SLUGS[slug] === token.businessId
+        );
+        
+        if (businessSlug) {
+          const redirectUrl = `/${businessSlug}/staff/dashboard`;
+          console.log('🔄 [Middleware] Redirecting staff to business dashboard:', redirectUrl);
+          return NextResponse.redirect(new URL(redirectUrl, req.url));
+        }
+      }
+    }
+    
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        const { pathname } = req.nextUrl;
+        
+        // Allow access to public pages (including admin-signin)
+        if (pathname.startsWith('/auth/') || 
+            pathname.startsWith('/api/auth/') ||
+            pathname === '/' ||
+            pathname.startsWith('/about') ||
+            pathname.startsWith('/privacy') ||
+            pathname.startsWith('/terms') ||
+            pathname.startsWith('/book') ||
+            pathname.startsWith('/api/health') ||
+            pathname.startsWith('/_next') ||
+            pathname.startsWith('/favicon')) {
+          return true;
+        }
+        
+        // All other routes require authentication
+        return !!token;
+      },
     },
-  })
-}
+  }
+);
 
 export const config = {
   matcher: [
-    '/portals/:path*',
-    '/api/:path*',
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|public/).*)',
   ],
-} 
+}; 
