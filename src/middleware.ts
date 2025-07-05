@@ -40,6 +40,7 @@ const publicRoutes = [
   '/api/auth',
   '/api/health',
   '/api/debug-auth',
+  '/api/debug-auth-flow', // Debug endpoint for testing NextAuth flow
   '/api/test-admin',
   '/api/admin/fix-password',
   '/api/simple-test',
