@@ -1,173 +1,156 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-// GET /api/client/appointments - Get client appointments
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
-    }
-
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        clientId: session.user.id,
-      },
-      include: {
-        service: true,
-        staff: true,
-      },
-      orderBy: {
-        scheduledFor: 'asc',
-      },
-    });
-
-    return NextResponse.json({ success: true, data: appointments });
-  } catch (error) {
-    console.error('Error fetching appointments:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'APPOINTMENTS_FETCH_ERROR', message: 'Failed to fetch appointments' } },
-      { status: 500 }
-    );
-  }
-}
-
-// POST /api/client/appointments - Create new appointment
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
-    }
-
+    console.log('[CLIENT_APPOINTMENTS_POST] Starting...');
+    
     const body = await request.json();
-    const { serviceId, staffId, date, startTime, endTime, notes } = body;
+    console.log('[CLIENT_APPOINTMENTS_POST] Body:', body);
+    
+    const { businessSlug, clientName, clientEmail, clientPhone, serviceId, staffId, scheduledFor, notes } = body;
 
     // Validate required fields
-    if (!serviceId || !staffId || !date || !startTime || !endTime) {
+    if (!businessSlug || !clientName || !clientEmail || !serviceId || !staffId || !scheduledFor) {
+      console.log('[CLIENT_APPOINTMENTS_POST] Missing fields:', { businessSlug, clientName, clientEmail, serviceId, staffId, scheduledFor });
       return NextResponse.json(
         { success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } },
         { status: 400 }
       );
     }
 
-    // Combine date and startTime into scheduledFor
-    const scheduledFor = new Date(`${date}T${startTime}`);
-    // Calculate duration in minutes
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const [endHour, endMinute] = endTime.split(':').map(Number);
-    const duration = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
-
-    // Check for conflicting appointments
-    const conflictingAppointment = await prisma.appointment.findFirst({
-      where: {
-        staffId,
-        scheduledFor: {
-          gte: scheduledFor,
-          lt: new Date(scheduledFor.getTime() + duration * 60000),
-        },
-        status: { in: ['PENDING', 'CONFIRMED'] },
-      },
+    console.log('[CLIENT_APPOINTMENTS_POST] Finding business...');
+    
+    // Find business by slug
+    const business = await prisma.business.findUnique({
+      where: { slug: businessSlug },
+      select: { id: true, name: true }
     });
 
-    if (conflictingAppointment) {
+    console.log('[CLIENT_APPOINTMENTS_POST] Business found:', business);
+
+    if (!business) {
       return NextResponse.json(
-        { success: false, error: { code: 'TIME_SLOT_BOOKED', message: 'Time slot is already booked' } },
-        { status: 400 }
-      );
-    }
-
-    // Fetch the service to get the businessId
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-      select: { businessId: true },
-    });
-    if (!service) {
-      return NextResponse.json({ success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } }, { status: 404 });
-    }
-
-    // Create the appointment
-    const appointment = await prisma.appointment.create({
-      data: {
-        clientId: session.user.id,
-        serviceId,
-        staffId,
-        businessId: service.businessId,
-        scheduledFor,
-        duration,
-        notes,
-        status: 'PENDING',
-      },
-      include: {
-        service: true,
-        staff: true,
-      },
-    });
-
-    return NextResponse.json({ success: true, data: appointment });
-  } catch (error) {
-    console.error('Error creating appointment:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'APPOINTMENT_CREATE_ERROR', message: 'Failed to create appointment' } },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH /api/client/appointments - Update appointment status
-export async function PATCH(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { appointmentId, status } = body;
-
-    if (!appointmentId || !status) {
-      return NextResponse.json(
-        { success: false, error: { code: 'MISSING_FIELDS', message: 'Appointment ID and status are required' } },
-        { status: 400 }
-      );
-    }
-
-    // Verify appointment belongs to client
-    const existingAppointment = await prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        clientId: session.user.id,
-      },
-    });
-
-    if (!existingAppointment) {
-      return NextResponse.json(
-        { success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' } },
+        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
         { status: 404 }
       );
     }
 
-    // Update appointment status
-    const appointment = await prisma.appointment.update({
+    console.log('[CLIENT_APPOINTMENTS_POST] Finding service...');
+
+    // Check if service exists and belongs to this business
+    const service = await prisma.service.findFirst({
       where: {
-        id: appointmentId,
-      },
-      data: {
-        status,
-      },
-      include: {
-        service: true,
-        staff: true,
-      },
+        id: serviceId,
+        businessId: business.id
+      }
     });
 
-    return NextResponse.json({ success: true, data: appointment });
-  } catch (error) {
-    console.error('Error updating appointment:', error);
+    console.log('[CLIENT_APPOINTMENTS_POST] Service found:', service);
+
+    if (!service) {
+      return NextResponse.json(
+        { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
+        { status: 404 }
+      );
+    }
+
+    console.log('[CLIENT_APPOINTMENTS_POST] Finding staff...');
+
+    // Check if staff exists and belongs to this business
+    const staff = await prisma.staff.findFirst({
+      where: {
+        id: staffId,
+        businessId: business.id
+      }
+    });
+
+    console.log('[CLIENT_APPOINTMENTS_POST] Staff found:', staff);
+
+    if (!staff) {
+      return NextResponse.json(
+        { success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } },
+        { status: 404 }
+      );
+    }
+
+    console.log('[CLIENT_APPOINTMENTS_POST] Finding/creating client...');
+
+    // Find or create client
+    const uniqueEmail = `${clientEmail}_${Date.now()}`;
+    let client = await prisma.client.findFirst({
+      where: {
+        email: clientEmail,
+        businessId: business.id
+      }
+    });
+
+    console.log('[CLIENT_APPOINTMENTS_POST] Existing client:', client);
+
+    if (!client) {
+      console.log('[CLIENT_APPOINTMENTS_POST] Creating new client...');
+      // Create new client with unique email
+      client = await prisma.client.create({
+        data: {
+          id: `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: clientName,
+          email: uniqueEmail, // Use unique email to avoid conflicts
+          phone: clientPhone || null,
+          businessId: business.id
+        }
+      });
+      console.log('[CLIENT_APPOINTMENTS_POST] New client created:', client);
+    }
+
+    // Create appointment  
+    const appointmentId = `apt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log('[CLIENT_APPOINTMENTS_POST] Creating appointment with ID:', appointmentId);
+    
+    const appointment = await (prisma as any).appointments.create({
+      data: {
+        id: appointmentId,
+        clientId: client.id,
+        serviceId: service.id,
+        staffId: staff.id,
+        businessId: business.id,
+        scheduledFor: new Date(scheduledFor),
+        duration: service.duration,
+        notes: notes || null,
+        status: 'PENDING'
+      }
+    });
+
+    console.log('[CLIENT_APPOINTMENTS_POST] Appointment created:', appointment);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: appointment.id,
+        client: {
+          id: client.id,
+          name: client.name,
+          email: clientEmail // Return original email, not the unique one
+        },
+        service: {
+          id: service.id,
+          name: service.name,
+          duration: service.duration,
+          price: service.price
+        },
+        staff: {
+          id: staff.id,
+          name: staff.name
+        },
+        scheduledFor: appointment.scheduledFor,
+        status: appointment.status,
+        notes: appointment.notes
+      }
+    });
+  } catch (error: any) {
+    console.error('[CLIENT_APPOINTMENTS_POST] Error:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'APPOINTMENT_UPDATE_ERROR', message: 'Failed to update appointment' } },
+      { success: false, error: { code: 'APPOINTMENT_CREATION_ERROR', message: 'Internal error' } },
       { status: 500 }
     );
   }

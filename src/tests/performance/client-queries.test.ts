@@ -72,7 +72,7 @@ describe('Client Query Performance Tests', () => {
 
     const startTime = process.hrtime();
 
-    await prisma.appointment.findMany({
+    await prisma.appointments.findMany({
       where: { clientId: 'test-1' },
       take: 10,
       skip: 0,
@@ -100,7 +100,7 @@ describe('Client Query Performance Tests', () => {
     const startTime = process.hrtime();
 
     const date = new Date(2024, 5, 1);
-    await prisma.appointment.findMany({
+    await prisma.appointments.findMany({
       where: {
         date,
         status: {
@@ -131,7 +131,7 @@ describe('Client Query Performance Tests', () => {
     const date = new Date(2024, 5, 1);
     const time = '10:00';
     
-    await prisma.appointment.findMany({
+    await prisma.appointments.findMany({
       where: {
         date,
         time,

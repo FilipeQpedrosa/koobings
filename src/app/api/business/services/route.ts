@@ -1,39 +1,49 @@
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { z } from 'zod'
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt';
+import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 // GET: List all services for a business
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user || !session.user.businessId) {
-      console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
+    const user = getRequestAuthUser(req);
+    
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    }
+
+    const businessId = user.businessId;
+    
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
     }
 
     const services = await prisma.service.findMany({
-      where: { businessId: session.user.businessId },
-      include: {
-        category: true,
-      },
-    })
+      where: { businessId },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    return NextResponse.json({ success: true, data: services })
+    return NextResponse.json({ success: true, data: services });
   } catch (error) {
-    console.error('GET /business/services error:', error)
-    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 })
+    console.error('GET /business/services error:', error);
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 });
   }
 }
 
 // POST: Create a new service
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || !session.user || !session.user.businessId) {
-      console.error('Unauthorized: No session or user.');
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 })
+    const user = getRequestAuthUser(request);
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    }
+
+    const businessId = user.businessId;
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
     }
 
     // Input validation
@@ -43,30 +53,35 @@ export async function POST(request: Request) {
       duration: z.number().int().positive(),
       price: z.number().nonnegative(),
       categoryId: z.string().optional(),
-    })
-    let body
+    });
+
+    let body;
     try {
-      body = await request.json()
+      body = await request.json();
     } catch (err) {
-      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 })
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
-    let validatedData
+
+    let validatedData;
     try {
-      validatedData = schema.parse(body)
+      validatedData = schema.parse(body);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return NextResponse.json({ success: false, error: { code: 'INVALID_SERVICE_DATA', message: 'Invalid service data', details: error.errors } }, { status: 400 })
+        return NextResponse.json({ success: false, error: { code: 'INVALID_SERVICE_DATA', message: 'Invalid service data', details: error.errors } }, { status: 400 });
       }
-      throw error
+      throw error;
     }
+
     const service = await prisma.service.create({
       data: {
+        id: randomUUID(),
+        updatedAt: new Date(),
         ...validatedData,
-        businessId: session.user.businessId,
+        businessId,
       },
-    })
+    });
 
-    return NextResponse.json({ success: true, data: service })
+    return NextResponse.json({ success: true, data: service }, { status: 201 });
   } catch (error) {
     console.error('POST /business/services error:', error);
     return NextResponse.json({

@@ -1,271 +1,169 @@
-import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import type { NextRequest } from 'next/server'
+import { getRequestAuthUser } from '@/lib/jwt';
 
-// Rate limiting maps
-const ipMap = new Map<string, number[]>()
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const windowMs = 60 * 1000 // 60 seconds
-  const limit = 100 // 100 requests per minute
-
-  const requests = ipMap.get(ip) || []
-  const windowStart = now - windowMs
-
-  // Remove old requests
-  const recentRequests = requests.filter(timestamp => timestamp > windowStart)
-  
-  // Add current request
-  recentRequests.push(now)
-  ipMap.set(ip, recentRequests)
-
-  return recentRequests.length > limit
+/**
+ * Extract business slug from pathname (simplified version for middleware)
+ */
+function extractBusinessSlug(pathname: string): string | null {
+  // Match patterns like /business-slug/staff/dashboard
+  const match = pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
+  return match ? match[1] : null;
 }
 
-// Define protected routes patterns
-const protectedRoutes = {
-  business: /^\/portals\/business\/.*/,
-  staff: /^\/portals\/staff\/.*/,
-  admin: /^\/admin\/.*/,
-  api: /^\/api\/v1\/.*/,
+function isValidSlugFormat(slug: string): boolean {
+  // Basic slug validation: only lowercase letters, numbers, and hyphens
+  return /^[a-z0-9-]+$/.test(slug);
 }
 
 // Define public routes that don't need authentication
 const publicRoutes = [
+  '/',
+  '/client',
+  '/book',
   '/auth/signin',
   '/auth/signup',
-  '/auth/admin-signin', // ALLOW EVERYONE TO ACCESS ADMIN SIGNIN PAGE
+  '/auth/admin-signin',
   '/api/auth',
   '/api/health',
   '/api/debug-auth',
-  '/api/debug-auth-flow', // Debug endpoint for testing NextAuth flow
+  '/api/debug-auth-flow',
   '/api/test-admin',
   '/api/admin/fix-password',
   '/api/simple-test',
   '/api/test-nextauth',
-  '/',
+  '/api/business/by-slug', // Allow business lookup for signin pages
+  '/api/client', // Allow client API endpoints
 ]
 
-// Configure role-based path access
-const roleBasedPaths = {
-  ADMIN: ['/admin'],
-  BUSINESS: ['/portals/business'],
-  STAFF: ['/portals/staff'],
-} as const;
-
-type UserRole = keyof typeof roleBasedPaths;
-
-function isPublicPath(path: string): boolean {
-  return publicRoutes.some(route => path.startsWith(route)) ||
-         path.startsWith('/_next') ||
-         path.includes('favicon.ico');
-}
-
-function hasPathAccess(role: UserRole, path: string): boolean {
-  const allowedPaths = roleBasedPaths[role] || [];
-  return allowedPaths.some(prefix => path.startsWith(prefix));
-}
-
-// Business slug to businessId mapping
-const BUSINESS_SLUGS: Record<string, string> = {
-  'barbearia-orlando': 'cmckxlexv0000js04ehmx88dq',
-  'ju-unha': 'cmckxlgcd0004js04sh2db333',
-};
-
-export default withAuth(
-  async function middleware(req: NextRequest) {
-    const { pathname } = req.nextUrl;
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    
-    console.log('🔒 [Middleware] Path:', pathname);
-    console.log('🔒 [Middleware] Token exists:', !!token);
-    
-    if (token) {
-      console.log('🔒 [Middleware] User:', {
-        name: token.name,
-        role: token.role,
-        businessId: token.businessId,
-        businessName: token.businessName
-      });
-    }
-
-    // ============================================
-    // CRITICAL SECURITY: ADMIN PORTAL PROTECTION
-    // ============================================
-    
-    // Block ONLY admin dashboard/routes for non-admin users
-    // But ALLOW everyone to access the admin-signin page
-    if (pathname.startsWith('/admin/')) {
-      console.log('🚨 [Middleware] ADMIN ROUTE ACCESS ATTEMPT');
-      console.log('🚨 [Middleware] User role:', token?.role);
-      console.log('🚨 [Middleware] User email:', token?.email);
-      
-      // Only allow access if user is ADMIN role AND authorized email
-      if (token?.role !== 'ADMIN' || token?.email !== 'f.queirozpedrosa@gmail.com') {
-        console.log('❌ [Middleware] BLOCKING ADMIN ACCESS - Unauthorized user');
-        console.log('❌ [Middleware] Required: role=ADMIN AND email=f.queirozpedrosa@gmail.com');
-        console.log('❌ [Middleware] Actual: role=' + token?.role + ' AND email=' + token?.email);
-        
-        // CRITICAL: NEVER redirect admin routes to /auth/signin
-        // Always redirect to /auth/admin-signin to maintain admin flow
-        console.log('🔄 [Middleware] Redirecting to ADMIN SIGNIN (not staff signin)');
-        const response = NextResponse.redirect(new URL('/auth/admin-signin?error=admin_access_denied', req.url));
-        response.cookies.delete('next-auth.session-token');
-        response.cookies.delete('__Secure-next-auth.session-token');
-        return response;
-      }
-      
-      console.log('✅ [Middleware] Admin access granted to authorized user');
-      return NextResponse.next();
-    }
-    
-    // ALLOW admin-signin page for everyone (staff will be redirected by the page itself)
-    if (pathname === '/auth/admin-signin') {
-      console.log('🔓 [Middleware] Allowing access to admin-signin page');
-      return NextResponse.next();
-    }
-
-    // ============================================
-    // BUSINESS-SPECIFIC SECURITY
-    // ============================================
-    
-    // Handle business-specific routes
-    const businessRouteMatch = pathname.match(/^\/([^\/]+)\/staff/);
-    if (businessRouteMatch) {
-      const businessSlug = businessRouteMatch[1];
-      console.log('🔒 [Middleware] Business slug:', businessSlug);
-      
-      const expectedBusinessId = BUSINESS_SLUGS[businessSlug];
-      console.log('🔒 [Middleware] Expected businessId:', expectedBusinessId);
-      console.log('🔒 [Middleware] Session businessId:', token?.businessId);
-      
-      if (!expectedBusinessId) {
-        console.log('❌ [Middleware] Unknown business slug, redirecting to signin');
-        return NextResponse.redirect(new URL('/auth/signin?error=unknown_business', req.url));
-      }
-      
-      if (token?.businessId !== expectedBusinessId) {
-        console.log('❌ [Middleware] Business ID mismatch - SECURITY VIOLATION!');
-        console.log('❌ [Middleware] Expected:', expectedBusinessId);
-        console.log('❌ [Middleware] Actual:', token?.businessId);
-        
-        // Force logout and redirect
-        const response = NextResponse.redirect(new URL('/auth/signin?error=business_mismatch', req.url));
-        response.cookies.delete('next-auth.session-token');
-        response.cookies.delete('__Secure-next-auth.session-token');
-        return response;
-      }
-      
-      console.log('✅ [Middleware] Business access validated');
-      return NextResponse.next();
-    }
-    
-    // Handle legacy /staff routes - redirect to business-specific routes
-    if (pathname.startsWith('/staff/')) {
-      console.log('🔄 [Middleware] Legacy staff route detected');
-      
-      if (token?.businessId) {
-        // Find business slug for this user
-        const businessSlug = Object.keys(BUSINESS_SLUGS).find(
-          slug => BUSINESS_SLUGS[slug] === token.businessId
-        );
-        
-        if (businessSlug) {
-          const newPath = pathname.replace('/staff/', `/${businessSlug}/staff/`);
-          console.log('🔄 [Middleware] Redirecting to business-specific route:', newPath);
-          return NextResponse.redirect(new URL(newPath, req.url));
-        }
-      }
-      
-      console.log('❌ [Middleware] Cannot determine business for staff route');
-      return NextResponse.redirect(new URL('/auth/signin?error=business_required', req.url));
-    }
-    
-    // Handle authenticated users accessing signin pages
-    if (token && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
-      console.log('🔄 [Middleware] Authenticated user accessing signin, role:', token.role);
-      
-      if (token.role === 'ADMIN') {
-        console.log('🔄 [Middleware] Redirecting admin to admin dashboard');
-        return NextResponse.redirect(new URL('/admin/dashboard', req.url));
-      } else if (token.role === 'STAFF' && token.businessId) {
-        console.log('🔄 [Middleware] Redirecting staff to business dashboard');
-        
-        // Find business slug for this user
-        const businessSlug = Object.keys(BUSINESS_SLUGS).find(
-          slug => BUSINESS_SLUGS[slug] === token.businessId
-        );
-        
-        if (businessSlug) {
-          const redirectUrl = `/${businessSlug}/staff/dashboard`;
-          console.log('🔄 [Middleware] Redirecting staff to business dashboard:', redirectUrl);
-          return NextResponse.redirect(new URL(redirectUrl, req.url));
-        }
-      }
-    }
-
-    // SPECIAL CASE: Handle authenticated users accessing admin-signin page
-    if (token && pathname === '/auth/admin-signin') {
-      console.log('🔄 [Middleware] Authenticated user accessing admin-signin, role:', token.role);
-      console.log('🔄 [Middleware] User email:', token.email);
-      console.log('🔄 [Middleware] Expected admin email: f.queirozpedrosa@gmail.com');
-      
-      if (token.role === 'ADMIN' && token.email === 'f.queirozpedrosa@gmail.com') {
-        console.log('🔄 [Middleware] Redirecting authenticated admin to admin dashboard');
-        return NextResponse.redirect(new URL('/admin/dashboard', req.url));
-      } else if (token.role === 'STAFF' && token.businessId) {
-        console.log('🔄 [Middleware] STAFF user trying to access admin-signin - redirecting to business dashboard');
-        console.log('🔄 [Middleware] Staff email:', token.email);
-        console.log('🔄 [Middleware] Staff businessId:', token.businessId);
-        
-        // Find business slug for this user
-        const businessSlug = Object.keys(BUSINESS_SLUGS).find(
-          slug => BUSINESS_SLUGS[slug] === token.businessId
-        );
-        
-        if (businessSlug) {
-          const redirectUrl = `/${businessSlug}/staff/dashboard`;
-          console.log('🔄 [Middleware] Redirecting staff to business dashboard:', redirectUrl);
-          return NextResponse.redirect(new URL(redirectUrl, req.url));
-        }
-      } else {
-        console.log('🔄 [Middleware] User not authorized for admin or staff - allowing access to admin-signin');
-        console.log('🔄 [Middleware] This allows logout and re-login with correct credentials');
-      }
-    }
-    
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const { pathname } = req.nextUrl;
-        
-        // Allow access to public pages (including admin-signin)
-        if (pathname.startsWith('/auth/') || 
-            pathname.startsWith('/api/auth/') ||
-            pathname === '/' ||
-            pathname.startsWith('/about') ||
-            pathname.startsWith('/privacy') ||
-            pathname.startsWith('/terms') ||
-            pathname.startsWith('/book') ||
-            pathname.startsWith('/api/health') ||
-            pathname.startsWith('/_next') ||
-            pathname.startsWith('/favicon')) {
-          return true;
-        }
-        
-        // All other routes require authentication
-        return !!token;
-      },
-    },
+function isPublicRoute(path: string): boolean {
+  // Check exact matches first
+  if (publicRoutes.includes(path)) {
+    return true;
   }
-);
+  
+  // Check if starts with public routes
+  if (publicRoutes.some(route => path.startsWith(route))) {
+    return true;
+  }
+  
+  // Check business-specific auth routes like /ju-unha/auth/signin
+  if (path.match(/^\/[a-z0-9-]+\/auth\/(signin|signup)/)) {
+    return true;
+  }
+  
+  // Check Next.js internal routes
+  if (path.startsWith('/_next') || path.includes('favicon.ico')) {
+    return true;
+  }
+  
+  return false;
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  console.log('🔒 MIDDLEWARE executing for:', pathname);
+
+  // ✅ Check if it's a public route first
+  if (isPublicRoute(pathname)) {
+    console.log('✅ Public route, allowing access');
+    return NextResponse.next();
+  }
+
+  // ✅ Check if it's a dynamic business route (PROTECTED)
+  const businessSlug = extractBusinessSlug(pathname);
+  if (businessSlug) {
+    console.log('🏢 Business route detected:', businessSlug);
+    
+    // Basic validation: check if slug format is valid
+    if (!isValidSlugFormat(businessSlug)) {
+      console.log('❌ Invalid business slug format');
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+    
+    // Get the JWT token using centralized helper
+    const user = getRequestAuthUser(request);
+    console.log('🎫 JWT Token status:', !!user);
+
+    // Redirect to login if no token
+    if (!user) {
+      console.log('❌ No valid JWT token found, redirecting to login');
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+    
+    // Check if user has access to this specific business
+    console.log('🔍 User business slug:', user.businessSlug);
+    console.log('🔍 Requested business slug:', businessSlug);
+    console.log('🔍 User role:', user.role);
+    console.log('🔍 User isAdmin:', user.isAdmin);
+    
+    // Allow access if:
+    // 1. User belongs to this business (businessSlug matches)
+    // 2. User is a SYSTEM ADMIN (role === 'ADMIN') - can access all businesses
+    // Note: Business owners (BUSINESS_OWNER) can only access their own business
+    const hasSystemAdminAccess = user.role === 'ADMIN' && user.isAdmin;
+    const hasBusinessAccess = user.businessSlug === businessSlug;
+    
+    if (hasBusinessAccess || hasSystemAdminAccess) {
+      console.log('✅ User has access to business:', businessSlug);
+      if (hasSystemAdminAccess) {
+        console.log('🔐 System admin access granted');
+      } else {
+        console.log('🏢 Business member access granted');
+      }
+      return NextResponse.next();
+    } else {
+      console.log('❌ User does not have access to business:', businessSlug);
+      console.log('❌ User businessSlug:', user.businessSlug);
+      console.log('❌ User role:', user.role);
+      console.log('❌ User isAdmin:', user.isAdmin);
+      console.log('❌ hasSystemAdminAccess:', hasSystemAdminAccess);
+      console.log('❌ hasBusinessAccess:', hasBusinessAccess);
+      
+      // Redirect to their own business dashboard if they have one
+      if (user.businessSlug) {
+        const redirectUrl = `/${user.businessSlug}/staff/dashboard`;
+        console.log('🔄 Redirecting to user own business:', redirectUrl);
+        return NextResponse.redirect(new URL(redirectUrl, request.url));
+      } else {
+        // No business assigned, redirect to signin
+        return NextResponse.redirect(new URL('/auth/signin', request.url));
+      }
+    }
+  }
+
+  // ✅ Check admin routes
+  if (pathname.startsWith('/admin')) {
+    const user = getRequestAuthUser(request);
+    if (!user || (user.role !== 'ADMIN' || !user.isAdmin)) {
+      console.log('❌ Admin access denied');
+      return NextResponse.redirect(new URL('/auth/admin-signin', request.url));
+    }
+    console.log('✅ Admin access granted');
+    return NextResponse.next();
+  }
+
+  // For all other routes, check authentication
+  const user = getRequestAuthUser(request);
+  if (!user) {
+    console.log('❌ No authentication for protected route');
+    return NextResponse.redirect(new URL('/auth/signin', request.url));
+  }
+
+  console.log('✅ Allowing route:', pathname);
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|public/).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
-}; 
+} 

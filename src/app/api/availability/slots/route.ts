@@ -88,7 +88,7 @@ async function checkStaffAvailability(
   const staffIds = staff.map((s) => s.id);
 
   // 1. Fetch all conflicting appointments for the involved staff on that day
-  const existingAppointments = await prisma.appointment.findMany({
+  const existingAppointments = await prisma.appointments.findMany({
     where: {
       staffId: { in: staffIds },
       scheduledFor: {

@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     startDateTime.setHours(hours, minutes, 0, 0);
 
     // Check if the slot is available
-    const existingAppointment = await prisma.appointment.findFirst({
+    const existingAppointment = await prisma.appointments.findFirst({
       where: {
         scheduledFor: startDateTime,
         service: { id: serviceId },
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     });
 
     // Create the appointment
-    const appointment = await prisma.appointment.create({
+    const appointment = await prisma.appointments.create({
       data: {
         scheduledFor: startDateTime,
         duration: service.duration,

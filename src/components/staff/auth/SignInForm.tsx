@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function SignInForm() {
@@ -15,75 +14,73 @@ export default function SignInForm() {
     setError('');
 
     try {
-      const result = await signIn('staff-login', {
-        email,
-        password,
-        redirect: false,
+      const response = await fetch('/api/auth/custom-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (result?.error) {
-        setError('Invalid email or password');
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Redirect to the URL provided by the API
+        router.push(data.redirectUrl || '/staff/dashboard');
       } else {
-        router.push('/staff/dashboard');
+        setError(data.error || 'Invalid email or password');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
+      console.error('Login error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-      {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-700">{error}</div>
-        </div>
-      )}
-      <div className="rounded-md shadow-sm -space-y-px">
-        <div>
-          <label htmlFor="email-address" className="sr-only">
-            Email address
-          </label>
-          <input
-            id="email-address"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="password" className="sr-only">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          disabled={isLoading}
+        />
+      </div>
+      
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          Password
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          disabled={isLoading}
+        />
       </div>
 
-      <div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          {isLoading ? 'Signing in...' : 'Sign in'}
-        </button>
-      </div>
+      {error && (
+        <div className="text-red-600 text-sm">{error}</div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+      >
+        {isLoading ? 'Signing in...' : 'Sign In'}
+      </button>
     </form>
   );
 } 

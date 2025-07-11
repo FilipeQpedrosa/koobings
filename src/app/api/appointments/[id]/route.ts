@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointments.findUnique({
       where: { id: id },
       include: {
         client: {
@@ -86,7 +86,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }
 
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointments.findUnique({
       where: { id: id },
       include: {
         client: {
@@ -145,7 +145,7 @@ export async function PATCH(request: Request) {
 
     // Handle cancellation
     if (status === AppointmentStatus.CANCELLED) {
-      const updatedAppointment = await prisma.appointment.update({
+      const updatedAppointment = await prisma.appointments.update({
         where: { id: id },
         data: {
           status: AppointmentStatus.CANCELLED,
@@ -175,7 +175,7 @@ export async function PATCH(request: Request) {
     }
 
     // Handle other status updates
-    const updatedAppointment = await prisma.appointment.update({
+    const updatedAppointment = await prisma.appointments.update({
       where: { id: id },
       data: {
         status,
@@ -222,7 +222,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointments.findUnique({
       where: { id: id },
     });
 
@@ -238,7 +238,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await prisma.appointment.delete({
+    await prisma.appointments.delete({
       where: { id: id },
     });
 

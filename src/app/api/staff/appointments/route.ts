@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getRequestAuthUser } from '@/lib/jwt';
 import { startOfDay, endOfDay } from 'date-fns';
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.businessId) {
+  const user = getRequestAuthUser(req);
+  if (!user?.businessId) {
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED_OR_MISSING_BUSINESS', message: 'Unauthorized or missing business context' } }, { status: 401 });
   }
-  const businessId = session.user.businessId;
+  const businessId = user.businessId;
   const { searchParams } = new URL(req.url);
 
   // Optional date filters

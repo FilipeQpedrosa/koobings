@@ -1,81 +1,60 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-// GET /api/client/services - Browse available services
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // Try to get businessId from session if available
-    let businessId = null;
-    try {
-      const session = await getServerSession(authOptions);
-      businessId = session?.user?.businessId || null;
-    } catch {}
     const { searchParams } = new URL(request.url);
-    const categoryId = searchParams.get('categoryId');
-    const search = searchParams.get('search');
-    const staffId = searchParams.get('staffId');
-
-    // Fetch all services with their categories and providers, filtered by businessId if available
-    const services = await prisma.service.findMany({
-      where: {
-        ...(businessId ? { businessId } : {}),
-        categoryId: categoryId || undefined,
-        name: search ? {
-          contains: search,
-          mode: 'insensitive',
-        } : undefined,
-        staff: staffId ? {
-          some: {
-            id: staffId,
-          },
-        } : undefined,
-      },
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        staff: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            // schedules: true, // Only include if schedules is a valid field on Staff
-          },
-        },
-      },
-      orderBy: {
-        category: {
-          name: 'asc',
-        },
-      },
-    });
-
-    // If no services found, return empty array instead of empty object
-    if (!services || services.length === 0) {
-      return NextResponse.json({ success: true, data: [] });
+    const businessSlug = searchParams.get('businessSlug');
+    
+    if (!businessSlug) {
+      return NextResponse.json(
+        { success: false, error: { code: 'BUSINESS_SLUG_REQUIRED', message: 'Business slug is required' } },
+        { status: 400 }
+      );
     }
 
-    // Group services by category
-    const groupedServices = services.reduce((acc, service) => {
-      const categoryName = service.category?.name || service.categoryId || 'Uncategorized';
-      if (!acc[categoryName]) {
-        acc[categoryName] = [];
-      }
-      acc[categoryName].push(service);
-      return acc;
-    }, {} as Record<string, typeof services>);
+    // Find business by slug
+    const business = await prisma.business.findUnique({
+      where: { slug: businessSlug },
+      select: { id: true, name: true }
+    });
 
-    return NextResponse.json({ success: true, data: groupedServices });
-  } catch (error) {
-    console.error('Error fetching services:', error);
+    if (!business) {
+      return NextResponse.json(
+        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
+        { status: 404 }
+      );
+    }
+
+    // Get services for this business
+    const services = await prisma.service.findMany({
+      where: {
+        businessId: business.id
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        duration: true,
+        price: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        business: {
+          id: business.id,
+          name: business.name
+        },
+        services: services
+      }
+    });
+  } catch (error: any) {
+    console.error('[CLIENT_SERVICES_GET] Error:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'SERVICES_FETCH_ERROR', message: 'Failed to fetch services' } },
+      { success: false, error: { code: 'SERVICES_FETCH_ERROR', message: 'Internal error' } },
       { status: 500 }
     );
   }

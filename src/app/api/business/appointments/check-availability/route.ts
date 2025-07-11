@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Check for overlapping appointments
-    const conflictingAppointments = await prisma.appointment.findMany({
+    const conflictingAppointments = await prisma.appointments.findMany({
       where: {
         staffId,
         status: { not: 'CANCELLED' },

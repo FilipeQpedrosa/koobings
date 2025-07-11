@@ -1,188 +1,148 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
-import { Card } from '@/components/ui/card';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Eye, EyeOff, Lock, Mail, Crown } from 'lucide-react';
 
 export default function AdminSignInPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
-  useSearchParams(); // Just call the hook without assigning
-  const { toast } = useToast();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
-    // If user is already logged in as staff, redirect them away
-    if (status === 'authenticated' && session?.user?.role === 'STAFF') {
-      console.log('🚨 STAFF USER DETECTED ON ADMIN LOGIN PAGE');
-      console.log('🚨 User:', session.user.email);
-      console.log('🚨 Redirecting to staff dashboard...');
-      
-      // Find their business and redirect
-      if (session.user.businessId === 'cmckxlexv0000js04ehmx88dq') {
-        router.push('/barbearia-orlando/staff/dashboard');
-      } else if (session.user.businessId === 'cmckxlgcd0004js04sh2db333') {
-        router.push('/ju-unha/staff/dashboard');
-      } else {
-        router.push('/staff/dashboard');
-      }
-      return;
-    }
-    
-    // If user is already logged in as admin, redirect to admin dashboard
-    if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
-      console.log('✅ ADMIN USER DETECTED - Redirecting to admin dashboard');
-      router.push('/admin/dashboard');
-      return;
-    }
-    
-    // If not authenticated or loading, show the form
-    if (status === 'unauthenticated' || status === 'loading') {
-      setShowForm(true);
-    }
-  }, [session, status, router]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    const formData = new FormData(event.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-
-    console.log('🔑 Admin login attempt:', { email, role: 'ADMIN' });
-    console.log('🔑 Current URL:', window.location.href);
-    console.log('🔑 Expected redirect after login: /admin/dashboard');
-
-    // CLIENT-SIDE SECURITY CHECK
+    // Client-side security check
     if (email !== 'f.queirozpedrosa@gmail.com') {
-      console.log('❌ CLIENT-SIDE SECURITY VIOLATION: Unauthorized email');
-      console.log('❌ Email:', email);
-      console.log('❌ Only f.queirozpedrosa@gmail.com can access admin portal');
-      
-      toast({
-        title: 'Acesso Negado',
-        description: 'Apenas administradores autorizados podem aceder ao portal admin.',
-        variant: 'destructive',
-      });
-      
+      setError('Apenas administradores autorizados podem aceder ao portal admin.');
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log('🔐 Calling signIn with redirect: false');
-      const result = await signIn('credentials', {
-        email,
-        password,
-        role: 'ADMIN',
-        redirect: false,
+      console.log('🔐 Admin login attempt with custom auth...');
+      
+      const response = await fetch('/api/auth/custom-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      console.log('🔍 SignIn result:', result);
-      console.log('🔍 Result OK:', result?.ok);
-      console.log('🔍 Result Error:', result?.error);
-      console.log('🔍 Result URL:', result?.url);
+      const data = await response.json();
 
-      if (result?.error) {
-        console.error('❌ SignIn error:', result.error);
-        toast({
-          title: 'Error',
-          description: `Authentication failed: ${result.error}`,
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (result?.ok) {
-        console.log('✅ Login successful!');
-        console.log('🔄 About to redirect to /admin/dashboard');
-        console.log('🔄 Current location before redirect:', window.location.href);
+      if (response.ok && data.success) {
+        console.log('✅ Admin login successful!');
+        console.log('🔄 Redirecting to:', data.redirectUrl);
+        console.log('👤 User:', data.user);
         
-        // Force redirect to admin dashboard
-        window.location.href = '/admin/dashboard';
-        
-        // Also try router.push as backup
-        setTimeout(() => {
-          console.log('🔄 Backup redirect with router.push');
-          router.push('/admin/dashboard');
-        }, 1000);
+        // Verify it's actually an admin
+        if (data.user.role === 'ADMIN' && data.user.isAdmin) {
+          window.location.href = data.redirectUrl;
+        } else {
+          setError('Acesso negado. Não tem permissões de administrador.');
+        }
       } else {
-        console.error('❌ Login failed without specific error');
-        console.error('❌ Result object:', result);
-        toast({
-          title: 'Error',
-          description: 'Login failed. Please check your credentials.',
-          variant: 'destructive',
-        });
+        console.error('❌ Admin login failed:', data.error);
+        setError(data.error || 'Credenciais inválidas');
       }
     } catch (error) {
-      console.error('❌ Login exception:', error);
-      toast({
-        title: 'Error',
-        description: 'An error occurred. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('🚨 Admin login error:', error);
+      setError('Erro de conexão. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading while checking session
-  if (status === 'loading' || !showForm) {
-    return (
-      <div className="container mx-auto flex h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-lg p-6 space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold">Verificando acesso...</h1>
-            <p className="text-gray-500">Por favor aguarde</p>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto flex h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-lg p-6 space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Admin Login</h1>
-          <p className="text-gray-500">Sign in to your admin account</p>
-          <p className="text-xs text-red-500">⚠️ Apenas para administradores autorizados</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="admin-email">Admin Email</Label>
-            <Input
-              id="admin-email"
-              name="email"
-              type="email"
-              placeholder="admin@example.com"
-              required
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100 px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <div className="flex items-center justify-center mb-2">
+            <Crown className="h-8 w-8 text-purple-600" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="admin-password">Password</Label>
-            <Input
-              id="admin-password"
-              name="password"
-              type="password"
-              required
-            />
+          <CardTitle className="text-2xl font-bold text-center">Portal Admin</CardTitle>
+          <CardDescription className="text-center">
+            Acesso exclusivo para administradores do sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="admin-email">Email Administrativo</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="admin-email"
+                  type="email"
+                  placeholder="admin@koobings.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="admin-password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="admin-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-purple-600 hover:bg-purple-700"
+              disabled={isLoading}
+            >
+              {isLoading ? 'A verificar...' : 'Aceder como Admin'}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <Button
+              variant="link"
+              onClick={() => router.push('/auth/signin')}
+              className="text-sm text-gray-500"
+            >
+              ← Voltar ao login normal
+            </Button>
           </div>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
-        </form>
+        </CardContent>
       </Card>
     </div>
   );

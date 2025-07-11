@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -22,19 +21,31 @@ export default function ClientSignIn() {
     setError('');
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-        callbackUrl: '/client/dashboard',
+      console.log('🔐 Attempting client login with custom auth...');
+      
+      const response = await fetch('/api/auth/custom-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (result?.error) {
-        setError('Invalid email or password');
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        console.log('✅ Client login successful!');
+        console.log('🔄 Redirecting to:', data.redirectUrl);
+        console.log('👤 User:', data.user);
+        
+        // Redirect to the appropriate dashboard
+        window.location.href = data.redirectUrl;
       } else {
-        router.push('/client/dashboard');
+        console.error('❌ Client login failed:', data.error);
+        setError(data.error || 'Invalid email or password');
       }
     } catch (error) {
+      console.error('🚨 Client login error:', error);
       setError('An error occurred during sign in');
     } finally {
       setIsLoading(false);

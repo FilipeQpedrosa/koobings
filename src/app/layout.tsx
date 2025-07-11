@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { initializeServices } from '@/lib/init';
 import { headers } from 'next/headers';
 import { ReactNode } from 'react';
-import EnvironmentBanner from '@/components/layout/EnvironmentBanner';
+// import EnvironmentBanner from '@/components/layout/EnvironmentBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -38,7 +38,7 @@ export default async function RootLayout({
       <body className={inter.className}>
         <Providers>
           <div className="relative flex min-h-screen flex-col">
-            <EnvironmentBanner />
+            {/* <EnvironmentBanner /> */}
             <main className="flex-1">{children}</main>
           </div>
           <Toaster />

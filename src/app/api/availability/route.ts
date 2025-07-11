@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     const endHour = 17;
 
     // Get existing appointments for the date
-    const appointments = await prisma.appointment.findMany({
+    const appointments = await prisma.appointments.findMany({
       where: {
         scheduledFor: {
           gte: new Date(`${date}T00:00:00Z`),

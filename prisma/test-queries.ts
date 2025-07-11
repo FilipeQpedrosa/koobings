@@ -71,7 +71,7 @@ async function testQueries() {
 
     // Test 5: Verify appointments
     console.log('\n=== Testing Appointments ===');
-    const appointments = await prisma.appointment.findMany({
+    const appointments = await prisma.appointments.findMany({
       include: {
         client: true,
         service: true,

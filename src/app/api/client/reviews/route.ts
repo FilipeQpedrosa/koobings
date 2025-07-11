@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     // Verify appointment belongs to client and is completed
-    const appointment = await prisma.appointment.findFirst({
+    const appointment = await prisma.appointments.findFirst({
       where: {
         id: appointmentId,
         clientId: session.user.id,

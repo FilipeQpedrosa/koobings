@@ -14,14 +14,14 @@ export async function GET() {
     const businessId = session.user.id
 
     // Get total appointments
-    const totalAppointments = await prisma.appointment.count({
+    const totalAppointments = await prisma.appointments.count({
       where: {
         businessId
       }
     })
 
     // Get total revenue
-    const appointments = await prisma.appointment.findMany({
+    const appointments = await prisma.appointments.findMany({
       where: {
         businessId,
         status: 'COMPLETED'

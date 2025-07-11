@@ -3,11 +3,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-// PUT /api/staff/clients/[id]/notes/[noteId] - Edit a note
+// PUT /api/staff/clients/[id]/notes/[noteId] - Update a relationship note
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function PUT(req: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== 'STAFF') {
+  if (!session?.user || (session.user.role !== 'STAFF' && session.user.role !== 'BUSINESS_OWNER')) {
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
 
@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest, { params }: any) {
   if (typeof content === 'string') updateData.content = content;
   if (typeof noteType === 'string') updateData.noteType = noteType;
   if (appointmentId) {
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointments.findUnique({
       where: { id: appointmentId },
       select: { clientId: true, businessId: true },
     });

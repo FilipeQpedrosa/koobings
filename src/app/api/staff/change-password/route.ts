@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getRequestAuthUser } from '@/lib/jwt';
 import { prisma } from '@/lib/prisma';
 import { compare, hash } from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || session.user.role !== 'STAFF') {
+    const user = getRequestAuthUser(request);
+    if (!user) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
@@ -19,26 +18,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: { code: 'PASSWORD_TOO_SHORT', message: 'New password must be at least 8 characters.' } }, { status: 400 });
     }
 
-    // Fetch staff user
-    const staff = await prisma.staff.findUnique({
-      where: { id: session.user.id },
-    });
-    if (!staff) {
-      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
+    let currentPasswordHash: string;
+    
+    // Check if user is BUSINESS_OWNER or STAFF
+    if (user.role === 'BUSINESS_OWNER') {
+      const business = await prisma.business.findUnique({
+        where: { id: user.id },
+      });
+      if (!business) {
+        return NextResponse.json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
+      }
+      currentPasswordHash = business.passwordHash;
+    } else {
+      // Fetch staff user
+      const staff = await prisma.staff.findUnique({
+        where: { id: user.id },
+      });
+      if (!staff) {
+        return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
+      }
+      currentPasswordHash = staff.password;
     }
 
     // Validate current password
-    const isValid = await compare(currentPassword, staff.password);
+    const isValid = await compare(currentPassword, currentPasswordHash);
     if (!isValid) {
       return NextResponse.json({ success: false, error: { code: 'INCORRECT_PASSWORD', message: 'Current password is incorrect' } }, { status: 400 });
     }
 
-    // Hash and update new password
+    // Hash new password
     const newPasswordHash = await hash(newPassword, 10);
-    await prisma.staff.update({
-      where: { id: staff.id },
-      data: { password: newPasswordHash },
-    });
+    
+    // Update password based on user type
+    if (user.role === 'BUSINESS_OWNER') {
+      await prisma.business.update({
+        where: { id: user.id },
+        data: { passwordHash: newPasswordHash },
+      });
+    } else {
+      await prisma.staff.update({
+        where: { id: user.id },
+        data: { password: newPasswordHash },
+      });
+    }
 
     return NextResponse.json({ success: true, data: null });
   } catch (error) {

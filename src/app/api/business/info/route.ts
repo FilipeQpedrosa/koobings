@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { getRequestAuthUser } from '@/lib/jwt';
 
 const businessInfoSchema = z.object({
   description: z.string(),
@@ -17,12 +16,12 @@ const businessInfoSchema = z.object({
   }),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
 
-    if (!session || !session.user || !session.user.email) {
-      console.error('Unauthorized: No session or user.');
+    if (!user || !user.email) {
+      console.error('Unauthorized: No user or email.');
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
@@ -40,10 +39,17 @@ export async function POST(request: Request) {
     }
     const validatedData = validation.data;
 
-    // Find the business by email
-    const business = await prisma.business.findUnique({
-      where: { email: session.user.email },
-    });
+    // Find the business by email or businessId
+    let business;
+    if (user.businessId) {
+      business = await prisma.business.findUnique({
+        where: { id: user.businessId },
+      });
+    } else {
+      business = await prisma.business.findUnique({
+        where: { email: user.email },
+      });
+    }
 
     if (!business) {
       return NextResponse.json(
@@ -108,48 +114,118 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    console.log('🏢 Business info endpoint called');
     
-    // Essential debug logging
-    console.log('📊 [API] business/info GET - User:', session?.user?.name, 'BusinessId:', session?.user?.businessId);
+    const user = getRequestAuthUser(request);
     
-    if (!session?.user?.businessId) {
-      console.log('❌ [API] No businessId in session - returning 401');
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user) {
+      console.log('❌ No valid JWT token found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const business = await prisma.business.findUnique({
-      where: { id: session.user.businessId },
-      select: {
-        id: true,
-        name: true,
-        logo: true,
-        allowStaffToViewAllBookings: true,
-        restrictStaffToViewAllClients: true,
-        restrictStaffToViewAllNotes: true,
-        requireAdminCancelApproval: true,
-      },
+    
+    console.log('✅ Token valid for user:', user.name, 'isAdmin:', user.isAdmin);
+    
+    // Check if admin is requesting a specific business via query parameter
+    const url = new URL(request.url);
+    const requestedBusinessSlug = url.searchParams.get('businessSlug');
+    
+    let targetBusinessId = user.businessId;
+    
+    // If admin requests a specific business, allow it
+    if (user.isAdmin && requestedBusinessSlug) {
+      console.log('👑 Admin requesting business:', requestedBusinessSlug);
+      try {
+        const requestedBusiness = await prisma.business.findUnique({
+          where: { slug: requestedBusinessSlug },
+          select: { id: true, name: true }
+        });
+        
+        if (requestedBusiness) {
+          targetBusinessId = requestedBusiness.id;
+          console.log('✅ Admin access granted to business:', requestedBusiness.name);
+        } else {
+          console.log('❌ Requested business not found:', requestedBusinessSlug);
+        }
+      } catch (error) {
+        console.error('❌ Error finding requested business:', error);
+      }
+    }
+    
+    // Get business from database if businessId is available
+    if (targetBusinessId) {
+      try {
+        const business = await prisma.business.findUnique({
+          where: { id: targetBusinessId },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logo: true,
+            description: true,
+            phone: true,
+            address: true,
+            settings: true,
+            allowStaffToViewAllBookings: true,
+            restrictStaffToViewAllClients: true,
+            restrictStaffToViewAllNotes: true,
+            requireAdminCancelApproval: true
+          }
+        });
+        
+        if (business) {
+          console.log('🏢 Returning business info from database:', business.name);
+          
+          return NextResponse.json({ 
+            success: true, 
+            data: {
+              id: business.id,
+              name: business.name,
+              logo: business.logo,
+              slug: business.slug,
+              description: business.description,
+              phone: business.phone,
+              address: business.address,
+              settings: business.settings,
+              allowStaffToViewAllBookings: business.allowStaffToViewAllBookings,
+              restrictStaffToViewAllClients: business.restrictStaffToViewAllClients,
+              restrictStaffToViewAllNotes: business.restrictStaffToViewAllNotes,
+              requireAdminCancelApproval: business.requireAdminCancelApproval
+            }
+          });
+        }
+      } catch (error) {
+        console.error('❌ Database error:', error);
+      }
+    }
+    
+    // Fallback to JWT data (for non-admin users or when business not found)
+    const businessInfo = {
+      id: user.businessId,
+      name: user.businessName,
+      logo: null,
+      slug: user.businessSlug
+    };
+    
+    console.log('🏢 Returning business info from JWT:', businessInfo);
+    
+    return NextResponse.json({ 
+      success: true, 
+      data: businessInfo
     });
-
-    if (!business) {
-      console.log('❌ [API] Business not found with ID:', session.user.businessId);
-      return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
-    }
-
-    console.log('✅ [API] Returning business:', business.name);
-    return NextResponse.json({ success: true, data: business });
+    
   } catch (error) {
-    console.error('[GET /api/business/info] error:', error);
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    console.error('🚨 Business info error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.businessId || (session.user.staffRole !== 'ADMIN' && session.user.role !== 'BUSINESS_OWNER')) {
+    const user = getRequestAuthUser(request);
+    
+    if (!user?.businessId || (user.staffRole !== 'ADMIN' && user.role !== 'BUSINESS_OWNER')) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -165,7 +241,7 @@ export async function PATCH(request: Request) {
     const validatedData = schema.parse(body);
 
     const updatedBusiness = await prisma.business.update({
-      where: { id: session.user.businessId },
+      where: { id: user.businessId },
       data: validatedData,
     });
 

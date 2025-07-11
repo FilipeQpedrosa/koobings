@@ -26,7 +26,7 @@ async function check() {
   console.log('Clients:', business?._count.clients)
   console.log('Appointments:', business?._count.appointments)
 
-  const appointments = await prisma.appointment.findMany({
+  const appointments = await prisma.appointments.findMany({
     include: {
       client: true,
       service: true,

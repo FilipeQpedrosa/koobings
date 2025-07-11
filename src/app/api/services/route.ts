@@ -1,18 +1,38 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getRequestAuthUser } from '@/lib/jwt';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const user = getRequestAuthUser(request);
+
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
-    const businessId = session.user.businessId;
-    if (!businessId) {
-      return NextResponse.json({ success: false, error: { code: 'NO_BUSINESS_CONTEXT', message: 'No business context' } }, { status: 400 });
+
+    let businessId: string;
+
+    // Handle both staff members and business owners
+    if (user.role === 'BUSINESS_OWNER') {
+      if (!user.businessId) {
+        return NextResponse.json({ success: false, error: { code: 'BUSINESS_ID_MISSING', message: 'Business ID missing' } }, { status: 400 });
+      }
+      businessId = user.businessId;
+    } else {
+      // Get business from staff using email instead of id
+      const staff = await prisma.staff.findUnique({
+        where: { email: user.email }
+      });
+
+      if (!staff) {
+        console.error('Staff not found for user:', user.email);
+        return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
+      }
+
+      businessId = staff.businessId;
     }
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const sort = (searchParams.get('sort') || 'name') as 'name' | 'price-asc' | 'price-desc' | 'duration';
@@ -25,19 +45,13 @@ export async function GET(request: Request) {
         businessId,
         OR: search ? [
           { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-          { category: { name: { contains: search, mode: 'insensitive' } } },
-          { staff: { some: { name: { contains: search, mode: 'insensitive' } } } }
+          { description: { contains: search, mode: 'insensitive' } }
         ] : undefined,
         price: {
           gte: minPrice,
           ...(maxPrice && { lte: maxPrice })
         },
         ...(duration && { duration })
-      },
-      include: {
-        category: true,
-        staff: true
       },
       orderBy: (() => {
         switch (sort) {
@@ -65,16 +79,43 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const user = getRequestAuthUser(request);
+
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
-    const businessId = session.user.businessId;
-    if (!businessId) {
-      return NextResponse.json({ success: false, error: { code: 'NO_BUSINESS_CONTEXT', message: 'No business context' } }, { status: 400 });
+
+    let businessId: string;
+    let hasAdminPermission = false;
+
+    // Handle both staff members and business owners
+    if (user.role === 'BUSINESS_OWNER') {
+      if (!user.businessId) {
+        return NextResponse.json({ success: false, error: { code: 'BUSINESS_ID_MISSING', message: 'Business ID missing' } }, { status: 400 });
+      }
+      businessId = user.businessId;
+      hasAdminPermission = true;
+    } else {
+      // Get business from staff using email instead of id
+      const staff = await prisma.staff.findUnique({
+        where: { email: user.email }
+      });
+
+      if (!staff || staff.role !== 'ADMIN') {
+        console.error('Unauthorized: Not admin staff.');
+        return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
+      }
+
+      businessId = staff.businessId;
     }
+
+    if (!hasAdminPermission) {
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
+    }
+
     const body = await request.json();
     const { name, duration, price, categoryId, description } = body;
     if (!name || !duration || !price) {
@@ -86,10 +127,9 @@ export async function POST(request: Request) {
         duration,
         price,
         description,
-        business: { connect: { id: businessId } },
-        ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
+        businessId,
+        ...(categoryId ? { categoryId } : {}),
       },
-      include: { category: true, staff: true },
     });
     return NextResponse.json({ success: true, data: service }, { status: 201 });
   } catch (error) {

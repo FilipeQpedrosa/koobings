@@ -1,288 +1,548 @@
 'use client';
 
-import { useState } from 'react';
-import { Calendar, CheckCircle, ArrowRight, MapPin, Mail, TrendingUp, Heart } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import Link from 'next/link'
-import ContactModal from '@/components/ContactModal'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { Search, MapPin, Star, Clock, Euro, Filter, Grid, List, Play, ArrowRight, CheckCircle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+
+interface Business {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logo?: string;
+  address?: string;
+  type: string;
+  services: Array<{
+    id: string;
+    name: string;
+    price: number;
+    duration: number;
+  }>;
+  staff: Array<{
+    id: string;
+    name: string;
+  }>;
+  rating?: number;
+  reviewCount?: number;
+}
+
+const categories = [
+  { id: 'health', name: 'Saúde & Bem-estar', emoji: '🏥', color: 'bg-stone-50 text-stone-700 border-stone-200' },
+  { id: 'beauty', name: 'Beleza & Estética', emoji: '💆', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+  { id: 'professional', name: 'Serviços Profissionais', emoji: '💼', color: 'bg-slate-50 text-slate-700 border-slate-200' },
+  { id: 'fitness', name: 'Fitness & Desporto', emoji: '🤸', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { id: 'other', name: 'Outros Serviços', emoji: '🎯', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+];
 
 export default function HomePage() {
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const openContactModal = () => setIsContactModalOpen(true);
-  const closeContactModal = () => setIsContactModalOpen(false);
+  useEffect(() => {
+    fetchBusinesses();
+  }, []);
+
+  const fetchBusinesses = async () => {
+    try {
+      console.log('🏢 Fetching all businesses for marketplace...');
+      
+      const response = await fetch('/api/client/marketplace/businesses');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch businesses: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('🏢 Businesses response:', data);
+      
+      if (data.success) {
+        setBusinesses(data.data || []);
+        console.log('✅ Businesses loaded:', data.data?.length || 0);
+      } else {
+        throw new Error(data.error?.message || 'Failed to load businesses');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching businesses:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao carregar negócios. Tente novamente.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredBusinesses = businesses.filter(business => {
+    const matchesSearch = !searchQuery || 
+      business.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      business.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      business.services?.some(service => 
+        service.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    
+    const matchesCategory = !selectedCategory || business.type === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  const handleBusinessClick = (business: Business) => {
+    router.push(`/book?businessSlug=${business.slug}`);
+  };
+
+  const formatPrice = (price: number) => {
+    return `€${price}`;
+  };
+
+  const formatDuration = (duration: number) => {
+    if (duration >= 60) {
+      const hours = Math.floor(duration / 60);
+      const minutes = duration % 60;
+      if (minutes === 0) return `${hours}h`;
+      return `${hours}h ${minutes}min`;
+    }
+    return `${duration}min`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="space-y-8">
+          <div className="h-96 bg-stone-100 animate-pulse rounded-3xl" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-80 bg-stone-100 animate-pulse rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">Koobings</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link href="/auth/signin">
-              <Button variant="ghost">Entrar</Button>
-            </Link>
-            <Button onClick={openContactModal}>Fale connosco</Button>
+      {/* Hero Section - Completely New Design */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-stone-900 to-neutral-800">
+        {/* Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-stone-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.3)_100%)]"></div>
+        </div>
+
+        <div className="relative container mx-auto px-4 py-20 lg:py-32">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left Content */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-white z-10"
+            >
+              <div className="mb-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-sm font-medium mb-8"
+                >
+                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                  Plataforma Koobings
+                </motion.div>
+                
+                <motion.h1
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-4xl lg:text-6xl xl:text-7xl font-light leading-tight mb-8"
+                >
+                  Conectamos{' '}
+                  <span className="block">
+                    <span className="font-normal text-amber-400">talento</span> e{' '}
+                    <span className="font-normal text-stone-300">oportunidade</span>
+                  </span>
+                </motion.h1>
+                
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-xl text-stone-300 leading-relaxed mb-10 max-w-lg"
+                >
+                  Descubra profissionais excepcionais. Agende experiências únicas. 
+                  Tudo numa plataforma elegante e simples.
+                </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex flex-col sm:flex-row gap-4 mb-12"
+                >
+                  <Button 
+                    size="lg" 
+                    className="bg-amber-500 hover:bg-amber-600 text-black font-medium px-8 py-4 rounded-full h-auto"
+                    onClick={() => document.getElementById('search-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  >
+                    Explorar Serviços
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    className="border-white/30 text-white hover:bg-white/10 px-8 py-4 rounded-full h-auto"
+                  >
+                    <Play className="mr-2 h-5 w-5" />
+                    Como Funciona
+                  </Button>
+                </motion.div>
+
+                {/* Stats */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="grid grid-cols-3 gap-8"
+                >
+                  <div>
+                    <div className="text-2xl font-semibold text-white">{businesses.length}+</div>
+                    <div className="text-sm text-stone-400">Profissionais</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-semibold text-white">5.0</div>
+                    <div className="text-sm text-stone-400">Avaliação Média</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-semibold text-white">24h</div>
+                    <div className="text-sm text-stone-400">Disponibilidade</div>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Right Visual */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="relative"
+            >
+              <div className="relative">
+                {/* Main Card */}
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-stone-800">Agendamento Confirmado</h3>
+                      <p className="text-sm text-stone-600">Consulta Jurídica • João Maria</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 text-sm text-stone-600">
+                    <div className="flex justify-between">
+                      <span>Data:</span>
+                      <span className="font-medium">22 Jan, 2024 • 10:30</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Duração:</span>
+                      <span className="font-medium">60 minutos</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Valor:</span>
+                      <span className="font-semibold text-stone-800">€85</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 pt-4 border-t border-stone-200">
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                      <span className="text-sm text-stone-600">Avalie a sua experiência</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating Elements */}
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -top-4 -left-4 bg-emerald-500 text-white px-3 py-2 rounded-full text-xs font-medium"
+                >
+                  Disponível Agora
+                </motion.div>
+                
+                <motion.div
+                  animate={{ y: [0, 10, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+                  className="absolute -bottom-4 -right-4 bg-stone-800 text-white px-3 py-2 rounded-full text-xs font-medium"
+                >
+                  +127 avaliações
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
         </div>
-      </nav>
+      </div>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <Badge className="mb-6 bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200">
-            ✨ Muito mais do que uma ferramenta de agendamentos
-          </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            O seu parceiro digital de 
-            <br />
-            <span className="text-blue-600">confiança</span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Ajudamos microempresas de serviços a ganharem eficiência, organização e autonomia. 
-            Comece pela gestão do dia a dia e cresça connosco.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-lg px-8 py-3" onClick={openContactModal}>
-              <Mail className="w-5 h-5 mr-2" />
-              Fale connosco
-            </Button>
-            <Link href="#como-funciona">
-              <Button variant="outline" size="lg" className="text-lg px-8 py-3">
-                Como Funciona
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Value Proposition */}
-      <section className="bg-gray-50 py-16">
+      {/* Search Section */}
+      <div id="search-section" className="py-16 bg-stone-50/50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Pensado para a sua realidade
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl font-light text-stone-800 mb-4">
+              O que procura hoje?
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Entendemos os desafios dos pequenos negócios. Por isso criámos uma solução simples, 
-              adaptável e que cresce consigo.
+            <p className="text-lg text-stone-600 max-w-2xl mx-auto">
+              Encontre exactamente o que precisa entre centenas de serviços profissionais
             </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <Heart className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Parceria e Proximidade</h3>
-                <p className="text-gray-600">
-                  Não somos apenas uma ferramenta. Somos o seu parceiro digital, 
-                  que entende e adapta-se à sua forma de trabalhar.
-                </p>
-              </CardContent>
-            </Card>
+          </motion.div>
 
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Gestão Descomplicada</h3>
-                <p className="text-gray-600">
-                  Interface simples e intuitiva. Menos tempo a gerir, 
-                  mais tempo a trabalhar com os seus clientes.
-                </p>
-              </CardContent>
-            </Card>
+          {/* Search Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="relative max-w-3xl mx-auto mb-12"
+          >
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-stone-400 h-6 w-6" />
+            <Input
+              type="text"
+              placeholder="Procurar por serviços, profissionais ou localização..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-16 pr-8 py-6 text-lg bg-white border border-stone-200 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 placeholder:text-stone-400"
+            />
+          </motion.div>
 
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <TrendingUp className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Visão de Crescimento</h3>
-                <p className="text-gray-600">
-                  Comece pela organização interna e evolua para ganhar 
-                  visibilidade e novas oportunidades de negócio.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Categories */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="flex flex-wrap justify-center gap-3 mb-16"
+          >
+            <Button
+              variant={selectedCategory === null ? "default" : "outline"}
+              onClick={() => setSelectedCategory(null)}
+              className={`h-auto py-3 px-6 rounded-full transition-all duration-200 ${
+                selectedCategory === null 
+                  ? 'bg-stone-800 text-white hover:bg-stone-900' 
+                  : 'border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50'
+              }`}
+            >
+              Todas as Categorias
+            </Button>
+            {categories.map((category) => (
+              <Button
+                key={category.id}
+                variant="outline"
+                onClick={() => setSelectedCategory(category.id)}
+                className={`h-auto py-3 px-5 gap-3 rounded-full transition-all duration-200 border ${
+                  selectedCategory === category.id 
+                    ? 'bg-stone-800 text-white border-stone-800' 
+                    : `${category.color} hover:bg-opacity-80`
+                }`}
+              >
+                <span className="text-base">{category.emoji}</span>
+                <span className="font-normal">{category.name}</span>
+              </Button>
+            ))}
+          </motion.div>
         </div>
-      </section>
+      </div>
 
-      {/* How it Works */}
-      <section id="como-funciona" className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Como o Koobings o ajuda
-          </h2>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-12 items-center">
+      {/* Results Section */}
+      <div className="container mx-auto px-4 py-16">
+        {/* View Controls */}
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <div className="space-y-6">
-              <div className="flex items-start space-x-4">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">1</div>
-                <div>
-                  <h3 className="text-xl font-semibold mb-2">Organize o seu dia a dia</h3>
-                  <p className="text-gray-600">Gerir marcações, clientes, horários e equipa numa só plataforma. Simples e eficiente.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-4">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">2</div>
-                <div>
-                  <h3 className="text-xl font-semibold mb-2">Ganhe autonomia</h3>
-                  <p className="text-gray-600">Adaptamos a plataforma à sua forma de trabalhar. Os seus clientes continuam a ser seus.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-4">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">3</div>
-                <div>
-                  <h3 className="text-xl font-semibold mb-2">Cresça connosco</h3>
-                  <p className="text-gray-600">No futuro, ajudamos também a ganhar visibilidade e atrair novos clientes.</p>
-                </div>
-              </div>
-            </div>
+            <h3 className="text-2xl font-light text-stone-800">
+              {filteredBusinesses.length} {filteredBusinesses.length === 1 ? 'profissional encontrado' : 'profissionais encontrados'}
+              {selectedCategory && (
+                <span className="text-stone-500 ml-2 font-normal text-lg">
+                  em {categories.find(c => c.id === selectedCategory)?.name}
+                </span>
+              )}
+            </h3>
           </div>
-          
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8">
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <div className="text-center">
-                <Calendar className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <h4 className="font-semibold mb-2">Dashboard do seu negócio</h4>
-                <p className="text-sm text-gray-600">Tudo o que precisa numa interface clara e organizada</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-blue-600 py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Pronto para simplificar o seu negócio?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Junte-se aos empreendedores que já descobriram como a tecnologia pode ser simples e útil.
-          </p>
-          <Button size="lg" variant="secondary" className="text-lg px-8 py-3" onClick={openContactModal}>
-            <Mail className="w-5 h-5 mr-2" />
-            Comece Agora
-          </Button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xl font-bold">Koobings</span>
-              </div>
-              <p className="text-gray-400">
-                O parceiro digital de confiança das microempresas de serviços.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold mb-4">Produto</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/produto/marcacoes" className="hover:text-white transition-colors">
-                    Gestão de Marcações
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/produto/clientes" className="hover:text-white transition-colors">
-                    Clientes
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/produto/equipa" className="hover:text-white transition-colors">
-                    Equipa
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/produto/relatorios" className="hover:text-white transition-colors">
-                    Relatórios
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Empresa</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/about" className="hover:text-white transition-colors">
-                    Sobre Nós
-                  </Link>
-                </li>
-                <li>
-                  <button 
-                    onClick={openContactModal}
-                    className="hover:text-white transition-colors text-left"
-                  >
-                    Contacto
-                  </button>
-                </li>
-                <li>
-                  <Link href="/privacy" className="hover:text-white transition-colors">
-                    Privacidade
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/terms" className="hover:text-white transition-colors">
-                    Termos
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Contacto</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <a 
-                    href="mailto:admin@koobings.com"
-                    className="hover:text-white transition-colors"
-                  >
-                    admin@koobings.com
-                  </a>
-                </li>
-                <li className="text-gray-400">Portugal</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 Koobings. Crescemos consigo.</p>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('grid')}
+              className={`rounded-full ${
+                viewMode === 'grid' 
+                  ? 'bg-stone-800 text-white' 
+                  : 'border-stone-200 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className={`rounded-full ${
+                viewMode === 'list' 
+                  ? 'bg-stone-800 text-white' 
+                  : 'border-stone-200 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <List className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </footer>
 
-      {/* Contact Modal */}
-      <ContactModal 
-        isOpen={isContactModalOpen} 
-        onClose={closeContactModal} 
-      />
+        {/* Results Grid */}
+        {filteredBusinesses.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-20"
+          >
+            <div className="text-stone-300 text-5xl mb-6">🔍</div>
+            <h3 className="text-xl font-light text-stone-600 mb-3">
+              Nenhum profissional encontrado
+            </h3>
+            <p className="text-stone-500">
+              Tente ajustar a sua pesquisa ou escolha uma categoria diferente
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className={`grid gap-8 ${
+              viewMode === 'grid' 
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+                : 'grid-cols-1'
+            }`}
+          >
+            {filteredBusinesses.map((business, index) => (
+              <motion.div
+                key={business.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card 
+                  className="h-full cursor-pointer hover:shadow-xl transition-all duration-500 group overflow-hidden bg-white border-stone-200/60 rounded-2xl"
+                  onClick={() => handleBusinessClick(business)}
+                >
+                  <div className="aspect-[4/3] bg-gradient-to-br from-stone-200 via-stone-100 to-neutral-100 relative overflow-hidden">
+                    {business.logo ? (
+                      <img 
+                        src={business.logo} 
+                        alt={business.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-stone-500 text-2xl font-light">
+                        {business.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="absolute top-4 right-4">
+                      <Badge className="bg-white/90 text-stone-600 font-normal border-stone-200/50">
+                        {business.type}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-light group-hover:text-stone-600 transition-colors leading-tight">
+                        {business.name}
+                      </h3>
+                      {business.rating && (
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                          <span className="text-sm font-normal text-stone-600">{business.rating}</span>
+                          {business.reviewCount && (
+                            <span className="text-xs text-stone-400">
+                              ({business.reviewCount})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {business.address && (
+                      <div className="flex items-center gap-2 text-stone-500 mb-4">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span className="text-sm">{business.address}</span>
+                      </div>
+                    )}
+                    
+                    {business.description && (
+                      <p className="text-stone-600 text-sm mb-5 line-clamp-2 leading-relaxed">
+                        {business.description}
+                      </p>
+                    )}
+                    
+                    {business.services && business.services.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-sm font-normal text-stone-700 mb-3">Serviços em destaque</h4>
+                        <div className="space-y-2">
+                          {business.services.slice(0, 3).map((service) => (
+                            <div key={service.id} className="flex justify-between text-sm">
+                              <span className="text-stone-600 flex-1">{service.name}</span>
+                              <div className="flex gap-3 text-stone-500 ml-4">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatDuration(service.duration)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Euro className="h-3 w-3" />
+                                  {formatPrice(service.price)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          {business.services.length > 3 && (
+                            <div className="text-xs text-stone-400 italic">
+                              +{business.services.length - 3} outros serviços
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center pt-4 border-t border-stone-100">
+                      <div className="text-sm text-stone-500">
+                        {(business.staff?.length || 0)} {(business.staff?.length || 0) === 1 ? 'profissional' : 'profissionais'}
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="group-hover:bg-amber-600 bg-amber-500 text-black rounded-full px-6 hover:shadow-md transition-all duration-300 font-medium"
+                      >
+                        Agendar
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </div>
     </div>
-  )
+  );
 } 

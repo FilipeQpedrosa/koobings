@@ -16,7 +16,7 @@ const emailTransporter = nodemailer.createTransport({
 
 export class NotificationService {
   async sendAppointmentConfirmation(appointmentId: string) {
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointments.findUnique({
       where: { id: appointmentId },
       include: {
         client: true,
@@ -51,7 +51,7 @@ export class NotificationService {
   }
 
   async sendAppointmentReminder(appointmentId: string) {
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointments.findUnique({
       where: { id: appointmentId },
       include: {
         client: true,

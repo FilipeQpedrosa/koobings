@@ -80,7 +80,7 @@ export default function BusinessOnboardingForm() {
         email,
         password,
         redirect: true,
-        callbackUrl: '/staff/dashboard',
+        callbackUrl: '/',
       });
       (event.target as HTMLFormElement).reset();
     } catch (error) {

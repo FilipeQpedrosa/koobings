@@ -54,7 +54,7 @@ async function testAdvancedFeatures() {
     const baseDate = new Date('2024-05-15T10:00:00Z');
     
     // First appointment
-    const appointment1 = await prisma.appointment.create({
+    const appointment1 = await prisma.appointments.create({
       data: {
         scheduledFor: baseDate,
         duration: 60, // 1 hour in minutes
@@ -81,7 +81,7 @@ async function testAdvancedFeatures() {
     console.log('\n=== Testing Payment Flow ===');
 
     // Create appointment (no payment relation)
-    const appointmentWithPayment = await prisma.appointment.create({
+    const appointmentWithPayment = await prisma.appointments.create({
       data: {
         scheduledFor: new Date('2024-05-16T14:00:00Z'),
         duration: 60,
@@ -94,7 +94,7 @@ async function testAdvancedFeatures() {
     });
 
     // No payment update, just update appointment status
-    const confirmedAppointment = await prisma.appointment.update({
+    const confirmedAppointment = await prisma.appointments.update({
       where: {
         id: appointmentWithPayment.id,
       },

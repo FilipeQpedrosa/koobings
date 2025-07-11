@@ -1,83 +1,129 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
-import { addDays, startOfDay, endOfDay } from 'date-fns';
+import { NextRequest, NextResponse } from 'next/server';
+import { getRequestAuthUser } from '@/lib/jwt';
+import prisma from '@/lib/prisma';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns';
 
-const VALID_STATUSES = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const;
-type AppointmentStatus = typeof VALID_STATUSES[number];
-
-export async function GET() {
+export async function GET(request: NextRequest) {
+  console.log('[DASHBOARD_STATS_GET] Starting request...');
+  
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    // Get authenticated user
+    const user = getRequestAuthUser(request);
+    console.log('[DASHBOARD_STATS_GET] User found:', !!user);
+    console.log('[DASHBOARD_STATS_GET] User role:', user?.role);
+    console.log('[DASHBOARD_STATS_GET] User businessId:', user?.businessId);
+
+    if (!user || !['BUSINESS_OWNER', 'STAFF'].includes(user.role)) {
+      console.log('[DASHBOARD_STATS_GET] Unauthorized access attempt');
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
+        { status: 401 }
+      );
     }
 
-    const now = new Date();
-    const sevenDaysFromNow = addDays(now, 7);
-    const thirtyDaysAgo = addDays(now, -30);
+    const businessId = user.businessId;
+    
+    if (!businessId) {
+      console.log('[DASHBOARD_STATS_GET] Missing business ID');
+      return NextResponse.json(
+        { success: false, error: { code: 'BUSINESS_ID_REQUIRED', message: 'Business ID missing' } },
+        { status: 400 }
+      );
+    }
 
-    // Get total appointments
-    const totalAppointments = await prisma.appointment.count({
-      where: {
-        staffId: session.user.id,
-      },
-    });
+    console.log('[DASHBOARD_STATS_GET] Fetching stats for businessId:', businessId);
 
-    // Get upcoming appointments (next 7 days)
-    const upcomingAppointments = await prisma.appointment.count({
+    // Calculate date ranges
+    const today = new Date();
+    const startToday = startOfDay(today);
+    const endToday = endOfDay(today);
+    const startThisWeek = startOfWeek(today);
+    const endThisWeek = endOfWeek(today);
+
+    const [
+      totalAppointments,
+      todayAppointments,
+      upcomingAppointments,
+      completedAppointments,
+      totalClients
+    ] = await Promise.all([
+      // Total appointments for this business
+      (prisma as any).appointments.count({
+        where: { businessId }
+      }),
+      
+      // Today's appointments
+      (prisma as any).appointments.count({
+        where: {
+          businessId,
+          scheduledFor: {
+            gte: startToday,
+            lte: endToday
+          }
+        }
+      }),
+      
+      // Upcoming appointments (from tomorrow onwards)
+      (prisma as any).appointments.count({
+        where: {
+          businessId,
+          scheduledFor: {
+            gt: endToday
+          },
+          status: {
+            in: ['PENDING', 'CONFIRMED']
+          }
+        }
+      }),
+      
+      // Completed appointments this week
+      (prisma as any).appointments.count({
+        where: {
+          businessId,
+          scheduledFor: {
+            gte: startThisWeek,
+            lte: endThisWeek
+          },
+          status: 'COMPLETED'
+        }
+      }),
+      
+      // Total unique clients
+      prisma.client.count({
+        where: { 
+          businessId,
+          isDeleted: false
+        }
+      })
+    ]);
+
+    // Calculate completion rate (completed vs total this week)
+    const thisWeekTotal = await (prisma as any).appointments.count({
       where: {
-        staffId: session.user.id,
+        businessId,
         scheduledFor: {
-          gte: startOfDay(now),
-          lte: endOfDay(sevenDaysFromNow),
-        },
-        status: 'CONFIRMED',
-      },
+          gte: startThisWeek,
+          lte: endThisWeek
+        }
+      }
     });
 
-    // Get total unique clients
-    const totalClients = await prisma.appointment.findMany({
-      where: {
-        staffId: session.user.id,
-      },
-      select: {
-        clientId: true,
-      },
-      distinct: ['clientId'],
-    });
+    const completionRate = thisWeekTotal > 0 ? Math.round((completedAppointments / thisWeekTotal) * 100) : 0;
 
-    // Get completion rate for last 30 days
-    const recentAppointments = await prisma.appointment.findMany({
-      where: {
-        staffId: session.user.id,
-        scheduledFor: {
-          gte: startOfDay(thirtyDaysAgo),
-          lte: endOfDay(now),
-        },
-        status: {
-          in: ['COMPLETED', 'CANCELLED'] as AppointmentStatus[],
-        },
-      },
-    });
-
-    const completedAppointments = recentAppointments.filter(
-      (apt) => apt.status === 'COMPLETED'
-    ).length;
-
-    const completionRate = recentAppointments.length > 0
-      ? Math.round((completedAppointments / recentAppointments.length) * 100)
-      : 100;
-
+    console.log('[DASHBOARD_STATS_GET] Stats calculated successfully');
+    
     return NextResponse.json({
       totalAppointments,
+      todayAppointments,
       upcomingAppointments,
-      totalClients: totalClients.length,
+      totalClients,
       completionRate,
     });
-  } catch (error) {
-    console.error('[DASHBOARD_STATS_GET]', error);
-    return new NextResponse('Internal error', { status: 500 });
+  } catch (error: any) {
+    console.error('[DASHBOARD_STATS_GET] Error:', error);
+    return NextResponse.json(
+      { success: false, error: { code: 'STATS_FETCH_ERROR', message: 'Internal error' } },
+      { status: 500 }
+    );
   }
 } 
