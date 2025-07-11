@@ -19,7 +19,6 @@ function isValidSlugFormat(slug: string): boolean {
 // Define public routes that don't need authentication
 const publicRoutes = [
   '/',
-  '/client',
   '/book',
   '/auth/signin',
   '/auth/signup',
