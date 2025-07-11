@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession, signOut } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,8 +11,71 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Bell, Settings, User, LogOut } from 'lucide-react';
 
+interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  isAdmin: boolean;
+}
+
 export default function AdminNavbar() {
-  const { data: session } = useSession();
+  const [user, setUser] = useState<AdminUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const response = await fetch('/api/auth/verify-token');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user) {
+            setUser(data.user);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching admin user:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUser();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      // Call the force logout API endpoint
+      const response = await fetch('/api/auth/force-logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Trigger auth refresh to clear state
+      localStorage.setItem('auth-refresh', Date.now().toString());
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'auth-refresh',
+        newValue: Date.now().toString()
+      }));
+
+      if (response.ok) {
+        // Clear the auth token cookie manually for JWT
+        document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        // Redirect to admin signin
+        window.location.href = '/auth/admin-signin';
+      } else {
+        // Fallback: manually clear cookies and redirect
+        document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        window.location.href = '/auth/admin-signin';
+      }
+    } catch (error) {
+      // Fallback: manually clear cookies and redirect
+      document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      window.location.href = '/auth/admin-signin';
+    }
+  };
 
   return (
     <nav className="bg-white shadow-sm">
@@ -50,7 +113,7 @@ export default function AdminNavbar() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => signOut()}>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>
@@ -59,7 +122,7 @@ export default function AdminNavbar() {
             
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium text-gray-700">
-                {session?.user?.name}
+                {loading ? 'Loading...' : (user?.name || 'Admin')}
               </span>
             </div>
           </div>

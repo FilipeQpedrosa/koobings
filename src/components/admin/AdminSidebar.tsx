@@ -5,10 +5,12 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   Building2,
+  Settings,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Businesses', href: '/admin/businesses', icon: Building2 },
+  { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminSidebar() {

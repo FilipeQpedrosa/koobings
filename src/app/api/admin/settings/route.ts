@@ -1,212 +1,177 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
-import { SystemSettings } from '@/types/settings';
+import { NextResponse, NextRequest } from 'next/server';
+import { getRequestAuthUser } from '@/lib/jwt';
+import prisma from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+// Helper function to transform database settings to UI format
+function transformDbSettingsToUI(dbSettings: any[]) {
+  const settingsMap = dbSettings.reduce((acc: any, setting: any) => {
+    acc[setting.key] = setting.value;
+    return acc;
+  }, {});
 
-const DEFAULT_SETTINGS: SystemSettings = {
-  email: {
-    from: process.env.EMAIL_FROM || 'noreply@example.com',
-    server: process.env.EMAIL_SERVER_HOST || 'smtp.example.com',
-    port: process.env.EMAIL_SERVER_PORT || '587',
-  },
-  security: {
-    sessionTimeout: 60,
-    requireMFA: false,
-    enforcePasswordPolicy: true,
-  },
-  business: {
-    maxActive: 1000,
-    autoApprove: false,
-  }
-};
+  return {
+    email: {
+      from: settingsMap.EMAIL_FROM || 'noreply@koobings.com',
+      server: settingsMap.EMAIL_SERVER || 'smtp.gmail.com',
+      port: settingsMap.EMAIL_PORT || '587',
+    },
+    security: {
+      sessionTimeout: settingsMap.SESSION_TIMEOUT || 60,
+      requireMFA: settingsMap.REQUIRE_MFA || false,
+      enforcePasswordPolicy: settingsMap.ENFORCE_PASSWORD_POLICY || true,
+    },
+    business: {
+      maxActive: settingsMap.MAX_ACTIVE_BUSINESSES || 1000,
+      autoApprove: settingsMap.AUTO_APPROVE_BUSINESSES || false,
+    },
+    system: {
+      name: settingsMap.SYSTEM_NAME || 'Koobings Service Manager',
+      supportEmail: settingsMap.SUPPORT_EMAIL || 'support@koobings.com',
+      defaultTimezone: settingsMap.DEFAULT_TIMEZONE || 'Europe/Lisbon',
+      defaultCurrency: settingsMap.DEFAULT_CURRENCY || 'EUR',
+      defaultLanguage: settingsMap.DEFAULT_LANGUAGE || 'pt',
+      maintenanceMode: settingsMap.MAINTENANCE_MODE || false,
+      allowRegistration: settingsMap.ALLOW_REGISTRATION || true,
+      defaultPlan: settingsMap.DEFAULT_PLAN || 'standard',
+    }
+  };
+}
 
-export async function GET() {
+// Helper function to transform UI settings to database format
+function transformUISettingsToDb(settings: any) {
+  return [
+    { key: 'EMAIL_FROM', value: settings.email.from },
+    { key: 'EMAIL_SERVER', value: settings.email.server },
+    { key: 'EMAIL_PORT', value: settings.email.port },
+    { key: 'SESSION_TIMEOUT', value: settings.security.sessionTimeout },
+    { key: 'REQUIRE_MFA', value: settings.security.requireMFA },
+    { key: 'ENFORCE_PASSWORD_POLICY', value: settings.security.enforcePasswordPolicy },
+    { key: 'MAX_ACTIVE_BUSINESSES', value: settings.business.maxActive },
+    { key: 'AUTO_APPROVE_BUSINESSES', value: settings.business.autoApprove },
+    { key: 'SYSTEM_NAME', value: settings.system.name },
+    { key: 'SUPPORT_EMAIL', value: settings.system.supportEmail },
+    { key: 'DEFAULT_TIMEZONE', value: settings.system.defaultTimezone },
+    { key: 'DEFAULT_CURRENCY', value: settings.system.defaultCurrency },
+    { key: 'DEFAULT_LANGUAGE', value: settings.system.defaultLanguage },
+    { key: 'MAINTENANCE_MODE', value: settings.system.maintenanceMode },
+    { key: 'ALLOW_REGISTRATION', value: settings.system.allowRegistration },
+    { key: 'DEFAULT_PLAN', value: settings.system.defaultPlan },
+  ];
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
     
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    if (!user?.isAdmin || user.role !== 'ADMIN') {
+      return NextResponse.json({ 
+        success: false, 
+        error: { code: 'FORBIDDEN', message: 'Admin access required' } 
+      }, { status: 403 });
     }
 
-    const admin = await prisma.systemAdmin.findUnique({
-      where: { email: session.user?.email }
-    });
+    console.log('🔧 Admin settings requested by:', user.email);
 
-    if (!admin) {
-      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
-    }
+    // Fetch settings from database using raw SQL
+    const dbSettings = await prisma.$queryRaw<Array<{ key: string, value: any, updatedAt: Date }>>`
+      SELECT key, value, "updatedAt" FROM system_settings WHERE "isDeleted" = false ORDER BY key ASC
+    `;
 
-    // Get settings from database
-    const settings = await prisma.systemSettings.findMany({
-      include: {
-        lastModifiedByAdmin: {
-          select: {
-            name: true
-          }
-        }
+    const settings = transformDbSettingsToUI(dbSettings);
+    const totalSettings = dbSettings.length;
+    const lastModified = dbSettings.length > 0 ? Math.max(...dbSettings.map(s => s.updatedAt.getTime())) : null;
+
+    return NextResponse.json({ 
+      success: true, 
+      data: settings,
+      metadata: {
+        totalSettings,
+        lastModified: lastModified ? new Date(lastModified).toISOString() : null
       }
     });
-    
-    // Convert settings array to object
-    const settingsObject = settings.reduce((acc: Partial<SystemSettings>, setting: any) => {
-      const [category, key] = setting.key.split('.');
-      if (!acc[category as keyof SystemSettings]) {
-        acc[category as keyof SystemSettings] = {} as any;
-      }
-      (acc[category as keyof SystemSettings] as any)[key] = setting.value;
-      return acc;
-    }, {});
-
-    // Merge with default settings
-    const mergedSettings: SystemSettings = {
-      ...DEFAULT_SETTINGS,
-      ...settingsObject
-    };
-
-    return NextResponse.json({ success: true, data: mergedSettings });
   } catch (error) {
     console.error('Error fetching settings:', error);
-    return NextResponse.json({ success: false, error: { code: 'SETTINGS_FETCH_ERROR', message: 'Internal Server Error' } }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: { code: 'SETTINGS_FETCH_ERROR', message: 'Internal Server Error' } 
+    }, { status: 500 });
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
     
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    if (!user?.isAdmin || user.role !== 'ADMIN') {
+      return NextResponse.json({ 
+        success: false, 
+        error: { code: 'FORBIDDEN', message: 'Admin access required' } 
+      }, { status: 403 });
     }
 
-    const admin = await prisma.systemAdmin.findUnique({
-      where: { email: session.user?.email }
-    });
+    const settings = await request.json();
+    const dbSettings = transformUISettingsToDb(settings);
 
-    if (!admin) {
-      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
+    console.log('🔧 Admin settings update requested by:', user.email);
+
+    // Get admin record using raw SQL
+    const admin = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM system_admins WHERE email = ${user.email} LIMIT 1
+    `;
+
+    if (!admin.length) {
+      return NextResponse.json({ 
+        success: false, 
+        error: { code: 'ADMIN_NOT_FOUND', message: 'Admin not found' } 
+      }, { status: 400 });
     }
 
-    const data = await request.json() as SystemSettings;
+    const adminId = admin[0].id;
+    const now = new Date();
 
-    // Update settings in database
-    await prisma.$transaction(async (tx: any) => {
-      // Flatten settings object into key-value pairs
-      const flattenedSettings = Object.entries(data).flatMap(([category, values]) =>
-        Object.entries(values).map(([key, value]) => ({
-          key: `${category}.${key}`,
-          value
-        }))
-      );
-
-      // Update or create each setting
-      for (const setting of flattenedSettings) {
-        await tx.systemSettings.upsert({
-          where: { key: setting.key },
-          update: {
-            value: setting.value as any,
-            lastModifiedBy: admin.id,
-            updatedAt: new Date()
-          },
-          create: {
-            key: setting.key,
-            value: setting.value as any,
-            lastModifiedBy: admin.id
-          }
-        });
-      }
-
-      // Log the settings change
-      await tx.adminActivity.create({
-        data: {
-          adminId: admin.id,
-          action: 'UPDATED_SYSTEM_SETTINGS',
-          details: data
-        }
-      });
-    });
+    // Update settings in database using raw SQL
+    for (const setting of dbSettings) {
+      await prisma.$executeRaw`
+        INSERT INTO system_settings (id, key, value, "lastModifiedBy", "updatedAt", "createdAt", "isDeleted")
+        VALUES (${crypto.randomUUID()}, ${setting.key}, ${JSON.stringify(setting.value)}, ${adminId}, ${now}, ${now}, false)
+        ON CONFLICT (key) DO UPDATE SET
+          value = ${JSON.stringify(setting.value)},
+          "lastModifiedBy" = ${adminId},
+          "updatedAt" = ${now}
+      `;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating settings:', error);
-    return NextResponse.json({ success: false, error: { code: 'SETTINGS_UPDATE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: { code: 'SETTINGS_UPDATE_ERROR', message: 'Internal Server Error' } 
+    }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
     
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
-    }
-
-    const admin = await prisma.systemAdmin.findUnique({
-      where: { email: session.user?.email }
-    });
-
-    if (!admin) {
-      return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } }, { status: 403 });
+    if (!user?.isAdmin || user.role !== 'ADMIN') {
+      return NextResponse.json({ 
+        success: false, 
+        error: { code: 'FORBIDDEN', message: 'Admin access required' } 
+      }, { status: 403 });
     }
 
     const { action } = await request.json() as { action: 'CLEAR_CACHE' | 'PURGE_LOGS' | 'BACKUP_DB' };
 
-    switch (action) {
-      case 'CLEAR_CACHE':
-        // Implement cache clearing logic
-        await prisma.adminActivity.create({
-          data: {
-            adminId: admin.id,
-            action: 'CLEARED_SYSTEM_CACHE',
-            details: { timestamp: new Date() }
-          }
-        });
-        break;
-
-      case 'PURGE_LOGS':
-        // Delete old activity logs
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-        await prisma.$transaction(async (tx: any) => {
-          await tx.adminActivity.deleteMany({
-            where: {
-              createdAt: {
-                lt: oneMonthAgo
-              }
-            }
-          });
-
-          await tx.adminActivity.create({
-            data: {
-              adminId: admin.id,
-              action: 'PURGED_OLD_LOGS',
-              details: { timestamp: new Date() }
-            }
-          });
-        });
-        break;
-
-      case 'BACKUP_DB':
-        // In a real application, implement database backup logic
-        await prisma.adminActivity.create({
-          data: {
-            adminId: admin.id,
-            action: 'INITIATED_DB_BACKUP',
-            details: { timestamp: new Date() }
-          }
-        });
-        break;
-
-      default:
-        return NextResponse.json({ success: false, error: { code: 'INVALID_ACTION', message: 'Invalid action' } }, { status: 400 });
-    }
-
+    console.log('🔧 Admin maintenance action requested by:', user.email, action);
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error performing maintenance action:', error);
-    return NextResponse.json({ success: false, error: { code: 'SETTINGS_MAINTENANCE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: { code: 'SETTINGS_MAINTENANCE_ERROR', message: 'Internal Server Error' } 
+    }, { status: 500 });
   }
 } 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +44,34 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  return GET(request);
+export async function POST() {
+  try {
+    // Clear all NextAuth cookies
+    const cookieStore = await cookies();
+    
+    // Clear the main session token
+    cookieStore.delete('next-auth.session-token');
+    cookieStore.delete('__Secure-next-auth.session-token');
+    
+    // Clear the CSRF token
+    cookieStore.delete('next-auth.csrf-token');
+    cookieStore.delete('__Host-next-auth.csrf-token');
+    
+    // Clear the callback URL
+    cookieStore.delete('next-auth.callback-url');
+    cookieStore.delete('__Secure-next-auth.callback-url');
+    
+    console.log('🧹 Force logout: All NextAuth cookies cleared');
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Session forcefully cleared'
+    });
+  } catch (error) {
+    console.error('Force logout error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 } 

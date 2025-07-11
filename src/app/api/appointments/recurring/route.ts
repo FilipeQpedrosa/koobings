@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     // Create all appointments
-    const createdAppointments = await prisma.appointment.createMany({
+    const createdAppointments = await prisma.appointments.createMany({
       data: appointments,
     });
 
@@ -156,7 +156,7 @@ export async function DELETE(request: Request) {
     }
 
     // Delete all associated appointments
-    await prisma.appointment.deleteMany({
+    await prisma.appointments.deleteMany({
       where: { recurringAppointmentId: patternId },
     });
 

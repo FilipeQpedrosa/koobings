@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -19,20 +19,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const customerDetailsSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters'),
-  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  preferredContact: z.enum(['email', 'phone', 'both']),
+  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  email: z.string().email('Email inválido'),
+  phone: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -43,43 +34,112 @@ export default function CustomerDetailsPage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  
   const serviceId = searchParams.get('serviceId');
+  const staffId = searchParams.get('staffId');
+  const businessSlug = searchParams.get('businessSlug') || sessionStorage.getItem('businessSlug') || 'advogados-bla-bla';
 
   const form = useForm<CustomerDetailsForm>({
     resolver: zodResolver(customerDetailsSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
+      name: '',
       email: '',
       phone: '',
-      preferredContact: 'email',
       notes: '',
     },
   });
 
+  const handleBack = () => {
+    router.push(`/book/datetime?businessSlug=${businessSlug}&serviceId=${serviceId}&staffId=${staffId}`);
+  };
+
   const onSubmit = async (data: CustomerDetailsForm) => {
-    if (!serviceId) {
+    if (!serviceId || !staffId) {
       toast({
-        title: 'Error',
-        description: 'Missing booking information. Please start over.',
+        title: 'Erro',
+        description: 'Informação de agendamento em falta. Comece novamente.',
         variant: 'destructive',
       });
-      router.push('/book');
+      router.push(`/book?businessSlug=${businessSlug}`);
+      return;
+    }
+
+    // Get stored date and time
+    const selectedDate = sessionStorage.getItem('selectedDate');
+    const selectedTime = sessionStorage.getItem('selectedTime');
+
+    if (!selectedDate || !selectedTime) {
+      toast({
+        title: 'Erro',
+        description: 'Data e hora não selecionadas. Volte ao passo anterior.',
+        variant: 'destructive',
+      });
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Store customer details in session storage
-      sessionStorage.setItem('customerDetails', JSON.stringify(data));
+      console.log('🔄 Creating appointment with:', {
+        businessSlug,
+        clientName: data.name,
+        clientEmail: data.email,
+        clientPhone: data.phone,
+        serviceId,
+        staffId,
+        scheduledFor: `${selectedDate}T${selectedTime}:00`,
+        notes: data.notes,
+      });
 
-      // Navigate to summary page
-      router.push(`/book/summary?serviceId=${serviceId}`);
+      const response = await fetch('/api/client/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessSlug,
+          clientName: data.name,
+          clientEmail: data.email,
+          clientPhone: data.phone,
+          serviceId,
+          staffId,
+          scheduledFor: `${selectedDate}T${selectedTime}:00`,
+          notes: data.notes,
+        }),
+      });
+
+      const result = await response.json();
+      console.log('📝 Appointment creation response:', result);
+
+      if (response.ok && result.success) {
+        console.log('✅ Appointment created successfully:', result.data.id);
+        
+        // Store appointment details for success page
+        sessionStorage.setItem('appointmentData', JSON.stringify(result.data));
+        
+        // Clear other stored data
+        sessionStorage.removeItem('selectedService');
+        sessionStorage.removeItem('selectedStaff');
+        sessionStorage.removeItem('selectedDate');
+        sessionStorage.removeItem('selectedTime');
+
+        // Navigate to success page
+        router.push(`/book/success?businessSlug=${businessSlug}`);
+      } else {
+        // Handle error response
+        const errorMsg = result.error?.message || `Erro ${response.status}: ${response.statusText}`;
+        toast({
+          title: 'Erro ao Criar Agendamento',
+          description: errorMsg,
+          variant: 'destructive',
+        });
+        console.error('❌ Failed to create appointment:', result.error || response.statusText);
+      }
     } catch (error) {
+      console.error('❌ Network error creating appointment:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to save customer details. Please try again.',
+        title: 'Erro de Conexão',
+        description: 'Falha na conexão. Verifique sua internet e tente novamente.',
         variant: 'destructive',
       });
     } finally {
@@ -89,9 +149,20 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">Your Details</h1>
-        <p className="text-gray-600">Please provide your contact information</p>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleBack}
+          className="flex-shrink-0"
+          disabled={isLoading}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="text-center flex-1">
+          <h1 className="text-2xl font-bold mb-2">Seus Dados</h1>
+          <p className="text-gray-600">Por favor forneça as suas informações de contacto</p>
+        </div>
       </div>
 
       <motion.div
@@ -101,87 +172,43 @@ export default function CustomerDetailsPage() {
       >
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="you@example.com" type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="(123) 456-7890" type="tel" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome Completo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="João Silva" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
-              name="preferredContact"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Preferred Contact Method</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select preferred contact method" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="phone">Phone</SelectItem>
-                      <SelectItem value="both">Both Email & Phone</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="joao@exemplo.com" type="email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone (opcional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="+351 912 345 678" type="tel" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -192,10 +219,10 @@ export default function CustomerDetailsPage() {
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Additional Notes</FormLabel>
+                  <FormLabel>Notas Adicionais (opcional)</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Any special requests or information you'd like us to know..."
+                      placeholder="Alguma informação adicional que gostaria de partilhar..."
                       className="resize-none"
                       {...field}
                     />
@@ -209,19 +236,25 @@ export default function CustomerDetailsPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
-                className="flex items-center"
+                onClick={handleBack}
+                disabled={isLoading}
+                className="px-6"
               >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back
+                Voltar
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2"
               >
-                {isLoading ? 'Saving...' : 'Continue'}
-                <ChevronRight className="h-4 w-4 ml-2" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Criando Agendamento...
+                  </>
+                ) : (
+                  'Confirmar Agendamento'
+                )}
               </Button>
             </div>
           </form>

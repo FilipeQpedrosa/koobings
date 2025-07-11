@@ -18,7 +18,7 @@ export async function GET() {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const recentClients = await prisma.appointment.findMany({
+    const recentClients = await prisma.appointments.findMany({
       where: {
         staffId: session.user.id,
       },

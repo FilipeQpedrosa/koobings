@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getRequestAuthUser } from '@/lib/jwt';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, parse, format, addMinutes, isAfter, isBefore } from 'date-fns';
 
@@ -9,8 +8,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const user = getRequestAuthUser(request);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

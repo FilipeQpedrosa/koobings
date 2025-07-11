@@ -45,7 +45,7 @@ async function main() {
     const scheduledFor = addHours(new Date(), 24); // Tomorrow
     const duration = 60; // 1 hour duration
 
-    const appointment = await prisma.appointment.create({
+    const appointment = await prisma.appointments.create({
       data: {
         scheduledFor,
         duration,

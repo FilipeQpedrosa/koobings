@@ -41,7 +41,7 @@ export class SchedulerService {
   private async processReminders() {
     try {
       const now = new Date();
-      const appointments = await prisma.appointment.findMany({
+      const appointments = await prisma.appointments.findMany({
         where: {
           status: 'CONFIRMED',
           scheduledFor: {
@@ -86,7 +86,7 @@ export class SchedulerService {
 
     try {
       // Archive old appointments
-      await prisma.appointment.updateMany({
+      await prisma.appointments.updateMany({
         where: {
           updatedAt: {
             lt: cutoffDate

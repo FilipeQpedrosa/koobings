@@ -6,62 +6,69 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { ChevronLeft, ChevronRight, Star, Clock, Calendar } from 'lucide-react';
-import Image from 'next/image';
-import { format } from 'date-fns';
+import { ChevronLeft, User } from 'lucide-react';
 
 interface StaffMember {
   id: string;
   name: string;
-  role: string;
-  imageUrl: string | null;
-  bio: string | null;
-  rating: number;
-  reviewCount: number;
-  specialties: string[];
+  email: string;
+  phone?: string;
+}
+
+interface Business {
+  id: string;
+  name: string;
 }
 
 export default function StaffSelectionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  
   const serviceId = searchParams.get('serviceId');
+  const businessSlug = searchParams.get('businessSlug') || sessionStorage.getItem('businessSlug') || 'advogados-bla-bla';
 
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
   useEffect(() => {
-    // Retrieve date and time from session storage
-    const storedDate = sessionStorage.getItem('selectedDate');
-    const storedTime = sessionStorage.getItem('selectedTime');
-    setSelectedDate(storedDate);
-    setSelectedTime(storedTime);
-
-    if (!serviceId || !storedDate || !storedTime) {
+    if (!serviceId) {
       toast({
-        title: 'Error',
-        description: 'Missing booking information. Please start over.',
+        title: 'Erro',
+        description: 'Informação de agendamento em falta. Comece novamente.',
         variant: 'destructive'
       });
-      router.push('/book');
+      router.push(`/book?businessSlug=${businessSlug}`);
       return;
     }
 
-    async function fetchAvailableStaff() {
+    async function fetchStaff() {
       try {
-        const response = await fetch(
-          `/api/client/staff/available?serviceId=${serviceId}&date=${storedDate}&time=${storedTime}`
-        );
-        if (!response.ok) throw new Error('Failed to fetch available staff');
+        console.log('👥 Fetching staff for business:', businessSlug);
+        
+        const response = await fetch(`/api/client/staff?businessSlug=${businessSlug}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch staff: ${response.status}`);
+        }
+        
         const data = await response.json();
-        setStaffMembers(data.data);
+        console.log('👥 Staff response:', data);
+        
+        if (data.success) {
+          setStaffMembers(data.data.staff || []);
+          setBusiness(data.data.business);
+          console.log('✅ Staff loaded:', data.data.staff.length);
+        } else {
+          throw new Error(data.error?.message || 'Failed to load staff');
+        }
       } catch (error) {
+        console.error('❌ Error fetching staff:', error);
         toast({
-          title: 'Error',
-          description: 'Failed to load available staff. Please try again.',
+          title: 'Erro',
+          description: 'Falha ao carregar funcionários. Tente novamente.',
           variant: 'destructive'
         });
       } finally {
@@ -69,8 +76,12 @@ export default function StaffSelectionPage() {
       }
     }
 
-    fetchAvailableStaff();
-  }, [serviceId, toast, router]);
+    fetchStaff();
+  }, [serviceId, businessSlug, toast, router]);
+
+  const handleBack = () => {
+    router.push(`/book?businessSlug=${businessSlug}`);
+  };
 
   const handleContinue = () => {
     if (!selectedStaff) return;
@@ -78,15 +89,15 @@ export default function StaffSelectionPage() {
     // Store selection in session storage
     sessionStorage.setItem('selectedStaff', selectedStaff);
 
-    // Navigate to next step
-    router.push(`/book/details?serviceId=${serviceId}`);
+    // Navigate to datetime selection
+    router.push(`/book/datetime?businessSlug=${businessSlug}&serviceId=${serviceId}&staffId=${selectedStaff}`);
   };
 
   if (isLoading) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-48 bg-gray-200 animate-pulse rounded-lg" />
+          <div key={i} className="h-24 bg-gray-200 animate-pulse rounded-lg" />
         ))}
       </div>
     );
@@ -94,25 +105,20 @@ export default function StaffSelectionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">Choose Your Provider</h1>
-        <p className="text-gray-600">Select who you&apos;d like to provide the service</p>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleBack}
+          className="flex-shrink-0"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="text-center flex-1">
+          <h1 className="text-2xl font-bold mb-2">Escolher Funcionário</h1>
+          <p className="text-gray-600">Selecione quem prefere que realize o serviço</p>
+        </div>
       </div>
-
-      {selectedDate && selectedTime && (
-        <Card className="p-4 bg-gray-50">
-          <div className="flex items-center justify-center space-x-6">
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-4 w-4 mr-2" />
-              {format(new Date(selectedDate), 'MMMM d, yyyy')}
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Clock className="h-4 w-4 mr-2" />
-              {format(new Date(`2000-01-01T${selectedTime}`), 'h:mm a')}
-            </div>
-          </div>
-        </Card>
-      )}
 
       <AnimatePresence>
         {staffMembers.length === 0 ? (
@@ -122,17 +128,17 @@ export default function StaffSelectionPage() {
             exit={{ opacity: 0, y: 10 }}
             className="text-center py-8"
           >
-            <p className="text-gray-500">No staff members available at the selected time.</p>
+            <p className="text-gray-500">Nenhum funcionário disponível.</p>
             <Button
               variant="link"
-              onClick={() => router.push('/book/datetime')}
+              onClick={handleBack}
               className="mt-2"
             >
-              Choose a different time
+              Voltar à seleção de serviços
             </Button>
           </motion.div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {staffMembers.map((staff) => (
               <motion.div
                 key={staff.id}
@@ -141,54 +147,27 @@ export default function StaffSelectionPage() {
                 exit={{ opacity: 0, y: 10 }}
               >
                 <Card
-                  className={`p-4 cursor-pointer transition-all hover:shadow-md ${
-                    selectedStaff === staff.id ? 'ring-2 ring-primary' : ''
+                  className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 ${
+                    selectedStaff === staff.id 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => setSelectedStaff(staff.id)}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="relative w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                      {staff.imageUrl ? (
-                        <Image
-                          src={staff.imageUrl}
-                          alt={staff.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          {staff.name.charAt(0)}
-                        </div>
-                      )}
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <User className="h-6 w-6 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium">{staff.name}</h3>
-                          <p className="text-sm text-gray-600">{staff.role}</p>
-                        </div>
-                        <div className="flex items-center">
-                          <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                          <span className="text-sm font-medium">{staff.rating}</span>
-                          <span className="text-sm text-gray-500 ml-1">
-                            ({staff.reviewCount})
-                          </span>
-                        </div>
-                      </div>
-                      {staff.bio && (
-                        <p className="text-sm text-gray-600 mt-2">{staff.bio}</p>
+                      <h3 className="font-semibold text-lg">{staff.name}</h3>
+                      <p className="text-sm text-gray-600">{staff.email}</p>
+                      {staff.phone && (
+                        <p className="text-sm text-gray-500">{staff.phone}</p>
                       )}
-                      {staff.specialties.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {staff.specialties.map((specialty) => (
-                            <span
-                              key={specialty}
-                              className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full"
-                            >
-                              {specialty}
-                            </span>
-                          ))}
-                        </div>
+                    </div>
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-300 flex-shrink-0">
+                      {selectedStaff === staff.id && (
+                        <div className="w-3 h-3 rounded-full bg-blue-500" />
                       )}
                     </div>
                   </div>
@@ -202,19 +181,17 @@ export default function StaffSelectionPage() {
       <div className="flex justify-between pt-6">
         <Button
           variant="outline"
-          onClick={() => router.back()}
-          className="flex items-center"
+          onClick={handleBack}
+          className="px-6"
         >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back
+          Voltar
         </Button>
         <Button
           onClick={handleContinue}
           disabled={!selectedStaff}
-          className="flex items-center"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2"
         >
-          Continue
-          <ChevronRight className="h-4 w-4 ml-2" />
+          Continuar
         </Button>
       </div>
     </div>

@@ -14,23 +14,43 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const weekFromNow = addDays(now, 7);
   // Appointments for all staff in this business
-  const recentAppointments = await prisma.appointment.findMany({
+  const recentAppointments = await (prisma as any).appointments.findMany({
     where: {
       businessId: business.id,
       scheduledFor: { gte: now, lte: weekFromNow },
     },
     include: {
-      client: true,
-      service: true,
+      Client: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true
+        }
+      },
+      Service: {
+        select: {
+          id: true,
+          name: true,
+          duration: true,
+          price: true
+        }
+      },
+      Staff: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
     },
     orderBy: { scheduledFor: 'desc' },
     take: 20,
   });
-  const totalAppointments = await prisma.appointment.count({ where: { businessId: business.id } });
-  const completedAppointments = await prisma.appointment.count({ where: { businessId: business.id, status: 'COMPLETED' } });
-  const upcomingAppointmentsCount = await prisma.appointment.count({ where: { businessId: business.id, status: 'PENDING', scheduledFor: { gte: now } } });
-  const clientIds = await prisma.appointment.findMany({ where: { businessId: business.id }, select: { clientId: true } });
-  const totalClients = new Set(clientIds.map(c => c.clientId)).size;
+  const totalAppointments = await (prisma as any).appointments.count({ where: { businessId: business.id } });
+  const completedAppointments = await (prisma as any).appointments.count({ where: { businessId: business.id, status: 'COMPLETED' } });
+  const upcomingAppointmentsCount = await (prisma as any).appointments.count({ where: { businessId: business.id, status: 'PENDING', scheduledFor: { gte: now } } });
+  const clientIds = await (prisma as any).appointments.findMany({ where: { businessId: business.id }, select: { clientId: true } });
+  const totalClients = new Set(clientIds.map((c: any) => c.clientId)).size;
   const completionRate = totalAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0;
   return NextResponse.json({
     success: true,
@@ -42,13 +62,29 @@ export async function GET(request: NextRequest) {
         totalClients,
         completionRate,
       },
-      appointments: recentAppointments.map(apt => ({
+      appointments: recentAppointments.map((apt: any) => ({
         id: apt.id,
-        clientName: apt.client?.name || 'Unknown',
-        serviceName: apt.service?.name || 'Unknown',
+        clientName: apt.Client?.name || 'Cliente Desconhecido',
+        serviceName: apt.Service?.name || 'Serviço Desconhecido',
         dateTime: apt.scheduledFor,
         status: apt.status,
         duration: apt.duration,
+        client: {
+          id: apt.Client?.id || null,
+          name: apt.Client?.name || 'Cliente Desconhecido',
+          email: apt.Client?.email || null,
+          phone: apt.Client?.phone || null
+        },
+        services: apt.Service ? [{
+          id: apt.Service.id,
+          name: apt.Service.name,
+          duration: apt.Service.duration,
+          price: apt.Service.price
+        }] : [{ name: 'Serviço Desconhecido' }],
+        staff: {
+          id: apt.Staff?.id || null,
+          name: apt.Staff?.name || 'Staff Desconhecido'
+        }
       })),
     },
   });

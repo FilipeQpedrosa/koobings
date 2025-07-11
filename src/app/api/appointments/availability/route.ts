@@ -61,7 +61,7 @@ export async function GET(request: Request) {
     });
 
     // Get existing appointments
-    const appointments = await prisma.appointment.findMany({
+    const appointments = await prisma.appointments.findMany({
       where: {
         staffId: providerId,
         businessId,

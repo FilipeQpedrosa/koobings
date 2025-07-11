@@ -82,7 +82,7 @@ export async function checkStaffAvailability(
   }
 
   // Check existing appointments
-  const appointments = await prisma.appointment.findMany({
+  const appointments = await prisma.appointments.findMany({
     where: {
       staffId,
       scheduledFor: {

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt';
 
 // GET handler
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
@@ -26,12 +25,10 @@ export async function GET(request: NextRequest) {
     };
 
     // Add filters based on role
-    if (session.user.role === 'STAFF') {
-      where.staffId = session.user.id;
-    } else if (session.user.role === 'BUSINESS_OWNER') {
-      where.business = {
-        id: session.user.businessId,
-      };
+    if (user.role === 'STAFF') {
+      where.staffId = user.id;
+    } else if (user.role === 'BUSINESS_OWNER') {
+      where.businessId = user.businessId;
     }
 
     // Add date filter
@@ -103,7 +100,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Map scheduledFor to date and time for dashboard compatibility
-    const mappedAppointments = appointments.map((apt) => {
+    const mappedAppointments = appointments.map((apt: any) => {
       const scheduled = apt.scheduledFor instanceof Date ? apt.scheduledFor : new Date(apt.scheduledFor);
       return {
         ...apt,
@@ -122,12 +119,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST handler
+// POST handler - WITH EXTENSIVE LOGGING
 export async function POST(request: NextRequest) {
+  console.log('🚀 [APPOINTMENTS_POST] Starting appointment creation...');
+  
   try {
-    const session = await getServerSession(authOptions);
+    // Try to get user from JWT cookie
+    const user = getRequestAuthUser(request);
+    console.log('👤 [APPOINTMENTS_POST] User found:', !!user);
+    console.log('👤 [APPOINTMENTS_POST] User role:', user?.role);
+    console.log('👤 [APPOINTMENTS_POST] User ID:', user?.id);
+    console.log('👤 [APPOINTMENTS_POST] Business ID:', user?.businessId);
 
-    if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
+    if (!user || !['BUSINESS_OWNER', 'STAFF'].includes(user.role)) {
+      console.log('❌ [APPOINTMENTS_POST] Unauthorized - invalid user or role');
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
@@ -135,9 +140,16 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
+    console.log('📥 [APPOINTMENTS_POST] Request data:', JSON.stringify(data, null, 2));
 
     // Validate required fields
     if (!data.clientId || !data.serviceId || !data.date || !data.time) {
+      console.log('❌ [APPOINTMENTS_POST] Missing required fields:', {
+        clientId: !!data.clientId,
+        serviceId: !!data.serviceId,
+        date: !!data.date,
+        time: !!data.time
+      });
       return NextResponse.json(
         { success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } },
         { status: 400 }
@@ -145,33 +157,112 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure businessId is present
-    if (!session.user.businessId) {
+    if (!user.businessId) {
+      console.log('❌ [APPOINTMENTS_POST] Missing business ID');
       return NextResponse.json(
         { success: false, error: { code: 'BUSINESS_ID_REQUIRED', message: 'Business ID is required to create an appointment.' } },
         { status: 400 }
       );
     }
 
+    // Determine staffId based on user role and provided data
+    let staffId = data.staffId;
+    console.log('🔍 [APPOINTMENTS_POST] Initial staffId:', staffId);
+    
+    if (!staffId) {
+      if (user.role === 'STAFF') {
+        // For staff members, use their own ID
+        staffId = user.id;
+        console.log('👨‍💼 [APPOINTMENTS_POST] Using staff member ID:', staffId);
+      } else if (user.role === 'BUSINESS_OWNER') {
+        // For business owners, try to find a staff member in their business
+        console.log('👔 [APPOINTMENTS_POST] Business owner - finding staff member...');
+        const staffMember = await prisma.staff.findFirst({
+          where: {
+            businessId: user.businessId,
+          },
+          orderBy: [
+            { role: 'desc' }, // ADMIN role comes first
+            { createdAt: 'asc' } // Oldest staff member first
+          ]
+        });
+
+        if (staffMember) {
+          staffId = staffMember.id;
+          console.log('✅ [APPOINTMENTS_POST] Found staff member:', staffMember.name, 'ID:', staffId);
+        } else {
+          console.log('❌ [APPOINTMENTS_POST] No staff members found for business:', user.businessId);
+          return NextResponse.json(
+            { success: false, error: { code: 'NO_STAFF_AVAILABLE', message: 'No staff members available to assign this appointment.' } },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // Validate that the staffId exists and belongs to the business
+    console.log('🔍 [APPOINTMENTS_POST] Validating staff member...');
+    const staff = await prisma.staff.findFirst({
+      where: {
+        id: staffId,
+        businessId: user.businessId
+      }
+    });
+
+    if (!staff) {
+      console.log('❌ [APPOINTMENTS_POST] Invalid staff member - ID:', staffId, 'Business:', user.businessId);
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_STAFF', message: 'Invalid staff member or staff does not belong to this business.' } },
+        { status: 400 }
+      );
+    }
+    console.log('✅ [APPOINTMENTS_POST] Staff member validated:', staff.name);
+
     // Fetch the service to get its duration
+    console.log('🔍 [APPOINTMENTS_POST] Fetching service...');
     const service = await prisma.service.findUnique({
       where: { id: data.serviceId },
-      select: { duration: true },
+      select: { duration: true, name: true },
     });
     if (!service) {
+      console.log('❌ [APPOINTMENTS_POST] Service not found:', data.serviceId);
       return NextResponse.json(
         { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
         { status: 404 }
       );
     }
+    console.log('✅ [APPOINTMENTS_POST] Service found:', service.name, 'Duration:', service.duration);
 
     // Combine date and time into a single Date object for scheduledFor
     const scheduledFor = new Date(`${data.date}T${data.time}`);
+    console.log('📅 [APPOINTMENTS_POST] Scheduled for:', scheduledFor.toISOString());
+    
+    // Validate the date is not in the past
+    if (scheduledFor < new Date()) {
+      console.log('❌ [APPOINTMENTS_POST] Date is in the past:', scheduledFor);
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_DATE', message: 'Cannot schedule appointments in the past.' } },
+        { status: 400 }
+      );
+    }
+
+    // Create the appointment
+    console.log('💾 [APPOINTMENTS_POST] Creating appointment with data:', {
+      clientId: data.clientId,
+      serviceId: data.serviceId,
+      staffId: staffId,
+      businessId: user.businessId,
+      scheduledFor: scheduledFor.toISOString(),
+      duration: service.duration,
+      notes: data.notes
+    });
+
     const appointment = await prisma.appointment.create({
       data: {
         clientId: data.clientId,
         serviceId: data.serviceId,
-        staffId: data.staffId || session.user.id,
-        businessId: session.user.businessId,
+        staffId: staffId,
+        businessId: user.businessId,
         scheduledFor,
         duration: service.duration,
         status: 'PENDING',
@@ -184,11 +275,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('✅ [APPOINTMENTS_POST] Appointment created successfully:', appointment.id);
     return NextResponse.json({ success: true, data: appointment });
   } catch (error) {
-    console.error('Error creating appointment:', error);
+    console.error('💥 [APPOINTMENTS_POST] Error creating appointment:', error);
+    console.error('💥 [APPOINTMENTS_POST] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { success: false, error: { code: 'APPOINTMENT_CREATE_ERROR', message: 'Failed to create appointment' } },
+      { success: false, error: { code: 'APPOINTMENT_CREATE_ERROR', message: 'Failed to create appointment', details: error instanceof Error ? error.message : 'Unknown error' } },
       { status: 500 }
     );
   }
@@ -197,9 +290,9 @@ export async function POST(request: NextRequest) {
 // PATCH handler
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
 
-    if (!session || !['BUSINESS_OWNER', 'STAFF'].includes(session.user.role)) {
+    if (!user || !['BUSINESS_OWNER', 'STAFF'].includes(user.role)) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
@@ -211,18 +304,14 @@ export async function PATCH(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: { code: 'APPOINTMENT_ID_REQUIRED', message: 'Appointment ID is required' } },
+        { success: false, error: { code: 'MISSING_ID', message: 'Appointment ID is required' } },
         { status: 400 }
       );
     }
 
-    // Verify appointment access
+    // Check if appointment exists
     const appointment = await prisma.appointment.findUnique({
       where: { id },
-      select: {
-        staffId: true,
-        businessId: true,
-      },
     });
 
     if (!appointment) {
@@ -234,11 +323,11 @@ export async function PATCH(request: NextRequest) {
 
     // Check if user has permission to update
     if (
-      session.user.role === 'STAFF' &&
-      appointment.staffId !== session.user.id
+      user.role === 'STAFF' &&
+      appointment.staffId !== user.id
     ) {
       return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED_UPDATE', message: 'Unauthorized to update this appointment' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'You can only update your own appointments' } },
         { status: 403 }
       );
     }
@@ -266,29 +355,36 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: Request) {
   try {
-    const session = await getServerSession();
-    if (!session) {
+    const user = getRequestAuthUser(request as NextRequest);
+    if (!user) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const reason = searchParams.get('reason') || 'No reason provided';
-    
+
     if (!id) {
-      return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_ID_REQUIRED', message: 'Appointment ID is required' } }, { status: 400 });
+      return NextResponse.json({ success: false, error: { code: 'MISSING_ID', message: 'Appointment ID is required' } }, { status: 400 });
     }
 
+    // Check if appointment exists
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+    });
+
+    if (!appointment) {
+      return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' } }, { status: 404 });
+    }
+
+    // Cancel the appointment instead of hard delete
     await prisma.appointment.update({
       where: { id },
-      data: { status: 'CANCELLED', notes: reason },
+      data: { status: 'CANCELLED' },
     });
-    return NextResponse.json({ success: true, data: { message: 'Appointment cancelled successfully' } });
+
+    return NextResponse.json({ success: true, message: 'Appointment cancelled successfully' });
   } catch (error) {
-    console.error('Failed to cancel appointment:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'APPOINTMENT_CANCEL_ERROR', message: error instanceof Error ? error.message : 'Failed to cancel appointment' } },
-      { status: 500 }
-    );
+    console.error('Error cancelling appointment:', error);
+    return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_DELETE_ERROR', message: 'Failed to cancel appointment' } }, { status: 500 });
   }
 } 

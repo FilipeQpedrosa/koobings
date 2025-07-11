@@ -39,7 +39,7 @@ export async function PATCH(request: Request, { params }: any) {
     }
 
     // Verify the appointment belongs to the staff's business
-    const appointment = await prisma.appointment.findFirst({
+    const appointment = await prisma.appointments.findFirst({
       where: {
         id: params.id,
         businessId: staff.businessId,
@@ -62,7 +62,7 @@ export async function PATCH(request: Request, { params }: any) {
     // Update the appointment
     let updatedAppointment;
     try {
-      updatedAppointment = await prisma.appointment.update({
+      updatedAppointment = await prisma.appointments.update({
         where: { id: params.id },
         data: updateData,
         include: {

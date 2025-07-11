@@ -1,9 +1,9 @@
-import { useSession } from 'next-auth/react';
+import { useAuth } from './useAuth';
 import { hasPermission, type Permission, type Role } from '@/lib/permissions';
 
 export function usePermissions() {
-  const { data: session } = useSession();
-  const userRole = (session?.user?.role as Role) || 'PROVIDER';
+  const { user } = useAuth();
+  const userRole = (user?.role as Role) || 'PROVIDER';
 
   const can = (permission: Permission) => {
     return hasPermission(userRole, permission);

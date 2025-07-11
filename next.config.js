@@ -52,14 +52,6 @@ const nextConfig = {
     ]
   },
 
-  // Webpack configuration for Prisma
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals.push('@prisma/client')
-    }
-    return config
-  },
-
   // Environment variables that should be available to the browser
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,

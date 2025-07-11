@@ -40,7 +40,7 @@ export class NotificationScheduler {
     console.log('Checking for upcoming appointments...');
 
     try {
-      const appointments = await this.prisma.appointment.findMany({
+      const appointments = await this.prisma.appointments.findMany({
         where: {
           status: AppointmentStatus.CONFIRMED,
           scheduledFor: {
@@ -49,7 +49,7 @@ export class NotificationScheduler {
           },
         },
         include: {
-          client: { select: { name: true, email: true } },
+          Client: { select: { name: true, email: true } },
           service: true,
           staff: true,
           business: true,
@@ -69,7 +69,7 @@ export class NotificationScheduler {
   private async processAppointment(appointment: AppointmentWithRelations) {
     try {
       // Check if client has email notifications enabled
-      if (!appointment.client.email) {
+      if (!appointment.Client.email) {
         console.log(`Client for appointment ${appointment.id} has no email address`);
         return;
       }

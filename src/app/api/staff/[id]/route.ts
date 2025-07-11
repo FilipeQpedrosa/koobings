@@ -40,7 +40,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Unauthorized to delete this staff member' }, { status: 403 });
     }
     // Check for appointments before deleting
-    const appointmentCount = await prisma.appointment.count({ where: { staffId: id } });
+    const appointmentCount = await prisma.appointments.count({ where: { staffId: id } });
     if (appointmentCount > 0) {
       return NextResponse.json({ error: 'Cannot delete staff with existing appointments' }, { status: 400 });
     }

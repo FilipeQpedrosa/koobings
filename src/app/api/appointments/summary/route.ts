@@ -40,9 +40,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Count all bookings for today
-    const booked = await prisma.appointment.count({ where });
+    const booked = await prisma.appointments.count({ where });
     // Count completed bookings for today
-    const completed = await prisma.appointment.count({
+    const completed = await prisma.appointments.count({
       where: {
         ...where,
         status: 'COMPLETED',

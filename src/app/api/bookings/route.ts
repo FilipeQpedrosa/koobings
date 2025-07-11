@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     const duration = service.duration;
 
     // Check for conflicting appointments
-    const conflictingAppointment = await prisma.appointment.findFirst({
+    const conflictingAppointment = await prisma.appointments.findFirst({
       where: {
         staffId: service.business.staff[0].id,
         scheduledFor: {
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     // Create the appointment
-    const appointment = await prisma.appointment.create({
+    const appointment = await prisma.appointments.create({
       data: {
         scheduledFor,
         duration,

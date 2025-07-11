@@ -1,24 +1,55 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { z } from 'zod';
 import { hash } from 'bcryptjs';
 import { Prisma } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+
+async function verifyJWT(request: NextRequest) {
+  try {
+    const token = request.cookies.get('auth-token')?.value;
+    if (!token) return null;
+    
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    return decoded;
+  } catch (error) {
+    return null;
+  }
+}
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: any
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await verifyJWT(request);
 
-    if (!session?.user || !session.user.businessId) {
-      console.error('Unauthorized: No session or user.');
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
-    const businessId = session.user.businessId;
+    let businessId: string;
+
+    // Handle both staff members and business owners
+    if (user.role === 'BUSINESS_OWNER') {
+      businessId = user.businessId || user.id;
+    } else {
+      // Get business from staff
+      const currentStaff = await prisma.staff.findUnique({
+        where: { id: user.id },
+        include: { business: true }
+      });
+
+      if (!currentStaff) {
+        console.error('Staff not found for user:', user.id);
+        return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
+      }
+
+      businessId = currentStaff.businessId;
+    }
 
     const staff = await prisma.staff.findFirst({
       where: {
@@ -50,14 +81,43 @@ export async function GET(
 }
 
 // PUT /api/business/staff/[id] - Update staff member
-export async function PUT(request: Request, { params }: any) {
+export async function PUT(request: NextRequest, { params }: any) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.businessId || session.user.staffRole !== 'ADMIN') {
+    const user = await verifyJWT(request);
+
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
+
+    let businessId: string;
+    let hasAdminPermission = false;
+
+    // Handle both staff members and business owners
+    if (user.role === 'BUSINESS_OWNER') {
+      businessId = user.businessId || user.id;
+      hasAdminPermission = true;
+    } else {
+      // Get business from staff and verify admin role
+      const currentStaff = await prisma.staff.findUnique({
+        where: { id: user.id },
+        include: { business: true }
+      });
+
+      if (!currentStaff || currentStaff.role !== 'ADMIN') {
+        console.error('Unauthorized: Not admin staff.');
+        return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
+      }
+
+      businessId = currentStaff.businessId;
+      hasAdminPermission = true;
+    }
+
+    if (!hasAdminPermission) {
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
+    }
+
     const staffIdToUpdate = params.id;
-    const businessId = session.user.businessId;
 
     // Validate input
     const schema = z.object({
@@ -98,17 +158,46 @@ export async function PUT(request: Request, { params }: any) {
 }
 
 // DELETE /api/business/staff/[id] - Delete staff member
-export async function DELETE(request: Request, { params }: any) {
+export async function DELETE(request: NextRequest, { params }: any) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.businessId || session.user.staffRole !== 'ADMIN') {
+    const user = await verifyJWT(request);
+
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
-    const staffIdToDelete = params.id;
-    const businessId = session.user.businessId;
 
-    // Ensure we don't delete the last admin
-    if (session.user.id === staffIdToDelete) {
+    let businessId: string;
+    let hasAdminPermission = false;
+
+    // Handle both staff members and business owners
+    if (user.role === 'BUSINESS_OWNER') {
+      businessId = user.businessId || user.id;
+      hasAdminPermission = true;
+    } else {
+      // Get business from staff and verify admin role
+      const currentStaff = await prisma.staff.findUnique({
+        where: { id: user.id },
+        include: { business: true }
+      });
+
+      if (!currentStaff || currentStaff.role !== 'ADMIN') {
+        console.error('Unauthorized: Not admin staff.');
+        return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
+      }
+
+      businessId = currentStaff.businessId;
+      hasAdminPermission = true;
+    }
+
+    if (!hasAdminPermission) {
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
+    }
+
+    const staffIdToDelete = params.id;
+
+    // Ensure we don't delete the last admin or ourselves (only applicable for staff members)
+    if (user.role === 'STAFF' && user.id === staffIdToDelete) {
       return NextResponse.json({ success: false, error: { code: 'CANNOT_DELETE_SELF', message: 'You cannot delete your own account.' } }, { status: 400 });
     }
 

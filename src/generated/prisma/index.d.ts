@@ -391,7 +391,7 @@ export class PrismaClient<
     * Example usage:
     * ```ts
     * // Fetch zero or more Appointments
-    * const appointments = await prisma.appointment.findMany()
+    * const appointments = await prisma.appointments.findMany()
     * ```
     */
   get appointment(): Prisma.AppointmentDelegate<ExtArgs>;
@@ -8899,7 +8899,7 @@ export namespace Prisma {
      * @param {AppointmentFindUniqueArgs} args - Arguments to find a Appointment
      * @example
      * // Get one Appointment
-     * const appointment = await prisma.appointment.findUnique({
+     * const appointment = await prisma.appointments.findUnique({
      *   where: {
      *     // ... provide filter here
      *   }
@@ -8913,7 +8913,7 @@ export namespace Prisma {
      * @param {AppointmentFindUniqueOrThrowArgs} args - Arguments to find a Appointment
      * @example
      * // Get one Appointment
-     * const appointment = await prisma.appointment.findUniqueOrThrow({
+     * const appointment = await prisma.appointments.findUniqueOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
@@ -8928,7 +8928,7 @@ export namespace Prisma {
      * @param {AppointmentFindFirstArgs} args - Arguments to find a Appointment
      * @example
      * // Get one Appointment
-     * const appointment = await prisma.appointment.findFirst({
+     * const appointment = await prisma.appointments.findFirst({
      *   where: {
      *     // ... provide filter here
      *   }
@@ -8944,7 +8944,7 @@ export namespace Prisma {
      * @param {AppointmentFindFirstOrThrowArgs} args - Arguments to find a Appointment
      * @example
      * // Get one Appointment
-     * const appointment = await prisma.appointment.findFirstOrThrow({
+     * const appointment = await prisma.appointments.findFirstOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
@@ -8959,13 +8959,13 @@ export namespace Prisma {
      * @param {AppointmentFindManyArgs} args - Arguments to filter and select certain fields only.
      * @example
      * // Get all Appointments
-     * const appointments = await prisma.appointment.findMany()
+     * const appointments = await prisma.appointments.findMany()
      * 
      * // Get first 10 Appointments
-     * const appointments = await prisma.appointment.findMany({ take: 10 })
+     * const appointments = await prisma.appointments.findMany({ take: 10 })
      * 
      * // Only select the `id`
-     * const appointmentWithIdOnly = await prisma.appointment.findMany({ select: { id: true } })
+     * const appointmentWithIdOnly = await prisma.appointments.findMany({ select: { id: true } })
      * 
      */
     findMany<T extends AppointmentFindManyArgs>(args?: SelectSubset<T, AppointmentFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AppointmentPayload<ExtArgs>, T, "findMany">>
@@ -8975,7 +8975,7 @@ export namespace Prisma {
      * @param {AppointmentCreateArgs} args - Arguments to create a Appointment.
      * @example
      * // Create one Appointment
-     * const Appointment = await prisma.appointment.create({
+     * const Appointment = await prisma.appointments.create({
      *   data: {
      *     // ... data to create a Appointment
      *   }
@@ -8989,7 +8989,7 @@ export namespace Prisma {
      * @param {AppointmentCreateManyArgs} args - Arguments to create many Appointments.
      * @example
      * // Create many Appointments
-     * const appointment = await prisma.appointment.createMany({
+     * const appointment = await prisma.appointments.createMany({
      *   data: [
      *     // ... provide data here
      *   ]
@@ -9003,14 +9003,14 @@ export namespace Prisma {
      * @param {AppointmentCreateManyAndReturnArgs} args - Arguments to create many Appointments.
      * @example
      * // Create many Appointments
-     * const appointment = await prisma.appointment.createManyAndReturn({
+     * const appointment = await prisma.appointments.createManyAndReturn({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      * 
      * // Create many Appointments and only return the `id`
-     * const appointmentWithIdOnly = await prisma.appointment.createManyAndReturn({ 
+     * const appointmentWithIdOnly = await prisma.appointments.createManyAndReturn({ 
      *   select: { id: true },
      *   data: [
      *     // ... provide data here
@@ -9027,7 +9027,7 @@ export namespace Prisma {
      * @param {AppointmentDeleteArgs} args - Arguments to delete one Appointment.
      * @example
      * // Delete one Appointment
-     * const Appointment = await prisma.appointment.delete({
+     * const Appointment = await prisma.appointments.delete({
      *   where: {
      *     // ... filter to delete one Appointment
      *   }
@@ -9041,7 +9041,7 @@ export namespace Prisma {
      * @param {AppointmentUpdateArgs} args - Arguments to update one Appointment.
      * @example
      * // Update one Appointment
-     * const appointment = await prisma.appointment.update({
+     * const appointment = await prisma.appointments.update({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -9058,7 +9058,7 @@ export namespace Prisma {
      * @param {AppointmentDeleteManyArgs} args - Arguments to filter Appointments to delete.
      * @example
      * // Delete a few Appointments
-     * const { count } = await prisma.appointment.deleteMany({
+     * const { count } = await prisma.appointments.deleteMany({
      *   where: {
      *     // ... provide filter here
      *   }
@@ -9074,7 +9074,7 @@ export namespace Prisma {
      * @param {AppointmentUpdateManyArgs} args - Arguments to update one or more rows.
      * @example
      * // Update many Appointments
-     * const appointment = await prisma.appointment.updateMany({
+     * const appointment = await prisma.appointments.updateMany({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -9091,7 +9091,7 @@ export namespace Prisma {
      * @param {AppointmentUpsertArgs} args - Arguments to update or create a Appointment.
      * @example
      * // Update or create a Appointment
-     * const appointment = await prisma.appointment.upsert({
+     * const appointment = await prisma.appointments.upsert({
      *   create: {
      *     // ... data to create a Appointment
      *   },
@@ -9113,7 +9113,7 @@ export namespace Prisma {
      * @param {AppointmentCountArgs} args - Arguments to filter Appointments to count.
      * @example
      * // Count the number of Appointments
-     * const count = await prisma.appointment.count({
+     * const count = await prisma.appointments.count({
      *   where: {
      *     // ... the filter for the Appointments we want to count
      *   }

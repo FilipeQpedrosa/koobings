@@ -7,7 +7,7 @@ async function cleanup() {
   // Delete all records in the correct order to handle foreign key constraints
   await prisma.systemAdmin.deleteMany();
   await prisma.review.deleteMany();
-  await prisma.appointment.deleteMany();
+  await prisma.appointments.deleteMany();
   await prisma.recurringAppointment.deleteMany();
   await prisma.paymentMethod.deleteMany();
   await prisma.notification.deleteMany();
