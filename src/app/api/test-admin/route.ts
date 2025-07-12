@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { compare } from 'bcryptjs'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: Request) {
   try {
@@ -10,8 +8,8 @@ export async function POST(request: Request) {
     
     console.log('🔍 Test admin auth for:', email)
     
-    // Find admin
-    const admin = await prisma.systemAdmin.findUnique({
+    // Find admin - using correct model name
+    const admin = await prisma.system_admins.findUnique({
       where: { email }
     })
     
@@ -58,7 +56,5 @@ export async function POST(request: Request) {
       error: 'Server error',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 } 
