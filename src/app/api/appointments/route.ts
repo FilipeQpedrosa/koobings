@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const appointments = await prisma.appointment.findMany({
+    const appointments = await prisma.appointments.findMany({
       where,
       include: {
         client: {
@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
       notes: data.notes
     });
 
-    const appointment = await prisma.appointment.create({
+    const appointment = await prisma.appointments.create({
       data: {
         clientId: data.clientId,
         serviceId: data.serviceId,
@@ -269,9 +269,9 @@ export async function POST(request: NextRequest) {
         notes: data.notes,
       },
       include: {
-        client: true,
-        service: true,
-        staff: true,
+        Client: true,
+        Service: true,
+        Staff: true,
       },
     });
 
@@ -310,8 +310,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check if appointment exists
-    const appointment = await prisma.appointment.findUnique({
-      where: { id },
+    const appointment = await prisma.appointments.findUnique({
+      where: { id: data.id },
+      include: {
+        Client: true,
+        Service: true,
+        Staff: true,
+      },
     });
 
     if (!appointment) {
@@ -333,13 +338,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update appointment
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id },
+    const updatedAppointment = await prisma.appointments.update({
+      where: { id: data.id },
       data: updateData,
       include: {
-        client: true,
-        service: true,
-        staff: true,
+        Client: true,
+        Service: true,
+        Staff: true,
       },
     });
 
@@ -368,8 +373,13 @@ export async function DELETE(request: Request) {
     }
 
     // Check if appointment exists
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await prisma.appointments.findUnique({
       where: { id },
+      include: {
+        Client: true,
+        Service: true,
+        Staff: true,
+      },
     });
 
     if (!appointment) {
@@ -377,7 +387,7 @@ export async function DELETE(request: Request) {
     }
 
     // Cancel the appointment instead of hard delete
-    await prisma.appointment.update({
+    await prisma.appointments.update({
       where: { id },
       data: { status: 'CANCELLED' },
     });

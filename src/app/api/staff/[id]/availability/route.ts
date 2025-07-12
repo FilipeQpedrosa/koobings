@@ -33,16 +33,27 @@ export async function GET(
       where: {
         staffId: staffId,
         scheduledFor: {
-          gte: dayStart,
-          lte: dayEnd,
+          gte: new Date(dayStart),
+          lte: new Date(dayEnd),
         },
         status: {
-          not: 'CANCELLED'
-        }
+          not: 'CANCELLED',
+        },
       },
       select: {
+        id: true,
         scheduledFor: true,
         duration: true,
+        service: {
+          select: {
+            name: true,
+          },
+        },
+        client: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
