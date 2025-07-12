@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
           name: clientName,
           email: uniqueEmail, // Use unique email to avoid conflicts
           phone: clientPhone || null,
-          businessId: business.id
+          businessId: business.id,
+          updatedAt: new Date()
         }
       });
       console.log('[CLIENT_APPOINTMENTS_POST] New client created:', client);
@@ -117,7 +118,8 @@ export async function POST(request: NextRequest) {
         scheduledFor: new Date(scheduledFor),
         duration: service.duration,
         notes: notes || null,
-        status: 'PENDING'
+        status: 'PENDING',
+        updatedAt: new Date()
       }
     });
 
@@ -149,8 +151,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[CLIENT_APPOINTMENTS_POST] Error:', error);
+    console.error('[CLIENT_APPOINTMENTS_POST] Error details:', error.message);
+    console.error('[CLIENT_APPOINTMENTS_POST] Error stack:', error.stack);
     return NextResponse.json(
-      { success: false, error: { code: 'APPOINTMENT_CREATION_ERROR', message: 'Internal error' } },
+      { success: false, error: { code: 'APPOINTMENT_CREATION_ERROR', message: 'Internal error', details: error.message } },
       { status: 500 }
     );
   }
