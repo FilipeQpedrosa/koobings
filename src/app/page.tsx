@@ -98,6 +98,11 @@ export default function HomePage() {
   });
 
   const handleBusinessClick = (business: Business) => {
+    router.push(`/${business.slug}`);
+  };
+
+  const handleBookClick = (business: Business, e: React.MouseEvent) => {
+    e.stopPropagation();
     router.push(`/book?businessSlug=${business.slug}`);
   };
 
@@ -525,13 +530,25 @@ export default function HomePage() {
                       </div>
                     )}
                     
-                    <div className="flex justify-between items-center pt-4 border-t border-stone-100">
-                      <div className="text-sm text-stone-500">
+                    <div className="flex gap-2 pt-4 border-t border-stone-100">
+                      <div className="text-sm text-stone-500 flex-1">
                         {(business.staff?.length || 0)} {(business.staff?.length || 0) === 1 ? 'profissional' : 'profissionais'}
                       </div>
                       <Button 
+                        variant="outline"
                         size="sm" 
-                        className="group-hover:bg-amber-600 bg-amber-500 text-black rounded-full px-6 hover:shadow-md transition-all duration-300 font-medium"
+                        className="rounded-full px-4 border-stone-200 text-stone-600 hover:bg-stone-50 transition-all duration-300 font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/${business.slug}`);
+                        }}
+                      >
+                        Ver Perfil
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="bg-amber-500 hover:bg-amber-600 text-black rounded-full px-4 hover:shadow-md transition-all duration-300 font-medium"
+                        onClick={(e) => handleBookClick(business, e)}
                       >
                         Agendar
                       </Button>
