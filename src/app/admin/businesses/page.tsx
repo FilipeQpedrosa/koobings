@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Pause, Play, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -114,6 +113,12 @@ export default function BusinessesPage() {
   };
 
   const deleteBusiness = async (businessId: string) => {
+    const confirmed = window.confirm(
+      `Tem a certeza que deseja eliminar este negócio? Esta ação não pode ser desfeita!`
+    );
+    
+    if (!confirmed) return;
+
     try {
       const response = await fetch(`/api/admin/businesses/${businessId}/status`, {
         method: 'DELETE',
@@ -179,6 +184,29 @@ export default function BusinessesPage() {
     }
   };
 
+  const handleCreateBusiness = () => {
+    console.log('🔥 CREATE BUSINESS BUTTON CLICKED');
+    console.log('🔥 Navigating to: /admin/businesses/new');
+    
+    // Clear any potential cache
+    if (typeof window !== 'undefined') {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    }
+    
+    // Force navigation with cache busting
+    const url = `/admin/businesses/new?t=${Date.now()}`;
+    console.log('🔥 Final URL:', url);
+    
+    // Try multiple navigation methods
+    try {
+      router.push(url);
+    } catch (error) {
+      console.error('Router push failed:', error);
+      window.location.href = url;
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -187,13 +215,13 @@ export default function BusinessesPage() {
           <p className="text-gray-600">Gerir todos os negócios da plataforma</p>
         </div>
         
-        <Button 
-          onClick={() => router.push('/admin/businesses/new')}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+        <button 
+          onClick={handleCreateBusiness}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4" />
           Criar Negócio
-        </Button>
+        </button>
       </div>
 
       <div className="mb-6">
@@ -317,46 +345,14 @@ export default function BusinessesPage() {
                         </Button>
                       )}
                       
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="px-3 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Eliminar Negócio</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem a certeza que deseja eliminar o negócio "{business.name}"? 
-                              Esta ação irá eliminar permanentemente:
-                              <br />
-                              • Todos os funcionários ({business._count.staff})
-                              <br />
-                              • Todas as marcações ({business._count.appointments})
-                              <br />
-                              • Todos os serviços ({business._count.services})
-                              <br />
-                              • Todos os clientes
-                              <br />
-                              <br />
-                              <strong>Esta ação não pode ser desfeita!</strong>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteBusiness(business.id)}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              Eliminar Definitivamente
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteBusiness(business.id)}
+                        className="px-3 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
