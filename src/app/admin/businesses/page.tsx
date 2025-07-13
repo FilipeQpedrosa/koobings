@@ -409,6 +409,7 @@ export default function BusinessesPage() {
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Abrir Portal
                       </Button>
+                      {/* TEMPORARILY COMMENTED OUT FOR TESTING
                       <Button
                         variant="outline"
                         size="sm"
@@ -418,6 +419,7 @@ export default function BusinessesPage() {
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
+                      */}
                     </div>
                     
                     <div className="flex gap-2">
@@ -502,7 +504,8 @@ export default function BusinessesPage() {
         </div>
       )}
 
-      {/* Edit Business Dialog */}
+      {/* Edit Business Dialog - TEMPORARILY COMMENTED OUT FOR TESTING */}
+      {/*
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
         console.log('🔍 Dialog onOpenChange called with:', open);
         setIsEditDialogOpen(open);
@@ -601,6 +604,7 @@ export default function BusinessesPage() {
           </form>
         </DialogContent>
       </Dialog>
+      */}
     </div>
   );
 } 
