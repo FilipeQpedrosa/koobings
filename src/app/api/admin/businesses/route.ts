@@ -10,6 +10,7 @@ const createBusinessSchema = z.object({
   ownerName: z.string().min(2, 'Nome do proprietário é obrigatório'),
   phone: z.string().optional(),
   address: z.string().optional(),
+  description: z.string().optional(),
   plan: z.enum(['basic', 'standard', 'premium']).default('standard'),
   slug: z.string().optional(),
   features: z.record(z.boolean()).optional(),
@@ -88,9 +89,9 @@ export async function GET(request: NextRequest) {
           features: true,
           _count: {
             select: {
-              Staff: true,
+              staff: true,
               appointments: true,
-              Service: true,
+              services: true,
             }
           }
         },
@@ -193,6 +194,7 @@ export async function POST(request: NextRequest) {
           ownerName: validatedData.ownerName,
           phone: validatedData.phone,
           address: validatedData.address,
+          description: validatedData.description,
           plan: validatedData.plan,
           features,
           passwordHash,
