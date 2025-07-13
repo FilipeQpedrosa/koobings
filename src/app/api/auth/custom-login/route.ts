@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     // Check if it's an admin login
     console.log('🔍 Looking for admin user...');
-    const admin = await prisma.systemAdmin.findUnique({
+    const admin = await prisma.system_admins.findUnique({
       where: { email }
     });
 
