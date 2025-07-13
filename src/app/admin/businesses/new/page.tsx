@@ -151,48 +151,54 @@ export default function NewBusinessPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">Criar Novo Negócio</h1>
-              <p className="text-gray-600 mt-1">Configure um novo negócio na plataforma</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="sm" onClick={() => router.back()}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Criar Novo Negócio</h1>
+                <p className="text-gray-600 mt-1">Configure um novo negócio na plataforma</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Building2 className="h-4 w-4" />
+              Portal Admin
             </div>
           </div>
         </div>
 
-        <form onSubmit={createBusiness} className="space-y-8">
+        <form onSubmit={createBusiness} className="space-y-6">
           {/* Business Information */}
           <Card className="shadow-sm border-gray-200">
-            <CardHeader className="bg-gray-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                 <Building2 className="h-5 w-5 text-blue-600" />
                 Informações do Negócio
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600">
                 Detalhes básicos sobre o negócio
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="name" className="text-sm font-medium text-gray-700">Nome do Negócio *</Label>
+                  <Label htmlFor="name" className="text-sm font-medium text-gray-700 mb-2 block">Nome do Negócio *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder="Ex: Salão Bela Vista"
                     required
-                    className="mt-1"
+                    className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email *</Label>
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 mb-2 block">Email *</Label>
                   <Input
                     id="email"
                     type="email"
@@ -200,54 +206,54 @@ export default function NewBusinessPage() {
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="contato@negocio.com"
                     required
-                    className="mt-1"
+                    className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700">Telefone</Label>
+                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700 mb-2 block">Telefone</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
                     placeholder="+351 912 345 678"
-                    className="mt-1"
+                    className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="slug" className="text-sm font-medium text-gray-700">Slug (opcional)</Label>
+                  <Label htmlFor="slug" className="text-sm font-medium text-gray-700 mb-2 block">Slug (opcional)</Label>
                   <Input
                     id="slug"
                     value={formData.slug}
                     onChange={(e) => handleInputChange('slug', e.target.value)}
                     placeholder="deixe vazio para gerar automaticamente"
-                    className="mt-1"
+                    className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="address" className="text-sm font-medium text-gray-700">Morada</Label>
+                <Label htmlFor="address" className="text-sm font-medium text-gray-700 mb-2 block">Morada</Label>
                 <Input
                   id="address"
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   placeholder="Rua, Número, Cidade"
-                  className="mt-1"
+                  className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <Label htmlFor="description" className="text-sm font-medium text-gray-700">Descrição</Label>
+                <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 block">Descrição</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   placeholder="Breve descrição do negócio..."
                   rows={3}
-                  className="mt-1"
+                  className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </CardContent>
@@ -255,30 +261,30 @@ export default function NewBusinessPage() {
 
           {/* Owner Information */}
           <Card className="shadow-sm border-gray-200">
-            <CardHeader className="bg-gray-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                 <User className="h-5 w-5 text-green-600" />
                 Proprietário
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600">
                 Informações do responsável pelo negócio
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="ownerName" className="text-sm font-medium text-gray-700">Nome do Proprietário *</Label>
+                  <Label htmlFor="ownerName" className="text-sm font-medium text-gray-700 mb-2 block">Nome do Proprietário *</Label>
                   <Input
                     id="ownerName"
                     value={formData.ownerName}
                     onChange={(e) => handleInputChange('ownerName', e.target.value)}
                     placeholder="Nome completo"
                     required
-                    className="mt-1"
+                    className="transition-all duration-200 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">Password *</Label>
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 mb-2 block">Password *</Label>
                   <Input
                     id="password"
                     type="password"
@@ -287,7 +293,7 @@ export default function NewBusinessPage() {
                     placeholder="Mínimo 6 caracteres"
                     required
                     minLength={6}
-                    className="mt-1"
+                    className="transition-all duration-200 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
               </div>
@@ -296,20 +302,20 @@ export default function NewBusinessPage() {
 
           {/* Plan Selection */}
           <Card className="shadow-sm border-gray-200">
-            <CardHeader className="bg-gray-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b border-gray-200">
+              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                 <Settings className="h-5 w-5 text-purple-600" />
                 Plano e Funcionalidades
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600">
                 Escolha o plano e configure as funcionalidades
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div>
-                <Label htmlFor="plan" className="text-sm font-medium text-gray-700">Plano</Label>
+                <Label htmlFor="plan" className="text-sm font-medium text-gray-700 mb-2 block">Plano</Label>
                 <Select value={formData.plan} onValueChange={(value) => handleInputChange('plan', value)}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -328,11 +334,11 @@ export default function NewBusinessPage() {
               {/* Features */}
               <div className="space-y-4">
                 <Label className="text-sm font-medium text-gray-700">Funcionalidades</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
                     <div>
-                      <Label htmlFor="multipleStaff" className="font-medium">Múltiplos Funcionários</Label>
-                      <p className="text-sm text-gray-500">Permite adicionar vários membros da equipa</p>
+                      <Label htmlFor="multipleStaff" className="font-medium text-gray-900">Múltiplos Funcionários</Label>
+                      <p className="text-sm text-gray-600">Permite adicionar vários membros da equipa</p>
                     </div>
                     <Switch
                       id="multipleStaff"
@@ -341,10 +347,10 @@ export default function NewBusinessPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
                     <div>
-                      <Label htmlFor="advancedReports" className="font-medium">Relatórios Avançados</Label>
-                      <p className="text-sm text-gray-500">Relatórios detalhados e analytics</p>
+                      <Label htmlFor="advancedReports" className="font-medium text-gray-900">Relatórios Avançados</Label>
+                      <p className="text-sm text-gray-600">Relatórios detalhados e analytics</p>
                     </div>
                     <Switch
                       id="advancedReports"
@@ -353,10 +359,10 @@ export default function NewBusinessPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
                     <div>
-                      <Label htmlFor="smsNotifications" className="font-medium">Notificações SMS</Label>
-                      <p className="text-sm text-gray-500">Envio de SMS para clientes</p>
+                      <Label htmlFor="smsNotifications" className="font-medium text-gray-900">Notificações SMS</Label>
+                      <p className="text-sm text-gray-600">Envio de SMS para clientes</p>
                     </div>
                     <Switch
                       id="smsNotifications"
@@ -365,10 +371,10 @@ export default function NewBusinessPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
                     <div>
-                      <Label htmlFor="customBranding" className="font-medium">Branding Personalizado</Label>
-                      <p className="text-sm text-gray-500">Logo e cores personalizadas</p>
+                      <Label htmlFor="customBranding" className="font-medium text-gray-900">Branding Personalizado</Label>
+                      <p className="text-sm text-gray-600">Logo e cores personalizadas</p>
                     </div>
                     <Switch
                       id="customBranding"
@@ -377,10 +383,10 @@ export default function NewBusinessPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
                     <div>
-                      <Label htmlFor="calendarIntegration" className="font-medium">Integração Calendário</Label>
-                      <p className="text-sm text-gray-500">Sincronização com Google Calendar</p>
+                      <Label htmlFor="calendarIntegration" className="font-medium text-gray-900">Integração Calendário</Label>
+                      <p className="text-sm text-gray-600">Sincronização com Google Calendar</p>
                     </div>
                     <Switch
                       id="calendarIntegration"
@@ -389,10 +395,10 @@ export default function NewBusinessPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
                     <div>
-                      <Label htmlFor="apiAccess" className="font-medium">Acesso API</Label>
-                      <p className="text-sm text-gray-500">Integração com sistemas externos</p>
+                      <Label htmlFor="apiAccess" className="font-medium text-gray-900">Acesso API</Label>
+                      <p className="text-sm text-gray-600">Integração com sistemas externos</p>
                     </div>
                     <Switch
                       id="apiAccess"
@@ -407,23 +413,32 @@ export default function NewBusinessPage() {
 
           {/* Actions */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex justify-end space-x-4">
-              <Button type="button" variant="outline" onClick={() => router.back()}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={creating} className="bg-blue-600 hover:bg-blue-700">
-                {creating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Criando...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Criar Negócio
-                  </>
-                )}
-              </Button>
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-600">
+                <p>Todos os campos marcados com * são obrigatórios</p>
+              </div>
+              <div className="flex space-x-3">
+                <Button type="button" variant="outline" onClick={() => router.back()}>
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={creating} 
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 transition-all duration-200"
+                >
+                  {creating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Criando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Criar Negócio
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </form>
