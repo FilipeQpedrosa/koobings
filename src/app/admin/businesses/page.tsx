@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Save, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Save, X, Pause, Play, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Business {
@@ -29,15 +30,15 @@ interface Business {
   };
 }
 
-interface CreateBusinessData {
+type CreateBusinessData = {
   name: string;
   email: string;
-  ownerName?: string;
-  phone?: string;
+  ownerName: string;
+  phone: string;
   plan: 'basic' | 'standard' | 'premium';
-  slug?: string;
-  password?: string;
-}
+  slug: string;
+  password: string;
+};
 
 export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -195,7 +196,7 @@ export default function BusinessesPage() {
   const updateBusiness = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!editBusiness.name || !editBusiness.email || !editBusiness.ownerName) {
+    if (!editingBusiness || !editBusiness.name || !editBusiness.email || !editBusiness.ownerName) {
       toast({
         title: "Erro",
         description: "Nome do negócio, email e nome do proprietário são obrigatórios",
@@ -204,26 +205,14 @@ export default function BusinessesPage() {
       return;
     }
 
-    if (!editingBusiness) return;
-
     try {
       setEditing(true);
-      const updateData = {
-        name: editBusiness.name,
-        email: editBusiness.email,
-        ownerName: editBusiness.ownerName,
-        phone: editBusiness.phone,
-        plan: editBusiness.plan,
-        slug: editBusiness.slug,
-        ...(editBusiness.password && { password: editBusiness.password })
-      };
-
       const response = await fetch(`/api/admin/businesses/${editingBusiness.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(editBusiness),
       });
 
       const data = await response.json();
@@ -270,6 +259,74 @@ export default function BusinessesPage() {
     }
   };
 
+  const updateBusinessStatus = async (businessId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/admin/businesses/${businessId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Sucesso",
+          description: data.message,
+        });
+        
+        // Reload businesses list
+        await fetchBusinesses();
+      } else {
+        toast({
+          title: "Erro",
+          description: data.error || "Erro ao atualizar status",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao conectar com o servidor",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteBusiness = async (businessId: string) => {
+    try {
+      const response = await fetch(`/api/admin/businesses/${businessId}/status`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Sucesso",
+          description: data.message,
+        });
+        
+        // Reload businesses list
+        await fetchBusinesses();
+      } else {
+        toast({
+          title: "Erro",
+          description: data.error || "Erro ao eliminar negócio",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao conectar com o servidor",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getBusinessUrl = (business: Business) => {
     // Direct link to universal staff portal with business slug for admin access
     return `/staff/dashboard?businessSlug=${business.slug}`;
@@ -289,7 +346,18 @@ export default function BusinessesPage() {
       case 'ACTIVE': return 'bg-green-100 text-green-800';
       case 'PENDING': return 'bg-yellow-100 text-yellow-800';
       case 'SUSPENDED': return 'bg-red-100 text-red-800';
+      case 'INACTIVE': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'Ativo';
+      case 'PENDING': return 'Pendente';
+      case 'SUSPENDED': return 'Suspenso';
+      case 'INACTIVE': return 'Inativo';
+      default: return status;
     }
   };
 
@@ -322,116 +390,95 @@ export default function BusinessesPage() {
               Criar Negócio
             </Button>
           </DialogTrigger>
-          <DialogContent 
-            className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto p-6"
-            style={{
-              top: '2rem',
-              transform: 'translateX(-50%)',
-              left: '50%',
-              position: 'fixed'
-            }}
-          >
-            <DialogHeader className="mb-4">
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
               <DialogTitle>Criar Novo Negócio</DialogTitle>
             </DialogHeader>
-            
             <form onSubmit={createBusiness} className="space-y-4">
-              <div>
-                <Label htmlFor="name" className="text-sm font-medium">Nome do Negócio *</Label>
-                <Input
-                  id="name"
-                  value={newBusiness.name}
-                  onChange={(e) => setNewBusiness({...newBusiness, name: e.target.value})}
-                  placeholder="Ex: Salão da Maria"
-                  className="mt-1"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Nome do Negócio *</Label>
+                  <Input
+                    id="name"
+                    value={newBusiness.name}
+                    onChange={(e) => setNewBusiness({...newBusiness, name: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newBusiness.email}
+                    onChange={(e) => setNewBusiness({...newBusiness, email: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="ownerName">Nome do Proprietário *</Label>
+                  <Input
+                    id="ownerName"
+                    value={newBusiness.ownerName}
+                    onChange={(e) => setNewBusiness({...newBusiness, ownerName: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input
+                    id="phone"
+                    value={newBusiness.phone}
+                    onChange={(e) => setNewBusiness({...newBusiness, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="plan">Plano</Label>
+                  <Select value={newBusiness.plan} onValueChange={(value) => setNewBusiness({...newBusiness, plan: value as 'basic' | 'standard' | 'premium'})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Básico</SelectItem>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="premium">Premium</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="slug">Slug (opcional)</Label>
+                  <Input
+                    id="slug"
+                    value={newBusiness.slug}
+                    onChange={(e) => setNewBusiness({...newBusiness, slug: e.target.value})}
+                    placeholder="deixe vazio para gerar automaticamente"
+                  />
+                </div>
               </div>
               
               <div>
-                <Label htmlFor="email" className="text-sm font-medium">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newBusiness.email}
-                  onChange={(e) => setNewBusiness({...newBusiness, email: e.target.value})}
-                  placeholder="contato@salaodamaria.com"
-                  className="mt-1"
-                  autoComplete="new-password"
-                  data-lpignore="true"
-                  data-form-type="other"
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="ownerName" className="text-sm font-medium">Nome do Proprietário *</Label>
-                <Input
-                  id="ownerName"
-                  value={newBusiness.ownerName}
-                  onChange={(e) => setNewBusiness({...newBusiness, ownerName: e.target.value})}
-                  placeholder="Maria Silva"
-                  className="mt-1"
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="phone" className="text-sm font-medium">Telefone</Label>
-                <Input
-                  id="phone"
-                  value={newBusiness.phone}
-                  onChange={(e) => setNewBusiness({...newBusiness, phone: e.target.value})}
-                  placeholder="+351 912 345 678"
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="plan" className="text-sm font-medium">Plano</Label>
-                <Select value={newBusiness.plan} onValueChange={(value: any) => setNewBusiness({...newBusiness, plan: value})}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="basic">Basic</SelectItem>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="slug" className="text-sm font-medium">Slug (opcional)</Label>
-                <Input
-                  id="slug"
-                  value={newBusiness.slug}
-                  onChange={(e) => setNewBusiness({...newBusiness, slug: e.target.value})}
-                  placeholder="salao-da-maria"
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="password" className="text-sm font-medium">Password *</Label>
+                <Label htmlFor="password">Password *</Label>
                 <Input
                   id="password"
                   type="password"
                   value={newBusiness.password}
                   onChange={(e) => setNewBusiness({...newBusiness, password: e.target.value})}
-                  placeholder="Defina uma password segura"
-                  className="mt-1"
-                  autoComplete="new-password"
                   required
                   minLength={6}
                 />
               </div>
               
-              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 mt-6 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="sm:w-auto">
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={creating} className="sm:w-auto" onClick={createBusiness}>
+                <Button type="submit" disabled={creating}>
                   {creating ? 'Criando...' : 'Criar Negócio'}
                 </Button>
               </div>
@@ -440,7 +487,6 @@ export default function BusinessesPage() {
         </Dialog>
       </div>
 
-      {/* Search */}
       <div className="mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -484,7 +530,7 @@ export default function BusinessesPage() {
                       variant="secondary" 
                       className={`${getStatusBadgeColor(business.status)} text-xs px-2 py-1 text-center`}
                     >
-                      {business.status}
+                      {getStatusText(business.status)}
                     </Badge>
                   </div>
                 </div>
@@ -492,34 +538,22 @@ export default function BusinessesPage() {
               
               <CardContent>
                 <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Slug:</p>
-                    <p className="text-sm text-gray-600 font-mono">{business.slug}</p>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Users className="h-4 w-4 mr-2" />
+                    <span>{business._count.staff} funcionários</span>
                   </div>
                   
-                  {business.ownerName && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Proprietário:</p>
-                      <p className="text-sm text-gray-600">{business.ownerName}</p>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-1" />
-                      {business._count.staff} staff
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      {business._count.appointments} agendamentos
-                    </div>
-                    <div className="flex items-center">
-                      <Settings className="h-4 w-4 mr-1" />
-                      {business._count.services} serviços
-                    </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>{business._count.appointments} marcações</span>
                   </div>
                   
-                  <div className="pt-3 border-t">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Settings className="h-4 w-4 mr-2" />
+                    <span>{business._count.services} serviços</span>
+                  </div>
+                  
+                  <div className="pt-3 border-t space-y-2">
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -540,6 +574,81 @@ export default function BusinessesPage() {
                         <Edit className="h-4 w-4" />
                       </Button>
                     </div>
+                    
+                    <div className="flex gap-2">
+                      {business.status === 'ACTIVE' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateBusinessStatus(business.id, 'SUSPENDED')}
+                          className="flex-1 text-orange-600 hover:text-orange-700"
+                        >
+                          <Pause className="h-4 w-4 mr-2" />
+                          Pausar
+                        </Button>
+                      ) : business.status === 'SUSPENDED' ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateBusinessStatus(business.id, 'ACTIVE')}
+                          className="flex-1 text-green-600 hover:text-green-700"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Ativar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateBusinessStatus(business.id, 'ACTIVE')}
+                          className="flex-1 text-green-600 hover:text-green-700"
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          Ativar
+                        </Button>
+                      )}
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-3 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Eliminar Negócio</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem a certeza que deseja eliminar o negócio "{business.name}"? 
+                              Esta ação irá eliminar permanentemente:
+                              <br />
+                              • Todos os funcionários ({business._count.staff})
+                              <br />
+                              • Todas as marcações ({business._count.appointments})
+                              <br />
+                              • Todos os serviços ({business._count.services})
+                              <br />
+                              • Todos os clientes
+                              <br />
+                              <br />
+                              <strong>Esta ação não pode ser desfeita!</strong>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteBusiness(business.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Eliminar Definitivamente
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -550,206 +659,145 @@ export default function BusinessesPage() {
 
       {/* Credentials Display Modal */}
       <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
-        <DialogContent 
-          className="sm:max-w-[500px] max-w-[95vw] max-h-[90vh] overflow-y-auto"
-          style={{
-            top: '2rem',
-            transform: 'translateX(-50%)',
-            left: '50%',
-            position: 'fixed'
-          }}
-        >
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>🎉 Negócio Criado com Sucesso!</DialogTitle>
+            <DialogTitle>Negócio Criado com Sucesso!</DialogTitle>
           </DialogHeader>
-          
           {createdBusinessInfo && (
             <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-semibold text-green-800 mb-2">
-                  Credenciais de Acesso
-                </h3>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h3 className="font-semibold text-green-800 mb-2">Credenciais de Acesso</h3>
                 <div className="space-y-2 text-sm">
                   <div>
                     <strong>Negócio:</strong> {createdBusinessInfo.businessName}
                   </div>
                   <div>
-                    <strong>Email:</strong> 
-                    <code className="ml-2 bg-gray-100 px-2 py-1 rounded">
-                      {createdBusinessInfo.email}
-                    </code>
+                    <strong>Email:</strong> {createdBusinessInfo.email}
                   </div>
                   <div>
-                    <strong>Password:</strong>
-                    <code className="ml-2 bg-gray-100 px-2 py-1 rounded">
-                      {createdBusinessInfo.password}
-                    </code>
-                    {createdBusinessInfo.isCustomPassword ? (
-                      <span className="text-green-600 text-xs ml-2">(personalizada)</span>
-                    ) : (
-                      <span className="text-orange-600 text-xs ml-2">(temporária)</span>
-                    )}
+                    <strong>Password:</strong> {createdBusinessInfo.password}
                   </div>
                   <div>
-                    <strong>URL de Login:</strong>
-                    <div className="mt-1">
-                      <code className="bg-gray-100 px-2 py-1 rounded text-xs block">
-                        {createdBusinessInfo.loginUrl}
-                      </code>
-                    </div>
+                    <strong>URL de Login:</strong> 
+                    <a 
+                      href={createdBusinessInfo.loginUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline ml-1"
+                    >
+                      {createdBusinessInfo.loginUrl}
+                    </a>
                   </div>
                 </div>
               </div>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-800 mb-2">
-                  📋 Instruções
-                </h3>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Partilhe estas credenciais com o proprietário do negócio</li>
-                  <li>• O proprietário pode fazer login em <code>/auth/signin</code></li>
-                  <li>• Será redirecionado automaticamente para o seu portal</li>
-                  <li>• Pode alterar a password depois do primeiro login</li>
-                </ul>
-              </div>
-              
-              <div className="flex justify-between space-x-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `Email: ${createdBusinessInfo.email}\nPassword: ${createdBusinessInfo.password}\nURL: ${createdBusinessInfo.loginUrl}`
-                    );
-                    toast({
-                      title: "Copiado!",
-                      description: "Credenciais copiadas para a área de transferência",
-                    });
-                  }}
-                >
-                  📋 Copiar Credenciais
-                </Button>
-                <Button onClick={() => setShowCredentials(false)}>
-                  Continuar
-                </Button>
+              <div className="p-4 bg-yellow-50 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Importante:</strong> Guarde estas credenciais num local seguro. 
+                  O proprietário do negócio pode alterar a password após o primeiro login.
+                </p>
               </div>
             </div>
           )}
+          <DialogFooter>
+            <Button onClick={() => setShowCredentials(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Business Modal */}
+      {/* Edit Business Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent 
-          className="sm:max-w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto p-6"
-          style={{
-            top: '2rem',
-            transform: 'translateX(-50%)',
-            left: '50%',
-            position: 'fixed'
-          }}
-        >
-          <DialogHeader className="mb-4">
-            <DialogTitle>✏️ Editar Negócio</DialogTitle>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Negócio</DialogTitle>
           </DialogHeader>
-          
           <form onSubmit={updateBusiness} className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name" className="text-sm font-medium">Nome do Negócio *</Label>
-              <Input
-                id="edit-name"
-                value={editBusiness.name}
-                onChange={(e) => setEditBusiness({...editBusiness, name: e.target.value})}
-                placeholder="Ex: Salão da Maria"
-                className="mt-1"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-name">Nome do Negócio *</Label>
+                <Input
+                  id="edit-name"
+                  value={editBusiness.name}
+                  onChange={(e) => setEditBusiness({...editBusiness, name: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-email">Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editBusiness.email}
+                  onChange={(e) => setEditBusiness({...editBusiness, email: e.target.value})}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-ownerName">Nome do Proprietário *</Label>
+                <Input
+                  id="edit-ownerName"
+                  value={editBusiness.ownerName}
+                  onChange={(e) => setEditBusiness({...editBusiness, ownerName: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-phone">Telefone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editBusiness.phone}
+                  onChange={(e) => setEditBusiness({...editBusiness, phone: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-plan">Plano</Label>
+                <Select value={editBusiness.plan} onValueChange={(value) => setEditBusiness({...editBusiness, plan: value as 'basic' | 'standard' | 'premium'})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic">Básico</SelectItem>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-slug">Slug</Label>
+                <Input
+                  id="edit-slug"
+                  value={editBusiness.slug}
+                  onChange={(e) => setEditBusiness({...editBusiness, slug: e.target.value})}
+                />
+              </div>
             </div>
             
             <div>
-              <Label htmlFor="edit-email" className="text-sm font-medium">Email *</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={editBusiness.email}
-                onChange={(e) => setEditBusiness({...editBusiness, email: e.target.value})}
-                placeholder="contato@salaodamaria.com"
-                className="mt-1"
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-ownerName" className="text-sm font-medium">Nome do Proprietário *</Label>
-              <Input
-                id="edit-ownerName"
-                value={editBusiness.ownerName}
-                onChange={(e) => setEditBusiness({...editBusiness, ownerName: e.target.value})}
-                placeholder="Maria Silva"
-                className="mt-1"
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-phone" className="text-sm font-medium">Telefone</Label>
-              <Input
-                id="edit-phone"
-                value={editBusiness.phone}
-                onChange={(e) => setEditBusiness({...editBusiness, phone: e.target.value})}
-                placeholder="+351 912 345 678"
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-plan" className="text-sm font-medium">Plano</Label>
-              <Select value={editBusiness.plan} onValueChange={(value: any) => setEditBusiness({...editBusiness, plan: value})}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="standard">Standard</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-slug" className="text-sm font-medium">Slug</Label>
-              <Input
-                id="edit-slug"
-                value={editBusiness.slug}
-                onChange={(e) => setEditBusiness({...editBusiness, slug: e.target.value})}
-                placeholder="salao-da-maria"
-                className="mt-1"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-password" className="text-sm font-medium">Nova Password (opcional)</Label>
+              <Label htmlFor="edit-password">Nova Password (opcional)</Label>
               <Input
                 id="edit-password"
                 type="password"
                 value={editBusiness.password}
                 onChange={(e) => setEditBusiness({...editBusiness, password: e.target.value})}
-                placeholder="Deixe vazio para manter a atual"
-                className="mt-1"
-                autoComplete="new-password"
+                placeholder="Deixe vazio para manter a password atual"
+                minLength={6}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Apenas preencha se quiser alterar a password
-              </p>
             </div>
             
-            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 mt-6 border-t">
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} className="sm:w-auto">
-                <X className="h-4 w-4 mr-2" />
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={editing} className="sm:w-auto">
-                <Save className="h-4 w-4 mr-2" />
-                {editing ? 'Guardando...' : 'Guardar Alterações'}
+              <Button type="submit" disabled={editing}>
+                {editing ? 'Atualizando...' : 'Atualizar Negócio'}
               </Button>
             </div>
           </form>
