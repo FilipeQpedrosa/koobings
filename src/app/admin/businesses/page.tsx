@@ -31,7 +31,7 @@ interface Business {
   };
 }
 
-type CreateBusinessData = {
+type EditBusinessData = {
   name: string;
   email: string;
   ownerName: string;
@@ -51,7 +51,7 @@ export default function BusinessesPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const [editBusiness, setEditBusiness] = useState<CreateBusinessData>({
+  const [editBusiness, setEditBusiness] = useState<EditBusinessData>({
     name: '',
     email: '',
     ownerName: '',
@@ -60,6 +60,23 @@ export default function BusinessesPage() {
     slug: '',
     password: ''
   });
+
+  // Debug: Log component mount and state changes
+  useEffect(() => {
+    console.log('🔍 BusinessesPage mounted');
+    console.log('🔍 Initial state:', {
+      isEditDialogOpen,
+      editingBusiness,
+      businesses: businesses.length
+    });
+  }, []);
+
+  useEffect(() => {
+    console.log('🔍 Edit dialog state changed:', isEditDialogOpen);
+    if (isEditDialogOpen) {
+      console.log('🔍 Edit dialog is open! Editing business:', editingBusiness);
+    }
+  }, [isEditDialogOpen, editingBusiness]);
 
   useEffect(() => {
     fetchBusinesses();
@@ -294,14 +311,25 @@ export default function BusinessesPage() {
           <p className="text-gray-600">Gerir todos os negócios da plataforma</p>
         </div>
         
-        <Button onClick={() => {
-          console.log('Redirecting to /admin/businesses/new');
-          // Force complete page reload to bypass cache
-          window.location.href = `/admin/businesses/new?t=${Date.now()}`;
-        }}>
+        <button 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔄 Create business button clicked!');
+            console.log('🔄 Current page URL:', window.location.href);
+            console.log('🔄 Target URL:', '/admin/businesses/new');
+            
+            // Force a hard navigation to bypass any caching issues
+            const targetUrl = '/admin/businesses/new';
+            console.log('🔄 Navigating to:', targetUrl);
+            window.location.href = targetUrl;
+          }}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          type="button"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Criar Negócio
-        </Button>
+        </button>
       </div>
 
       <div className="mb-6">
@@ -475,7 +503,10 @@ export default function BusinessesPage() {
       )}
 
       {/* Edit Business Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        console.log('🔍 Dialog onOpenChange called with:', open);
+        setIsEditDialogOpen(open);
+      }}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Editar Negócio</DialogTitle>
