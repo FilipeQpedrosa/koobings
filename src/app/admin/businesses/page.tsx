@@ -296,8 +296,8 @@ export default function BusinessesPage() {
         
         <Button onClick={() => {
           console.log('Redirecting to /admin/businesses/new');
-          const timestamp = Date.now();
-          router.push(`/admin/businesses/new?t=${timestamp}`);
+          // Force complete page reload to bypass cache
+          window.location.href = `/admin/businesses/new?t=${Date.now()}`;
         }}>
           <Plus className="h-4 w-4 mr-2" />
           Criar Negócio

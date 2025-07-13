@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Building2, User, Settings, Shield, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Building2, User, Settings, Shield, CheckCircle, ArrowRight, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type CreateBusinessData = {
@@ -35,6 +35,7 @@ type CreateBusinessData = {
 export default function NewBusinessPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [currentStep, setCurrentStep] = useState(1);
   const [creating, setCreating] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [createdBusinessInfo, setCreatedBusinessInfo] = useState<any>(null);
@@ -59,6 +60,37 @@ export default function NewBusinessPage() {
     }
   });
 
+  const steps = [
+    {
+      number: 1,
+      title: 'Informações do Negócio',
+      description: 'Dados básicos sobre o negócio',
+      icon: Building2,
+      color: 'blue'
+    },
+    {
+      number: 2,
+      title: 'Proprietário',
+      description: 'Informações do responsável',
+      icon: User,
+      color: 'green'
+    },
+    {
+      number: 3,
+      title: 'Plano & Funcionalidades',
+      description: 'Configuração do plano',
+      icon: Settings,
+      color: 'purple'
+    },
+    {
+      number: 4,
+      title: 'Revisão & Criação',
+      description: 'Confirmar e criar negócio',
+      icon: CheckCircle,
+      color: 'orange'
+    }
+  ];
+
   const handleInputChange = (field: keyof CreateBusinessData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -70,9 +102,38 @@ export default function NewBusinessPage() {
     }));
   };
 
-  const createBusiness = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1:
+        return !!(formData.name && formData.email);
+      case 2:
+        return !!(formData.ownerName && formData.password);
+      case 3:
+        return !!formData.plan;
+      case 4:
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, 4));
+    } else {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos obrigatórios antes de continuar.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const createBusiness = async () => {
     if (!formData.name || !formData.email || !formData.ownerName || !formData.password) {
       toast({
         title: "Erro",
@@ -97,7 +158,6 @@ export default function NewBusinessPage() {
       if (response.ok) {
         console.log('✅ Business created successfully:', data.business);
         
-        // Store credentials info to show in modal
         setCreatedBusinessInfo({
           businessName: data.business.name,
           email: data.business.email,
@@ -135,18 +195,31 @@ export default function NewBusinessPage() {
     basic: {
       name: 'Básico',
       description: 'Ideal para negócios pequenos',
+      price: 'Gratuito',
       features: ['1 utilizador', 'Marcações básicas', 'Relatórios simples']
     },
     standard: {
       name: 'Standard',
       description: 'Perfeito para negócios em crescimento',
+      price: '€29/mês',
       features: ['Múltiplos utilizadores', 'Relatórios avançados', 'Integração calendário']
     },
     premium: {
       name: 'Premium',
       description: 'Funcionalidades completas',
+      price: '€59/mês',
       features: ['Todos os recursos', 'SMS', 'Branding personalizado', 'API']
     }
+  };
+
+  const getStepColor = (step: number) => {
+    const colors = {
+      1: 'blue',
+      2: 'green', 
+      3: 'purple',
+      4: 'orange'
+    };
+    return colors[step as keyof typeof colors] || 'blue';
   };
 
   return (
@@ -172,22 +245,66 @@ export default function NewBusinessPage() {
           </div>
         </div>
 
-        <form onSubmit={createBusiness} className="space-y-6">
-          {/* Business Information */}
-          <Card className="shadow-sm border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
-                <Building2 className="h-5 w-5 text-blue-600" />
-                Informações do Negócio
-              </CardTitle>
-              <CardDescription className="text-gray-600">
-                Detalhes básicos sobre o negócio
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
+        {/* Progress Steps */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => {
+              const isActive = currentStep === step.number;
+              const isCompleted = currentStep > step.number;
+              const StepIcon = step.icon;
+              
+              return (
+                <div key={step.number} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                      isCompleted 
+                        ? 'bg-green-600 border-green-600 text-white' 
+                        : isActive 
+                        ? `bg-${step.color}-600 border-${step.color}-600 text-white` 
+                        : 'bg-gray-100 border-gray-300 text-gray-400'
+                    }`}>
+                      {isCompleted ? (
+                        <Check className="h-6 w-6" />
+                      ) : (
+                        <StepIcon className="h-6 w-6" />
+                      )}
+                    </div>
+                    <div className="mt-2 text-center">
+                      <p className={`text-sm font-medium ${
+                        isActive ? `text-${step.color}-600` : isCompleted ? 'text-green-600' : 'text-gray-500'
+                      }`}>
+                        {step.title}
+                      </p>
+                      <p className="text-xs text-gray-400">{step.description}</p>
+                    </div>
+                  </div>
+                  {index < steps.length - 1 && (
+                    <div className={`flex-1 h-0.5 mx-4 ${
+                      currentStep > step.number ? 'bg-green-600' : 'bg-gray-200'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Step Content */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          {/* Step 1: Business Information */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <Building2 className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900">Informações do Negócio</h2>
+                <p className="text-gray-600">Vamos começar com os dados básicos do seu negócio</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="name" className="text-sm font-medium text-gray-700 mb-2 block">Nome do Negócio *</Label>
+                  <Label htmlFor="name" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Nome do Negócio *
+                  </Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -198,7 +315,9 @@ export default function NewBusinessPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 mb-2 block">Email *</Label>
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Email *
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -213,7 +332,9 @@ export default function NewBusinessPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700 mb-2 block">Telefone</Label>
+                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Telefone
+                  </Label>
                   <Input
                     id="phone"
                     value={formData.phone}
@@ -223,7 +344,9 @@ export default function NewBusinessPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="slug" className="text-sm font-medium text-gray-700 mb-2 block">Slug (opcional)</Label>
+                  <Label htmlFor="slug" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Slug (opcional)
+                  </Label>
                   <Input
                     id="slug"
                     value={formData.slug}
@@ -235,7 +358,9 @@ export default function NewBusinessPage() {
               </div>
 
               <div>
-                <Label htmlFor="address" className="text-sm font-medium text-gray-700 mb-2 block">Morada</Label>
+                <Label htmlFor="address" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Morada
+                </Label>
                 <Input
                   id="address"
                   value={formData.address}
@@ -246,7 +371,9 @@ export default function NewBusinessPage() {
               </div>
 
               <div>
-                <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 block">Descrição</Label>
+                <Label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 block">
+                  Descrição
+                </Label>
                 <Textarea
                   id="description"
                   value={formData.description}
@@ -256,24 +383,23 @@ export default function NewBusinessPage() {
                   className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
 
-          {/* Owner Information */}
-          <Card className="shadow-sm border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
-                <User className="h-5 w-5 text-green-600" />
-                Proprietário
-              </CardTitle>
-              <CardDescription className="text-gray-600">
-                Informações do responsável pelo negócio
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
+          {/* Step 2: Owner Information */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <User className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900">Proprietário</h2>
+                <p className="text-gray-600">Informações sobre o responsável pelo negócio</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="ownerName" className="text-sm font-medium text-gray-700 mb-2 block">Nome do Proprietário *</Label>
+                  <Label htmlFor="ownerName" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Nome do Proprietário *
+                  </Label>
                   <Input
                     id="ownerName"
                     value={formData.ownerName}
@@ -284,7 +410,9 @@ export default function NewBusinessPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 mb-2 block">Password *</Label>
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 mb-2 block">
+                    Password *
+                  </Label>
                   <Input
                     id="password"
                     type="password"
@@ -297,134 +425,215 @@ export default function NewBusinessPage() {
                   />
                 </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Plan Selection */}
-          <Card className="shadow-sm border-gray-200">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b border-gray-200">
-              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
-                <Settings className="h-5 w-5 text-purple-600" />
-                Plano e Funcionalidades
-              </CardTitle>
-              <CardDescription className="text-gray-600">
-                Escolha o plano e configure as funcionalidades
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div>
-                <Label htmlFor="plan" className="text-sm font-medium text-gray-700 mb-2 block">Plano</Label>
-                <Select value={formData.plan} onValueChange={(value) => handleInputChange('plan', value)}>
-                  <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(planFeatures).map(([key, plan]) => (
-                      <SelectItem key={key} value={key}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{plan.name}</span>
-                          <span className="text-sm text-gray-500">{plan.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 className="font-semibold text-green-800 mb-2">Informações de Acesso</h3>
+                <p className="text-sm text-green-700">
+                  O proprietário poderá fazer login com o email <strong>{formData.email}</strong> e a password definida acima.
+                  Após o primeiro login, poderá alterar a password nas configurações.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Plan & Features */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <Settings className="h-12 w-12 text-purple-600 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900">Plano & Funcionalidades</h2>
+                <p className="text-gray-600">Escolha o plano e configure as funcionalidades</p>
+              </div>
+
+              {/* Plan Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {Object.entries(planFeatures).map(([key, plan]) => (
+                  <div
+                    key={key}
+                    className={`border-2 rounded-lg p-6 cursor-pointer transition-all duration-200 ${
+                      formData.plan === key
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-purple-300'
+                    }`}
+                    onClick={() => handleInputChange('plan', key)}
+                  >
+                    <div className="text-center">
+                      <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+                      <p className="text-sm text-gray-600 mb-2">{plan.description}</p>
+                      <p className="text-2xl font-bold text-purple-600 mb-4">{plan.price}</p>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="flex items-center">
+                            <Check className="h-4 w-4 text-green-500 mr-2" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* Features */}
               <div className="space-y-4">
-                <Label className="text-sm font-medium text-gray-700">Funcionalidades</Label>
+                <Label className="text-lg font-medium text-gray-900">Funcionalidades Específicas</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
-                    <div>
-                      <Label htmlFor="multipleStaff" className="font-medium text-gray-900">Múltiplos Funcionários</Label>
-                      <p className="text-sm text-gray-600">Permite adicionar vários membros da equipa</p>
-                    </div>
-                    <Switch
-                      id="multipleStaff"
-                      checked={formData.features.multipleStaff}
-                      onCheckedChange={(checked) => handleFeatureChange('multipleStaff', checked)}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
-                    <div>
-                      <Label htmlFor="advancedReports" className="font-medium text-gray-900">Relatórios Avançados</Label>
-                      <p className="text-sm text-gray-600">Relatórios detalhados e analytics</p>
-                    </div>
-                    <Switch
-                      id="advancedReports"
-                      checked={formData.features.advancedReports}
-                      onCheckedChange={(checked) => handleFeatureChange('advancedReports', checked)}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
-                    <div>
-                      <Label htmlFor="smsNotifications" className="font-medium text-gray-900">Notificações SMS</Label>
-                      <p className="text-sm text-gray-600">Envio de SMS para clientes</p>
-                    </div>
-                    <Switch
-                      id="smsNotifications"
-                      checked={formData.features.smsNotifications}
-                      onCheckedChange={(checked) => handleFeatureChange('smsNotifications', checked)}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
-                    <div>
-                      <Label htmlFor="customBranding" className="font-medium text-gray-900">Branding Personalizado</Label>
-                      <p className="text-sm text-gray-600">Logo e cores personalizadas</p>
-                    </div>
-                    <Switch
-                      id="customBranding"
-                      checked={formData.features.customBranding}
-                      onCheckedChange={(checked) => handleFeatureChange('customBranding', checked)}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
-                    <div>
-                      <Label htmlFor="calendarIntegration" className="font-medium text-gray-900">Integração Calendário</Label>
-                      <p className="text-sm text-gray-600">Sincronização com Google Calendar</p>
-                    </div>
-                    <Switch
-                      id="calendarIntegration"
-                      checked={formData.features.calendarIntegration}
-                      onCheckedChange={(checked) => handleFeatureChange('calendarIntegration', checked)}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
-                    <div>
-                      <Label htmlFor="apiAccess" className="font-medium text-gray-900">Acesso API</Label>
-                      <p className="text-sm text-gray-600">Integração com sistemas externos</p>
-                    </div>
-                    <Switch
-                      id="apiAccess"
-                      checked={formData.features.apiAccess}
-                      onCheckedChange={(checked) => handleFeatureChange('apiAccess', checked)}
-                    />
-                  </div>
+                  {Object.entries(formData.features).map(([key, value]) => {
+                    const featureLabels = {
+                      multipleStaff: { name: 'Múltiplos Funcionários', desc: 'Permite adicionar vários membros da equipa' },
+                      advancedReports: { name: 'Relatórios Avançados', desc: 'Relatórios detalhados e analytics' },
+                      smsNotifications: { name: 'Notificações SMS', desc: 'Envio de SMS para clientes' },
+                      customBranding: { name: 'Branding Personalizado', desc: 'Logo e cores personalizadas' },
+                      calendarIntegration: { name: 'Integração Calendário', desc: 'Sincronização com Google Calendar' },
+                      apiAccess: { name: 'Acesso API', desc: 'Integração com sistemas externos' }
+                    };
+                    
+                    const feature = featureLabels[key as keyof typeof featureLabels];
+                    
+                    return (
+                      <div key={key} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                        <div>
+                          <Label htmlFor={key} className="font-medium text-gray-900">{feature.name}</Label>
+                          <p className="text-sm text-gray-600">{feature.desc}</p>
+                        </div>
+                        <Switch
+                          id={key}
+                          checked={value}
+                          onCheckedChange={(checked) => handleFeatureChange(key as keyof CreateBusinessData['features'], checked)}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
 
-          {/* Actions */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-600">
-                <p>Todos os campos marcados com * são obrigatórios</p>
+          {/* Step 4: Review & Create */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <CheckCircle className="h-12 w-12 text-orange-600 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-gray-900">Revisão & Criação</h2>
+                <p className="text-gray-600">Revise todas as informações antes de criar o negócio</p>
               </div>
-              <div className="flex space-x-3">
-                <Button type="button" variant="outline" onClick={() => router.back()}>
-                  Cancelar
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-blue-600" />
+                      Negócio
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div><strong>Nome:</strong> {formData.name}</div>
+                    <div><strong>Email:</strong> {formData.email}</div>
+                    <div><strong>Telefone:</strong> {formData.phone || 'Não informado'}</div>
+                    <div><strong>Morada:</strong> {formData.address || 'Não informado'}</div>
+                    <div><strong>Slug:</strong> {formData.slug || 'Gerado automaticamente'}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5 text-green-600" />
+                      Proprietário
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div><strong>Nome:</strong> {formData.ownerName}</div>
+                    <div><strong>Password:</strong> ••••••••</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="h-5 w-5 text-purple-600" />
+                      Plano
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div><strong>Plano:</strong> {planFeatures[formData.plan].name}</div>
+                    <div><strong>Preço:</strong> {planFeatures[formData.plan].price}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-indigo-600" />
+                      Funcionalidades
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1">
+                    {Object.entries(formData.features).map(([key, value]) => {
+                      const featureLabels = {
+                        multipleStaff: 'Múltiplos Funcionários',
+                        advancedReports: 'Relatórios Avançados',
+                        smsNotifications: 'Notificações SMS',
+                        customBranding: 'Branding Personalizado',
+                        calendarIntegration: 'Integração Calendário',
+                        apiAccess: 'Acesso API'
+                      };
+                      
+                      return (
+                        <div key={key} className="flex items-center justify-between text-sm">
+                          <span>{featureLabels[key as keyof typeof featureLabels]}</span>
+                          <span className={value ? 'text-green-600' : 'text-gray-400'}>
+                            {value ? '✓' : '✗'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {formData.description && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Descrição</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-700">{formData.description}</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              <p>Passo {currentStep} de {steps.length}</p>
+            </div>
+            <div className="flex space-x-3">
+              {currentStep > 1 && (
+                <Button variant="outline" onClick={prevStep}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Anterior
                 </Button>
+              )}
+              
+              {currentStep < 4 ? (
                 <Button 
-                  type="submit" 
-                  disabled={creating} 
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 transition-all duration-200"
+                  onClick={nextStep}
+                  disabled={!validateStep(currentStep)}
+                  className={`bg-gradient-to-r from-${getStepColor(currentStep)}-600 to-${getStepColor(currentStep)}-700 hover:from-${getStepColor(currentStep)}-700 hover:to-${getStepColor(currentStep)}-800 text-white`}
+                >
+                  Próximo
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button 
+                  onClick={createBusiness}
+                  disabled={creating}
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8"
                 >
                   {creating ? (
                     <>
@@ -438,10 +647,10 @@ export default function NewBusinessPage() {
                     </>
                   )}
                 </Button>
-              </div>
+              )}
             </div>
           </div>
-        </form>
+        </div>
 
         {/* Success Modal */}
         {showCredentials && createdBusinessInfo && (
