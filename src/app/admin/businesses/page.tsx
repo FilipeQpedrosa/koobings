@@ -5,11 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Save, X, Pause, Play, Trash2 } from 'lucide-react';
+import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Pause, Play, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -31,52 +28,12 @@ interface Business {
   };
 }
 
-type EditBusinessData = {
-  name: string;
-  email: string;
-  ownerName: string;
-  phone: string;
-  plan: 'basic' | 'standard' | 'premium';
-  slug: string;
-  password: string;
-};
-
 export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-
-  const [editBusiness, setEditBusiness] = useState<EditBusinessData>({
-    name: '',
-    email: '',
-    ownerName: '',
-    phone: '',
-    plan: 'standard',
-    slug: '',
-    password: ''
-  });
-
-  // Debug: Log component mount and state changes
-  useEffect(() => {
-    console.log('🔍 BusinessesPage mounted');
-    console.log('🔍 Initial state:', {
-      isEditDialogOpen,
-      editingBusiness,
-      businesses: businesses.length
-    });
-  }, []);
-
-  useEffect(() => {
-    console.log('🔍 Edit dialog state changed:', isEditDialogOpen);
-    if (isEditDialogOpen) {
-      console.log('🔍 Edit dialog is open! Editing business:', editingBusiness);
-    }
-  }, [isEditDialogOpen, editingBusiness]);
 
   useEffect(() => {
     fetchBusinesses();
@@ -101,7 +58,6 @@ export default function BusinessesPage() {
       const data = await response.json();
       
       if (response.ok) {
-        console.log('✅ Businesses loaded:', data.businesses.length);
         setBusinesses(data.businesses);
       } else {
         toast({
@@ -118,72 +74,6 @@ export default function BusinessesPage() {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const updateBusiness = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!editingBusiness || !editBusiness.name || !editBusiness.email || !editBusiness.ownerName) {
-      toast({
-        title: "Erro",
-        description: "Nome do negócio, email e nome do proprietário são obrigatórios",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setEditing(true);
-      const response = await fetch(`/api/admin/businesses/${editingBusiness.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editBusiness),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log('✅ Business updated successfully:', data.business);
-        
-        toast({
-          title: "Sucesso",
-          description: `Negócio "${data.business.name}" atualizado com sucesso!`,
-        });
-        
-        // Close dialog and reset form
-        setIsEditDialogOpen(false);
-        setEditingBusiness(null);
-        setEditBusiness({
-          name: '',
-          email: '',
-          ownerName: '',
-          phone: '',
-          plan: 'standard',
-          slug: '',
-          password: ''
-        });
-        
-        // Force reload businesses list
-        await fetchBusinesses();
-        
-      } else {
-        toast({
-          title: "Erro",
-          description: data.error || "Erro ao atualizar negócio",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao conectar com o servidor",
-        variant: "destructive"
-      });
-    } finally {
-      setEditing(false);
     }
   };
 
@@ -289,20 +179,6 @@ export default function BusinessesPage() {
     }
   };
 
-  const openEditDialog = (business: Business) => {
-    setEditingBusiness(business);
-    setEditBusiness({
-      name: business.name,
-      email: business.email,
-      ownerName: business.ownerName || '',
-      phone: business.phone || '',
-      plan: business.plan as 'basic' | 'standard' | 'premium',
-      slug: business.slug,
-      password: '' // Don't pre-fill password for security
-    });
-    setIsEditDialogOpen(true);
-  };
-
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -311,25 +187,13 @@ export default function BusinessesPage() {
           <p className="text-gray-600">Gerir todos os negócios da plataforma</p>
         </div>
         
-        <button 
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🔄 Create business button clicked!');
-            console.log('🔄 Current page URL:', window.location.href);
-            console.log('🔄 Target URL:', '/admin/businesses/new');
-            
-            // Force a hard navigation to bypass any caching issues
-            const targetUrl = '/admin/businesses/new';
-            console.log('🔄 Navigating to:', targetUrl);
-            window.location.href = targetUrl;
-          }}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          type="button"
+        <Button 
+          onClick={() => router.push('/admin/businesses/new')}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
         >
           <Plus className="h-4 w-4 mr-2" />
           Criar Negócio
-        </button>
+        </Button>
       </div>
 
       <div className="mb-6">
@@ -409,17 +273,15 @@ export default function BusinessesPage() {
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Abrir Portal
                       </Button>
-                      {/* TEMPORARILY COMMENTED OUT FOR TESTING
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => openEditDialog(business)}
+                        onClick={() => router.push(`/admin/businesses/${business.id}/edit`)}
                         title="Editar negócio"
                         className="px-3"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      */}
                     </div>
                     
                     <div className="flex gap-2">
@@ -503,108 +365,6 @@ export default function BusinessesPage() {
           ))}
         </div>
       )}
-
-      {/* Edit Business Dialog - TEMPORARILY COMMENTED OUT FOR TESTING */}
-      {/*
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-        console.log('🔍 Dialog onOpenChange called with:', open);
-        setIsEditDialogOpen(open);
-      }}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Editar Negócio</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={updateBusiness} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-name">Nome do Negócio *</Label>
-                <Input
-                  id="edit-name"
-                  value={editBusiness.name}
-                  onChange={(e) => setEditBusiness({...editBusiness, name: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-email">Email *</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={editBusiness.email}
-                  onChange={(e) => setEditBusiness({...editBusiness, email: e.target.value})}
-                  required
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-ownerName">Nome do Proprietário *</Label>
-                <Input
-                  id="edit-ownerName"
-                  value={editBusiness.ownerName}
-                  onChange={(e) => setEditBusiness({...editBusiness, ownerName: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-phone">Telefone</Label>
-                <Input
-                  id="edit-phone"
-                  value={editBusiness.phone}
-                  onChange={(e) => setEditBusiness({...editBusiness, phone: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-plan">Plano</Label>
-                <Select value={editBusiness.plan} onValueChange={(value) => setEditBusiness({...editBusiness, plan: value as 'basic' | 'standard' | 'premium'})}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="basic">Básico</SelectItem>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="edit-slug">Slug</Label>
-                <Input
-                  id="edit-slug"
-                  value={editBusiness.slug}
-                  onChange={(e) => setEditBusiness({...editBusiness, slug: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-password">Nova Password (opcional)</Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={editBusiness.password}
-                onChange={(e) => setEditBusiness({...editBusiness, password: e.target.value})}
-                placeholder="Deixe vazio para manter a password atual"
-                minLength={6}
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={editing}>
-                {editing ? 'Atualizando...' : 'Atualizar Negócio'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-      */}
     </div>
   );
 } 
