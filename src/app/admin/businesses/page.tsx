@@ -294,7 +294,11 @@ export default function BusinessesPage() {
           <p className="text-gray-600">Gerir todos os negócios da plataforma</p>
         </div>
         
-        <Button onClick={() => router.push('/admin/businesses/new')}>
+        <Button onClick={() => {
+          console.log('Redirecting to /admin/businesses/new');
+          const timestamp = Date.now();
+          router.push(`/admin/businesses/new?t=${timestamp}`);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Criar Negócio
         </Button>
