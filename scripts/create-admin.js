@@ -3,27 +3,39 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const email = 'f.queirozpedrosa@gmail.com';
-  const password = 'Pipo1234';
-  
-  // Hash the password
-  const hashedPassword = await bcrypt.hash(password, 10);
-  
-  // Create or update the admin
-  const _admin = await prisma.systemAdmin.upsert({
-    where: { email },
-    update: { password: hashedPassword },
-    create: {
-      email,
-      password: hashedPassword,
-      name: 'System Admin'
-    }
-  });
-  
-  console.log('System admin created/updated successfully');
+async function createAdmin() {
+  try {
+    // Create password hash
+    const passwordHash = await bcrypt.hash('test123', 12);
+
+    // Update or create admin
+    const admin = await prisma.system_admins.upsert({
+      where: { email: 'f.queirozpedrosa@gmail.com' },
+      update: {
+        passwordHash: passwordHash,
+        name: 'Filipe Pedrosa',
+        role: 'SUPER_ADMIN',
+        updatedAt: new Date(),
+        isDeleted: false
+      },
+      create: {
+        id: 'admin-' + Date.now(),
+        email: 'f.queirozpedrosa@gmail.com',
+        name: 'Filipe Pedrosa',
+        role: 'SUPER_ADMIN',
+        passwordHash: passwordHash,
+        updatedAt: new Date(),
+        isDeleted: false
+      }
+    });
+
+    console.log('✅ Admin updated/created successfully:', admin.email);
+    console.log('✅ Password: test123');
+  } catch (error) {
+    console.error('❌ Error creating admin:', error);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect()); 
+createAdmin(); 
