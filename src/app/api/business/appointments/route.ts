@@ -9,10 +9,45 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔍 /api/business/appointments GET - Starting...');
     
-    // For now, let's just return the appointments from the business we know exists
-    const businessId = 'cmcu4es3q0003wop49kde76zw'; // advogados-bla-bla business ID
+    // Get authenticated user
+    const user = getRequestAuthUser(request);
+    console.log('🔍 User found:', !!user);
+    console.log('🔍 User role:', user?.role);
+    console.log('🔍 User businessId:', user?.businessId);
     
-    // Query with includes to get related data
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
+        { status: 401 }
+      );
+    }
+    
+    // Get business ID from authenticated user
+    let businessId: string;
+    
+    if (user.role === 'BUSINESS_OWNER') {
+      // For business owners, use their business ID
+      businessId = user.businessId!;
+      console.log('🏢 Business owner - using businessId:', businessId);
+    } else if (user.role === 'STAFF') {
+      // For staff members, use their business ID
+      businessId = user.businessId!;
+      console.log('👤 Staff member - using businessId:', businessId);
+    } else {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid user role' } },
+        { status: 401 }
+      );
+    }
+    
+    if (!businessId) {
+      return NextResponse.json(
+        { success: false, error: { code: 'BUSINESS_ID_MISSING', message: 'Business ID missing' } },
+        { status: 400 }
+      );
+    }
+    
+    // Query with includes to get related data for the authenticated user's business
     const appointments = await (prisma as any).appointments.findMany({
       where: { businessId },
       include: {
@@ -43,7 +78,7 @@ export async function GET(request: NextRequest) {
       take: 50, // Limit to 50 for performance
     });
     
-    console.log('🔍 Found appointments:', appointments.length);
+    console.log('🔍 Found appointments for business', businessId, ':', appointments.length);
     
     // Proper transformation with real data
     const formattedAppointments = appointments.map((apt: any) => ({
