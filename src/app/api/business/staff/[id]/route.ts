@@ -5,7 +5,7 @@ import { hash } from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'fallback-secret';
 
 async function verifyJWT(request: NextRequest) {
   try {
