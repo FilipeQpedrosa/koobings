@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Save, X, Pause, Play, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface Business {
   id: string;
@@ -43,25 +44,12 @@ type CreateBusinessData = {
 export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [showCredentials, setShowCredentials] = useState(false);
-  const [createdBusinessInfo, setCreatedBusinessInfo] = useState<any>(null);
   const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
   const { toast } = useToast();
-
-  const [newBusiness, setNewBusiness] = useState<CreateBusinessData>({
-    name: '',
-    email: '',
-    ownerName: '',
-    phone: '',
-    plan: 'standard',
-    slug: '',
-    password: ''
-  });
+  const router = useRouter();
 
   const [editBusiness, setEditBusiness] = useState<CreateBusinessData>({
     name: '',
@@ -113,83 +101,6 @@ export default function BusinessesPage() {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const createBusiness = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newBusiness.name || !newBusiness.email || !newBusiness.ownerName || !newBusiness.password) {
-      toast({
-        title: "Erro",
-        description: "Nome do negócio, email, nome do proprietário e password são obrigatórios",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setCreating(true);
-      const response = await fetch('/api/admin/businesses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newBusiness),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log('✅ Business created successfully:', data.business);
-        
-        // Store credentials info to show in modal
-        setCreatedBusinessInfo({
-          businessName: data.business.name,
-          email: data.business.email,
-          password: data.tempPassword,
-          loginUrl: data.loginUrl,
-          isCustomPassword: data.isCustomPassword
-        });
-        
-        toast({
-          title: "Sucesso",
-          description: `Negócio "${data.business.name}" criado com sucesso!`,
-        });
-        
-        // Close creation dialog and show credentials
-        setIsCreateDialogOpen(false);
-        setShowCredentials(true);
-        
-        // Reset form
-        setNewBusiness({
-          name: '',
-          email: '',
-          ownerName: '',
-          phone: '',
-          plan: 'standard',
-          slug: '',
-          password: ''
-        });
-        
-        // Force reload businesses list
-        await fetchBusinesses();
-        
-      } else {
-        toast({
-          title: "Erro",
-          description: data.error || "Erro ao criar negócio",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao conectar com o servidor",
-        variant: "destructive"
-      });
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -383,108 +294,10 @@ export default function BusinessesPage() {
           <p className="text-gray-600">Gerir todos os negócios da plataforma</p>
         </div>
         
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Negócio
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Criar Novo Negócio</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={createBusiness} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Nome do Negócio *</Label>
-                  <Input
-                    id="name"
-                    value={newBusiness.name}
-                    onChange={(e) => setNewBusiness({...newBusiness, name: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newBusiness.email}
-                    onChange={(e) => setNewBusiness({...newBusiness, email: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="ownerName">Nome do Proprietário *</Label>
-                  <Input
-                    id="ownerName"
-                    value={newBusiness.ownerName}
-                    onChange={(e) => setNewBusiness({...newBusiness, ownerName: e.target.value})}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={newBusiness.phone}
-                    onChange={(e) => setNewBusiness({...newBusiness, phone: e.target.value})}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="plan">Plano</Label>
-                  <Select value={newBusiness.plan} onValueChange={(value) => setNewBusiness({...newBusiness, plan: value as 'basic' | 'standard' | 'premium'})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="basic">Básico</SelectItem>
-                      <SelectItem value="standard">Standard</SelectItem>
-                      <SelectItem value="premium">Premium</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="slug">Slug (opcional)</Label>
-                  <Input
-                    id="slug"
-                    value={newBusiness.slug}
-                    onChange={(e) => setNewBusiness({...newBusiness, slug: e.target.value})}
-                    placeholder="deixe vazio para gerar automaticamente"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="password">Password *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={newBusiness.password}
-                  onChange={(e) => setNewBusiness({...newBusiness, password: e.target.value})}
-                  required
-                  minLength={6}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={creating}>
-                  {creating ? 'Criando...' : 'Criar Negócio'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => router.push('/admin/businesses/new')}>
+          <Plus className="h-4 w-4 mr-2" />
+          Criar Negócio
+        </Button>
       </div>
 
       <div className="mb-6">
@@ -656,56 +469,6 @@ export default function BusinessesPage() {
           ))}
         </div>
       )}
-
-      {/* Credentials Display Modal */}
-      <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Negócio Criado com Sucesso!</DialogTitle>
-          </DialogHeader>
-          {createdBusinessInfo && (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h3 className="font-semibold text-green-800 mb-2">Credenciais de Acesso</h3>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <strong>Negócio:</strong> {createdBusinessInfo.businessName}
-                  </div>
-                  <div>
-                    <strong>Email:</strong> {createdBusinessInfo.email}
-                  </div>
-                  <div>
-                    <strong>Password:</strong> {createdBusinessInfo.password}
-                  </div>
-                  <div>
-                    <strong>URL de Login:</strong> 
-                    <a 
-                      href={createdBusinessInfo.loginUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline ml-1"
-                    >
-                      {createdBusinessInfo.loginUrl}
-                    </a>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-4 bg-yellow-50 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>Importante:</strong> Guarde estas credenciais num local seguro. 
-                  O proprietário do negócio pode alterar a password após o primeiro login.
-                </p>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button onClick={() => setShowCredentials(false)}>
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Business Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
