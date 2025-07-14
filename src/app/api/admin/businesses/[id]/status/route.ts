@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         status: true,
         email: true,
         ownerName: true,
-        slug: true,
+        // slug: true, // COMMENTED - column does not exist in current database
         plan: true,
         createdAt: true,
         updatedAt: true,

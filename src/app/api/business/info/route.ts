@@ -137,17 +137,19 @@ export async function GET(request: NextRequest) {
     if (user.isAdmin && requestedBusinessSlug) {
       console.log('👑 Admin requesting business:', requestedBusinessSlug);
       try {
-        const requestedBusiness = await prisma.business.findUnique({
-          where: { slug: requestedBusinessSlug },
-          select: { id: true, name: true }
-        });
+        // COMMENTED - slug field doesn't exist in database
+        // const requestedBusiness = await prisma.business.findUnique({
+        //   where: { slug: requestedBusinessSlug },
+        //   select: { id: true, name: true }
+        // });
         
-        if (requestedBusiness) {
-          targetBusinessId = requestedBusiness.id;
-          console.log('✅ Admin access granted to business:', requestedBusiness.name);
-        } else {
+        // For now, skip this functionality until slug is properly implemented
+        // if (requestedBusiness) {
+        console.log('⚠️ Business lookup by slug temporarily disabled');
+        // targetBusinessId = requestedBusiness.id;
+        // } else {
           console.log('❌ Requested business not found:', requestedBusinessSlug);
-        }
+        // }
       } catch (error) {
         console.error('❌ Error finding requested business:', error);
       }
@@ -161,7 +163,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            slug: true,
+            // slug: true, // COMMENTED - column does not exist in current database
             logo: true,
             description: true,
             phone: true,
@@ -183,7 +185,7 @@ export async function GET(request: NextRequest) {
               id: business.id,
               name: business.name,
               logo: business.logo,
-              slug: business.slug,
+              // slug: business.slug, // COMMENTED - field does not exist
               description: business.description,
               phone: business.phone,
               address: business.address,
@@ -205,7 +207,7 @@ export async function GET(request: NextRequest) {
       id: user.businessId,
       name: user.businessName,
       logo: null,
-      slug: user.businessSlug
+      // slug: user.businessSlug // COMMENTED - field doesn't exist
     };
     
     console.log('🏢 Returning business info from JWT:', businessInfo);
