@@ -187,8 +187,9 @@ export async function POST(request: NextRequest) {
 
     // Generate slug
     console.log('🔤 Generating unique slug...');
-    const baseSlug = validatedData.slug || generateSlug(validatedData.name);
-    const uniqueSlug = await ensureUniqueSlug(baseSlug);
+    // const baseSlug = validatedData.slug || generateSlug(validatedData.name);
+    // const uniqueSlug = await ensureUniqueSlug(baseSlug);
+    const uniqueSlug = 'temporary-slug'; // COMMENTED - slug functionality disabled temporarily
     console.log('✅ Unique slug generated:', uniqueSlug);
 
     // Default features based on plan
