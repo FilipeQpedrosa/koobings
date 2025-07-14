@@ -43,25 +43,36 @@ export default function DashboardSidebar({ businessSlug, user }: DashboardSideba
 
   const handleLogout = async () => {
     try {
-      // Call the force logout API endpoint
-      const response = await fetch('/api/auth/force-logout', {
+      console.log('🚪 Dashboard logout initiated - complete cleanup');
+      
+      // Clear all local storage and session storage immediately
+      localStorage.removeItem('auth-refresh');
+      localStorage.removeItem('user-session');
+      localStorage.removeItem('auth-token');
+      sessionStorage.clear();
+      
+      // Clear all cookies manually
+      document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'admin-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'business-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      
+      // Call the logout API endpoint (use custom-logout for consistency)
+      const response = await fetch('/api/auth/custom-logout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
         },
+        credentials: 'include'
       });
 
-      if (response.ok) {
-        // The API will handle clearing cookies, so we just redirect
-        window.location.href = '/auth/signin';
-      } else {
-        // Fallback: manually clear cookies and redirect
-        document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        window.location.href = '/auth/signin';
-      }
+      // Always redirect regardless of API response to ensure clean state
+      console.log('🔄 Forcing complete page refresh after logout');
+      window.location.href = '/auth/signin';
+      
     } catch (error) {
-      // Fallback: manually clear cookies and redirect
-      document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      console.error('❌ Logout error:', error);
+      // Fallback: force redirect even if API call fails
       window.location.href = '/auth/signin';
     }
   };
