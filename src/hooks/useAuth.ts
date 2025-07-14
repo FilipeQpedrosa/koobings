@@ -48,16 +48,34 @@ function validateUserData(userData: any): ValidatedUser | null {
   const parsed = userSchema.safeParse(userData);
   
   if (!parsed.success) {
-    console.error("🚨 INVALID USER DATA DETECTED:", {
-      errors: parsed.error.issues,
-      receivedData: userData,
-      timestamp: new Date().toISOString()
-    });
+    console.error("🚨 User data validation failed:", parsed.error.format());
+    console.error("🚨 Received data:", userData);
     return null;
   }
   
-  console.log("✅ User data validation passed:", parsed.data.name);
   return parsed.data;
+}
+
+/**
+ * 🧹 Comprehensive cleanup of all authentication-related data
+ */
+function clearAllAuthData() {
+  // Clear localStorage
+  localStorage.removeItem('auth-refresh');
+  localStorage.removeItem('user-session');
+  localStorage.removeItem('auth-token');
+  
+  // Clear sessionStorage as backup
+  sessionStorage.removeItem('auth-refresh');
+  sessionStorage.removeItem('user-session');
+  sessionStorage.removeItem('auth-token');
+  
+  // Clear all cookies manually as backup
+  document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  document.cookie = 'admin-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  document.cookie = 'business-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  
+  console.log('🧹 All authentication data cleared');
 }
 
 export function useAuth(): AuthState {
@@ -67,19 +85,28 @@ export function useAuth(): AuthState {
 
   // Function to manually refresh auth state
   const refresh = () => {
+    console.log('🔄 Manual auth refresh triggered');
     setRefreshTrigger(prev => prev + 1);
   };
 
-  // Login function with validation
+  // Enhanced login function with validation and force refresh
   const login = async (email: string, password: string) => {
     try {
+      console.log('🔐 Login attempt for:', email);
+      
+      // Clear any existing session data before login
+      clearAllAuthData();
+      setUser(null);
+      
       const response = await fetch('/api/auth/custom-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({ email, password }),
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store'
       });
 
       const data = await response.json();
@@ -90,35 +117,57 @@ export function useAuth(): AuthState {
         
         if (!validatedUser) {
           console.error("🚨 Login failed: Invalid user data from backend");
+          clearAllAuthData();
           return { success: false, error: 'Invalid user data received' };
         }
         
+        console.log('✅ Login successful for:', validatedUser.name);
         setUser(validatedUser);
-        localStorage.setItem('auth-refresh', Date.now().toString());
+        
+        // Trigger refresh across tabs and force cache invalidation
+        const refreshToken = Date.now().toString();
+        localStorage.setItem('auth-refresh', refreshToken);
+        
+        // Return success with redirect but don't navigate yet - let the component handle it
         return { success: true, redirectUrl: data.redirectUrl };
       } else {
+        console.error('❌ Login failed:', data.error);
+        clearAllAuthData();
         return { success: false, error: data.error || 'Login failed' };
       }
     } catch (error) {
       console.error("🚨 Login network error:", error);
+      clearAllAuthData();
       return { success: false, error: 'Network error' };
     }
   };
 
-  // Logout function
+  // Enhanced logout function with complete cleanup
   const logout = () => {
-    console.log("🚪 Logout initiated");
+    console.log("🚪 Logout initiated - complete session cleanup");
+    
+    // First clear local state immediately
+    setUser(null);
+    setLoading(true);
+    
+    // Clear all auth data
+    clearAllAuthData();
+    
+    // Call backend logout (don't wait for it)
     fetch('/api/auth/custom-logout', {
       method: 'POST',
-      credentials: 'include'
+      credentials: 'include',
+      headers: {
+        'Cache-Control': 'no-cache',
+      }
     }).finally(() => {
-      setUser(null);
-      localStorage.setItem('auth-refresh', Date.now().toString());
+      // Force complete page refresh to clear any cached state
+      console.log('🔄 Forcing complete page refresh after logout');
       window.location.href = '/auth/signin';
     });
   };
 
-  // Check for JWT token authentication with robust validation
+  // Enhanced session check with better cache busting
   useEffect(() => {
     async function checkJwtAuth() {
       try {
@@ -127,11 +176,15 @@ export function useAuth(): AuthState {
           refreshTrigger
         });
         
-        const response = await fetch('/api/auth/verify-token', {
+        // Add timestamp to prevent caching
+        const timestamp = Date.now();
+        const response = await fetch(`/api/auth/verify-token?t=${timestamp}`, {
           cache: 'no-store',
           credentials: 'include',
           headers: {
-            'Cache-Control': 'no-cache',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           }
         });
         
@@ -144,8 +197,9 @@ export function useAuth(): AuthState {
             
             if (!validatedUser) {
               console.error("🚨 SECURITY: Invalid user data detected, forcing logout");
-              // Force logout if validation fails - prevents corrupted data usage
-              logout();
+              clearAllAuthData();
+              setUser(null);
+              setLoading(false);
               return;
             }
             
@@ -156,8 +210,12 @@ export function useAuth(): AuthState {
             setUser(null);
           }
         } else {
-          console.log('❌ useAuth: Auth verification failed');
+          console.log('❌ useAuth: Auth verification failed, status:', response.status);
           setUser(null);
+          // If unauthorized, clear any stale data
+          if (response.status === 401) {
+            clearAllAuthData();
+          }
         }
       } catch (error) {
         console.error('❌ useAuth: JWT auth verification failed:', error);
@@ -170,17 +228,28 @@ export function useAuth(): AuthState {
     checkJwtAuth();
   }, [refreshTrigger]);
 
-  // Listen for storage events to refresh auth when login/logout happens in other tabs
+  // Enhanced storage listener for cross-tab synchronization
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'auth-refresh') {
-        console.log('🔄 useAuth: Auth change detected, refreshing...');
-        refresh();
+        console.log('🔄 useAuth: Auth change detected in another tab, refreshing...');
+        // Add small delay to ensure backend state is synchronized
+        setTimeout(() => {
+          refresh();
+        }, 100);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Clear user data when component unmounts (cleanup)
+  useEffect(() => {
+    return () => {
+      // Only log, don't clear data on unmount as it might be navigation
+      console.log('🧹 useAuth: Component unmounting');
+    };
   }, []);
 
   return {
