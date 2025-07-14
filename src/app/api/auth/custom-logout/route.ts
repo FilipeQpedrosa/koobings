@@ -10,7 +10,17 @@ export async function POST(request: NextRequest) {
       message: 'Logged out successfully' 
     });
     
-    // Clear the JWT auth token
+    // Clear the JWT auth token for all possible paths
+    // Clear admin path
+    response.cookies.set('auth-token', '', {
+      expires: new Date(0),
+      path: '/admin',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+    
+    // Clear root path (fallback)
     response.cookies.set('auth-token', '', {
       expires: new Date(0),
       path: '/',
@@ -19,7 +29,21 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax'
     });
     
-    console.log('✅ JWT token cleared');
+    // Get the current URL to determine business slug
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    if (pathSegments.length > 1 && pathSegments[1] && pathSegments[1] !== 'api') {
+      // Clear business-specific path
+      response.cookies.set('auth-token', '', {
+        expires: new Date(0),
+        path: `/${pathSegments[1]}`,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      });
+    }
+    
+    console.log('✅ JWT tokens cleared for all paths');
     
     return response;
   } catch (error) {

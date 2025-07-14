@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 // 7 days
+          maxAge: 7 * 24 * 60 * 60, // 7 days
+          path: `/${businessSlug}` // Specific path for business
         });
         
         return response;
@@ -111,7 +112,8 @@ export async function POST(request: NextRequest) {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 // 7 days
+          maxAge: 7 * 24 * 60 * 60, // 7 days
+          path: `/${businessSlug}` // Specific path for business owner
         });
         
         return response;
@@ -163,7 +165,8 @@ export async function POST(request: NextRequest) {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 // 7 days
+          maxAge: 7 * 24 * 60 * 60, // 7 days
+          path: '/admin' // Specific path for admin
         });
         
         return response;
