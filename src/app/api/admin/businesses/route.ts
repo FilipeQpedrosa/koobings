@@ -39,7 +39,7 @@ const createBusinessSchema = z.object({
   address: z.string().optional(),
   description: z.string().optional(),
   plan: z.enum(['basic', 'standard', 'premium']).default('standard'),
-  slug: z.string().optional(),
+  // slug: z.string().optional(), // COMMENTED - field doesn't exist in database
   features: z.record(z.boolean()).optional(),
   password: z.string().min(6, 'Password deve ter pelo menos 6 caracteres'),
 });
