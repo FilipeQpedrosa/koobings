@@ -7,12 +7,16 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
 
+    console.log('🔐 Login attempt for email:', email);
+
     // First, try to find staff member
     const staff = await prisma.staff.findUnique({
       where: { email }
     });
 
     if (staff) {
+      console.log('👨‍💼 Staff member found:', staff.name);
+      
       // Get the business data separately
       const business = await prisma.business.findUnique({
         where: { id: staff.businessId }
@@ -39,6 +43,8 @@ export async function POST(request: NextRequest) {
           isAdmin: staff.role === 'ADMIN'
         });
         
+        console.log('✅ Staff login successful for:', staff.name);
+        
         // Set cookie and redirect
         const response = NextResponse.json({ 
           success: true, 
@@ -55,12 +61,13 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        response.cookies.set('auth-token', token, {
+        // Use business-specific cookie name
+        response.cookies.set('business-auth-token', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 7 * 24 * 60 * 60, // 7 days
-          path: `/${businessSlug}` // Specific path for business
+          path: '/' // Root path for all business routes
         });
         
         return response;
@@ -73,6 +80,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (business) {
+      console.log('🏢 Business owner found:', business.ownerName || business.name);
+      
       // Verify password
       const isValidPassword = await compare(password, business.passwordHash);
       
@@ -93,6 +102,8 @@ export async function POST(request: NextRequest) {
           isAdmin: false  // Business owners are not system admins
         });
         
+        console.log('✅ Business owner login successful for:', business.ownerName || business.name);
+        
         // Set cookie and redirect
         const response = NextResponse.json({ 
           success: true, 
@@ -108,12 +119,13 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        response.cookies.set('auth-token', token, {
+        // Use business-specific cookie name
+        response.cookies.set('business-auth-token', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 7 * 24 * 60 * 60, // 7 days
-          path: `/${businessSlug}` // Specific path for business owner
+          path: '/' // Root path for all business routes
         });
         
         return response;
@@ -126,6 +138,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (admin) {
+      console.log('👑 System admin found:', admin.name);
+      
       // Verify password
       const isValidPassword = await compare(password, admin.passwordHash);
       
@@ -145,6 +159,8 @@ export async function POST(request: NextRequest) {
           isAdmin: true
         });
         
+        console.log('✅ Admin login successful for:', admin.name);
+        
         // Set cookie and redirect
         const response = NextResponse.json({ 
           success: true, 
@@ -161,18 +177,20 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        response.cookies.set('auth-token', token, {
+        // Use admin-specific cookie name
+        response.cookies.set('admin-auth-token', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 7 * 24 * 60 * 60, // 7 days
-          path: '/admin' // Specific path for admin
+          path: '/' // Root path for admin routes
         });
         
         return response;
       }
     }
 
+    console.log('❌ Login failed for email:', email);
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     
   } catch (error) {
