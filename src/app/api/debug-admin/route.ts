@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Debug admin endpoint called');
     
     // Test JWT verification
-    const token = request.cookies.get('auth-token')?.value;
+    const token = request.cookies.get('admin-auth-token')?.value || request.cookies.get('auth-token')?.value;
     console.log('🍪 Auth token found:', !!token);
     
     if (!token) {
