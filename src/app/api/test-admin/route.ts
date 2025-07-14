@@ -1,60 +1,59 @@
-import { NextResponse } from 'next/server'
-import { compare } from 'bcryptjs'
-import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { compare } from 'bcryptjs';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    console.log('🔍 Test admin endpoint called');
     
-    console.log('🔍 Test admin auth for:', email)
-    
-    // Find admin - using correct model name
+    const { email, password } = await request.json();
+    console.log('📧 Testing login for:', email);
+
+    // Check if it's an admin login
     const admin = await prisma.system_admins.findUnique({
       where: { email }
-    })
-    
-    console.log('👤 Admin found:', !!admin)
+    });
+
     if (admin) {
-      console.log('🏷️ Admin role:', admin.role)
-      console.log('📧 Admin email:', admin.email)
-      console.log('👤 Admin name:', admin.name)
-    }
-    
-    if (!admin) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Admin not found',
-        email 
-      }, { status: 404 })
-    }
-    
-    // Check password
-    const passwordMatch = await compare(password, admin.passwordHash)
-    console.log('🔐 Password match:', passwordMatch)
-    
-    if (!passwordMatch) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid password' 
-      }, { status: 401 })
-    }
-    
-    return NextResponse.json({ 
-      success: true, 
-      admin: {
-        id: admin.id,
-        email: admin.email,
-        name: admin.name,
-        role: admin.role
+      console.log('👑 System admin found:', admin.name);
+      console.log('🔑 Admin ID:', admin.id);
+      console.log('📝 Admin role:', admin.role);
+      
+      // Verify password
+      const isValidPassword = await compare(password, admin.passwordHash);
+      console.log('✅ Password valid:', isValidPassword);
+      
+      if (isValidPassword) {
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Admin login successful',
+          admin: {
+            id: admin.id,
+            email: admin.email,
+            name: admin.name,
+            role: admin.role
+          }
+        });
+      } else {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Invalid password' 
+        }, { status: 401 });
       }
-    })
+    } else {
+      console.log('❌ Admin not found');
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Admin not found' 
+      }, { status: 404 });
+    }
     
   } catch (error) {
-    console.error('❌ Test admin error:', error)
+    console.error('🚨 Test admin endpoint error:', error);
     return NextResponse.json({ 
       success: false, 
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, { status: 500 });
   }
 } 

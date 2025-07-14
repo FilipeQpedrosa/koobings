@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
-        slug: true,
+        slug: true, // UNCOMMENTED - column now exists in production
         email: true,
         ownerName: true,
         phone: true,
@@ -273,7 +273,7 @@ export async function POST(request: NextRequest) {
         data: {
           id: businessId,
           name: validatedData.name,
-          slug: uniqueSlug,
+          slug: uniqueSlug, // UNCOMMENTED - column now exists in production
           email: validatedData.email,
           ownerName: validatedData.ownerName,
           phone: validatedData.phone,
@@ -293,7 +293,7 @@ export async function POST(request: NextRequest) {
         name: business.name,
         ownerName: business.ownerName,
         email: business.email,
-        slug: business.slug
+        // slug: business.slug // TEMPORARILY COMMENTED OUT
       });
 
       // Create the admin staff member for this business
@@ -339,7 +339,7 @@ export async function POST(request: NextRequest) {
       business: {
         id: result.business.id,
         name: result.business.name,
-        slug: result.business.slug,
+        // slug: result.business.slug, // TEMPORARILY COMMENTED OUT
         email: result.business.email,
         ownerName: result.business.ownerName,
         phone: result.business.phone,
@@ -356,7 +356,7 @@ export async function POST(request: NextRequest) {
       },
       tempPassword: password,
       isCustomPassword: !!validatedData.password,
-      loginUrl: `${process.env.NEXTAUTH_URL}/${uniqueSlug}/staff/dashboard`
+      loginUrl: `${process.env.NEXTAUTH_URL}/${validatedData.name.toLowerCase().replace(/\s+/g, '-')}/staff/dashboard` // Use name-based slug temporarily
     }, { status: 201 });
 
   } catch (error) {

@@ -137,6 +137,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 POST /api/business/staff - Starting staff creation');
+    
     const user = getRequestAuthUser(request);
 
     if (!user) {
@@ -176,37 +178,80 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
     }
 
-    // Input validation
-    const schema = z.object({
-      email: z.string().email(),
-      name: z.string().min(1),
-      role: z.enum(['ADMIN', 'MANAGER', 'STANDARD']),
-      password: z.string().min(6),
-      services: z.array(z.string()).optional(),
-    });
-    let data;
-    try {
-      data = schema.parse(await request.json());
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 });
-      }
-      throw error;
+    console.log('📦 Parsing request body...');
+    const body = await request.json();
+    
+    // 📋 EXPLICIT LOGGING: Log all received data for audit trail  
+    console.log('📋 RAW STAFF DATA RECEIVED:', JSON.stringify({
+      ...body,
+      password: body.password ? `[${body.password.length} chars]` : 'MISSING'
+    }, null, 2));
+
+    // Enhanced input validation with the new schema
+    console.log('🔍 Validating data with enhanced Zod schema...');
+    const validatedData = staffCreationSchema.parse(body);
+    
+    // 📋 EXPLICIT LOGGING: Log validated data
+    console.log('✅ STAFF VALIDATED DATA:', JSON.stringify({
+      ...validatedData,
+      password: `[${validatedData.password.length} chars]`
+    }, null, 2));
+
+    const { email, name, role, password, services = [] } = validatedData;
+
+    // 🛡️ CRITICAL: Check if email is already in use by business or staff
+    console.log('📧 Checking if email already exists...');
+    const [existingBusiness, existingStaff] = await Promise.all([
+      prisma.business.findUnique({ where: { email } }),
+      prisma.staff.findUnique({ where: { email } }),
+    ]);
+
+    if (existingBusiness || existingStaff) {
+      console.log('❌ Email already in use for staff creation');
+      await createStaffAuditLog('CREATE_STAFF_FAILED', 'N/A', {
+        reason: 'EMAIL_IN_USE',
+        email: email,
+        name: name,
+        businessId: businessId
+      }, user.id || 'UNKNOWN', businessId);
+      return NextResponse.json({ 
+        success: false, 
+        error: { code: 'EMAIL_IN_USE', message: 'Email já está em uso' } 
+      }, { status: 400 });
     }
-    const { email, name, role, password, services = [] } = data;
 
+    // 🛡️ Additional validation: Check for suspicious patterns
+    const nameLower = name.toLowerCase().trim();
+    if (nameLower.includes('pretinho') || nameLower.includes('test')) {
+      console.error('🚨 SUSPICIOUS STAFF NAME DETECTED:', name);
+      await createStaffAuditLog('CREATE_STAFF_BLOCKED', 'N/A', {
+        reason: 'SUSPICIOUS_STAFF_NAME',
+        name: name,
+        email: email,
+        businessId: businessId
+      }, user.id || 'UNKNOWN', businessId);
+    }
+
+    console.log('🔐 Hashing password...');
     const passwordHash = await hash(password, 10);
+    console.log('✅ Password hashed successfully');
 
+    console.log('💾 Starting staff creation transaction...');
     const newStaff = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const staffId = randomUUID();
+      const now = new Date();
+      
+      console.log('👤 Creating staff record with ID:', staffId);
       const createdStaff = await (tx.staff as any).create({
         data: {
-          id: randomUUID(),
+          id: staffId,
           email,
           name,
           role,
           password: passwordHash,
           businessId,
-          updatedAt: new Date(),
+          createdAt: now,
+          updatedAt: now,
           Service: {
             connect: services.map((id: string) => ({ id })),
           },
@@ -219,6 +264,14 @@ export async function POST(request: NextRequest) {
             },
           },
         },
+      });
+      
+      console.log('✅ Staff created with data:', {
+        id: createdStaff.id,
+        name: createdStaff.name,
+        email: createdStaff.email,
+        role: createdStaff.role,
+        businessId: createdStaff.businessId
       });
 
       return (tx.staff as any).findUnique({
@@ -234,9 +287,31 @@ export async function POST(request: NextRequest) {
       });
     });
 
+    console.log('✅ Staff creation transaction completed successfully');
+    
+    // 📋 Create comprehensive audit log
+    await createStaffAuditLog('CREATE_STAFF_SUCCESS', newStaff.id, {
+      staffName: newStaff.name,
+      email: newStaff.email,
+      role: newStaff.role,
+      businessId: businessId,
+      servicesCount: services.length
+    }, user.id || 'UNKNOWN', businessId);
+
     return NextResponse.json({ success: true, data: newStaff });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('❌ Staff validation errors:', error.errors);
+      await createStaffAuditLog('CREATE_STAFF_VALIDATION_ERROR', 'N/A', {
+        validationErrors: error.errors
+      }, 'UNKNOWN', 'UNKNOWN');
+      return NextResponse.json({ success: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.errors } }, { status: 400 });
+    }
+    
     console.error('POST /business/staff error:', error);
+    await createStaffAuditLog('CREATE_STAFF_ERROR', 'N/A', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 'UNKNOWN', 'UNKNOWN');
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : String(error) } },
       { status: 500 }

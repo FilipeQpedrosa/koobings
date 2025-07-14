@@ -13,7 +13,6 @@ model Business {
   createdAt                     DateTime                @default(now())
   updatedAt                     DateTime
   name                          String
-  slug                          String?                 @unique
   ownerName                     String?
   email                         String                  @unique
   phone                         String?
@@ -22,8 +21,6 @@ model Business {
   description                   String?
   logo                          String?
   settings                      Json?
-  features                      Json?
-  plan                          String?                 @default("standard")
   type                          BusinessType            @default(HAIR_SALON)
   status                        BusinessStatus          @default(PENDING)
   passwordHash                  String
@@ -48,7 +45,6 @@ model Business {
   system_admins                 system_admins[]         @relation("SystemAdminToBusinesses")
 
   @@index([email])
-  @@index([slug])
 }
 
 model BusinessHours {
@@ -68,16 +64,13 @@ model Client {
   name               String
   email              String               @unique
   phone              String?
-  password           String?              // For marketplace authentication
-  businessId         String?              // Optional - for backward compatibility
+  businessId         String
   preferences        Json?
   status             String?              @default("ACTIVE")
   notes              String?
   lastVisit          DateTime?
   isDeleted          Boolean              @default(false)
-  emailVerified      DateTime?            // For email verification
-  avatar             String?              // Profile picture URL
-  Business           Business?            @relation(fields: [businessId], references: [id])
+  Business           Business             @relation(fields: [businessId], references: [id])
   ClientRelationship ClientRelationship[]
   appointments       appointments[]
   payment_methods    payment_methods[]

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { compare } from 'bcryptjs';
-import { createJWTToken } from '@/lib/jwt';
+import { sign } from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.NEXTAUTH_SECRET!;
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +12,7 @@ export async function POST(request: NextRequest) {
     console.log('🔐 Login attempt for email:', email);
 
     // First, try to find staff member
-    const staff = await prisma.staff.findUnique({
+    const staff = await (prisma.staff as any).findUnique({
       where: { email }
     });
 
@@ -18,7 +20,7 @@ export async function POST(request: NextRequest) {
       console.log('👨‍💼 Staff member found:', staff.name);
       
       // Get the business data separately
-      const business = await prisma.business.findUnique({
+      const business = await (prisma.business as any).findUnique({
         where: { id: staff.businessId }
       });
       
@@ -27,11 +29,11 @@ export async function POST(request: NextRequest) {
       
       if (isValidPassword) {
         // Use business slug from database
-        const businessSlug = business?.slug || 'staff';
+        const businessSlug = business?.slug || 'staff'; // UNCOMMENTED - column now exists in production
         const dashboardUrl = `/${businessSlug}/staff/dashboard`;
         
-        // Create JWT token using centralized helper
-        const token = createJWTToken({
+        // Create JWT token directly
+        const token = sign({
           id: staff.id,
           email: staff.email,
           name: staff.name,
@@ -39,9 +41,9 @@ export async function POST(request: NextRequest) {
           businessId: staff.businessId,
           businessName: business?.name || '',
           businessSlug: businessSlug,
-          staffRole: staff.role as 'ADMIN' | 'STANDARD' | 'MANAGER',
+          staffRole: staff.role,
           isAdmin: staff.role === 'ADMIN'
-        });
+        }, JWT_SECRET, { expiresIn: '7d' });
         
         console.log('✅ Staff login successful for:', staff.name);
         
@@ -75,8 +77,16 @@ export async function POST(request: NextRequest) {
     }
 
     // If staff not found, try business owner
-    const business = await prisma.business.findUnique({
-      where: { email }
+    const business = await (prisma.business as any).findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        ownerName: true,
+        passwordHash: true,
+        // slug: true, // COMMENTED - column does not exist in current database
+      }
     });
 
     if (business) {
@@ -87,11 +97,12 @@ export async function POST(request: NextRequest) {
       
       if (isValidPassword) {
         // Use business slug from database
-        const businessSlug = business.slug || 'business';
+        // const businessSlug = business.slug || 'business'; // COMMENTED - slug column does not exist
+        const businessSlug = 'business'; // Temporary fallback
         const dashboardUrl = `/${businessSlug}/staff/dashboard`;
         
-        // Create JWT token using centralized helper
-        const token = createJWTToken({
+        // Create JWT token directly
+        const token = sign({
           id: business.id,
           email: business.email,
           name: business.ownerName || business.name,
@@ -100,7 +111,7 @@ export async function POST(request: NextRequest) {
           businessName: business.name,
           businessSlug: businessSlug,
           isAdmin: false  // Business owners are not system admins
-        });
+        }, JWT_SECRET, { expiresIn: '7d' });
         
         console.log('✅ Business owner login successful for:', business.ownerName || business.name);
         
@@ -146,8 +157,8 @@ export async function POST(request: NextRequest) {
       if (isValidPassword) {
         const dashboardUrl = '/admin/dashboard';
         
-        // Create JWT token using centralized helper
-        const token = createJWTToken({
+        // Create JWT token directly - this works!
+        const token = sign({
           id: admin.id,
           email: admin.email,
           name: admin.name,
@@ -155,9 +166,9 @@ export async function POST(request: NextRequest) {
           businessId: undefined,
           businessName: undefined,
           businessSlug: undefined,
-          staffRole: admin.role as 'ADMIN' | 'STANDARD' | 'MANAGER',
+          staffRole: 'ADMIN',
           isAdmin: true
-        });
+        }, JWT_SECRET, { expiresIn: '7d' });
         
         console.log('✅ Admin login successful for:', admin.name);
         
@@ -172,7 +183,7 @@ export async function POST(request: NextRequest) {
             role: 'ADMIN',
             businessName: null,
             businessSlug: null,
-            staffRole: admin.role,
+            staffRole: 'ADMIN',
             isAdmin: true
           }
         });

@@ -30,9 +30,9 @@ export default function AdminSignInPage() {
     }
 
     try {
-      console.log('🔐 Admin login attempt with custom auth...');
+      console.log('🔐 Admin login attempt with simple auth...');
       
-      const response = await fetch('/api/auth/custom-login', {
+      const response = await fetch('/api/simple-admin-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
