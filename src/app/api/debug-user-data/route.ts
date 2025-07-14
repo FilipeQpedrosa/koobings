@@ -14,7 +14,7 @@ interface BusinessResult {
   name: string;
   ownerName: string | null;
   email: string;
-  slug: string | null;
+  // slug: string | null; // REMOVED - column does not exist in current database
 }
 
 interface AdminResult {
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         name: business.name,
         ownerName: business.ownerName,
         email: business.email,
-        slug: business.slug
+        // slug: business.slug // COMMENTED - column does not exist in current database
       };
     }
     
@@ -122,7 +122,10 @@ export async function GET(request: NextRequest) {
         name: true,
         ownerName: true,
         email: true,
-        slug: true
+        // slug: true, // COMMENTED - column does not exist in current database
+        status: true,
+        plan: true,
+        createdAt: true
       }
     });
     
