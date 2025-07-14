@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
       
       if (isValidPassword) {
         // Use business slug from database
-        const businessSlug = business?.slug || 'staff'; // UNCOMMENTED - column now exists in production
+        // const businessSlug = business?.slug || 'staff'; // COMMENTED - slug column does not exist
+        const businessSlug = 'staff'; // Temporary fallback
         const dashboardUrl = `/${businessSlug}/staff/dashboard`;
         
         // Create JWT token directly
