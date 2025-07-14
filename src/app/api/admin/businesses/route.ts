@@ -3,6 +3,7 @@ import { verify } from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 import { generateSlug, ensureUniqueSlug } from '@/lib/business';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 const createBusinessSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
@@ -89,9 +90,9 @@ export async function GET(request: NextRequest) {
           features: true,
           _count: {
             select: {
-              staff: true,
+              Staff: true,
               appointments: true,
-              services: true,
+              Service: true,
             }
           }
         },
@@ -121,19 +122,41 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/businesses - Create new business
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 POST /api/admin/businesses - Starting business creation');
+    
+    // Verify environment variables
+    if (!process.env.NEXTAUTH_SECRET) {
+      console.error('❌ NEXTAUTH_SECRET not found');
+      return NextResponse.json({ error: 'Server configuration error: NEXTAUTH_SECRET missing' }, { status: 500 });
+    }
+    
     // Verify JWT token
+    console.log('🔍 Verifying JWT token...');
     const user = await verifyAdminJWT(request);
     
     if (!user) {
+      console.log('❌ JWT verification failed or user not admin');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    console.log('✅ JWT verified, user:', { id: user.id, email: user.email, role: user.role });
 
+    console.log('📦 Parsing request body...');
     const body = await request.json();
+    console.log('📋 Request body received:', { 
+      ...body, 
+      password: body.password ? '[REDACTED]' : 'MISSING' 
+    });
+    
+    console.log('🔍 Validating data with Zod...');
     const validatedData = createBusinessSchema.parse(body);
+    console.log('✅ Data validation passed');
 
     // Generate slug
+    console.log('🔤 Generating unique slug...');
     const baseSlug = validatedData.slug || generateSlug(validatedData.name);
     const uniqueSlug = await ensureUniqueSlug(baseSlug);
+    console.log('✅ Unique slug generated:', uniqueSlug);
 
     // Default features based on plan
     const defaultFeatures = {
@@ -167,27 +190,35 @@ export async function POST(request: NextRequest) {
       ...defaultFeatures[validatedData.plan],
       ...validatedData.features
     };
+    console.log('✅ Features configured:', features);
 
     // Use provided password (now required)
+    console.log('🔐 Hashing password...');
     const password = validatedData.password;
     const bcrypt = require('bcryptjs');
     const passwordHash = await bcrypt.hash(password, 10);
+    console.log('✅ Password hashed successfully');
 
     // Check if email is already in use by business or staff
+    console.log('📧 Checking if email already exists...');
     const [existingBusiness, existingStaff] = await Promise.all([
       prisma.business.findUnique({ where: { email: validatedData.email } }),
       prisma.staff.findUnique({ where: { email: validatedData.email } }),
     ]);
 
     if (existingBusiness || existingStaff) {
+      console.log('❌ Email already in use');
       return NextResponse.json({ error: 'Email já está em uso' }, { status: 400 });
     }
 
     // Create business and staff admin in a transaction
+    console.log('💾 Starting database transaction...');
     const result = await prisma.$transaction(async (tx) => {
       // Create the business
+      console.log('📝 Creating business record...');
       const business = await tx.business.create({
         data: {
+          id: crypto.randomUUID(),
           name: validatedData.name,
           slug: uniqueSlug,
           email: validatedData.email,
@@ -199,22 +230,30 @@ export async function POST(request: NextRequest) {
           features,
           passwordHash,
           status: 'ACTIVE',
+          updatedAt: new Date(),
         },
       });
+      console.log('✅ Business created with ID:', business.id);
 
       // Create the admin staff member for this business
+      console.log('👤 Creating admin staff record...');
       const adminStaff = await tx.staff.create({
         data: {
+          id: crypto.randomUUID(),
           name: validatedData.ownerName,
           email: validatedData.email,
           password: passwordHash, // Same password as business
           role: 'ADMIN',
           businessId: business.id,
+          updatedAt: new Date(),
         },
       });
+      console.log('✅ Admin staff created with ID:', adminStaff.id);
 
       return { business, adminStaff };
     });
+    
+    console.log('✅ Transaction completed successfully');
 
     return NextResponse.json({
       business: {
