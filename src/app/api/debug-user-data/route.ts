@@ -28,6 +28,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email') || 'miguel@lanche.com';
+    const debug = searchParams.get('debug');
+    
+    // Simple protection - only allow in development or with debug key
+    if (process.env.NODE_ENV === 'production' && debug !== 'allow123') {
+      return NextResponse.json({ 
+        error: 'Debug endpoint not available in production without debug key',
+        hint: 'Add ?debug=allow123 to access'
+      }, { status: 403 });
+    }
     
     console.log('🔍 Checking database for:', email);
     
