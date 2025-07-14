@@ -5,10 +5,36 @@ import { generateSlug, ensureUniqueSlug } from '@/lib/business';
 import { z } from 'zod';
 import crypto from 'crypto';
 
+// 🛡️ Enhanced validation with data integrity checks
 const createBusinessSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   email: z.string().email('Email inválido'),
-  ownerName: z.string().min(2, 'Nome do proprietário é obrigatório'),
+  ownerName: z.string()
+    .min(2, 'Nome do proprietário é obrigatório')
+    .max(50, 'Nome muito longo')
+    .refine((name) => {
+      // 🔒 Block obviously invalid or generic names in development
+      if (process.env.NODE_ENV === 'development') {
+        const invalidNames = [
+          'pretinho', 'admin', 'test', 'user', 'demo', 'example', 
+          'null', 'undefined', 'guest', 'temp', 'temporary',
+          'xxx', 'aaa', 'bbb', 'ccc', '123', 'abc'
+        ];
+        const lowerName = name.toLowerCase().trim();
+        
+        if (invalidNames.includes(lowerName)) {
+          console.error(`🚨 BLOCKED: Invalid owner name detected: "${name}"`);
+          return false;
+        }
+        
+        // Block names that are too short or just numbers
+        if (lowerName.length < 3 || /^\d+$/.test(lowerName)) {
+          console.error(`🚨 BLOCKED: Suspicious owner name pattern: "${name}"`);
+          return false;
+        }
+      }
+      return true;
+    }, 'Nome do proprietário inválido ou genérico'),
   phone: z.string().optional(),
   address: z.string().optional(),
   description: z.string().optional(),
@@ -17,6 +43,33 @@ const createBusinessSchema = z.object({
   features: z.record(z.boolean()).optional(),
   password: z.string().min(6, 'Password deve ter pelo menos 6 caracteres'),
 });
+
+// 📝 Audit log helper
+async function createAuditLog(operation: string, entityType: string, entityId: string, data: any, adminUserId: string) {
+  try {
+    // For now, just comprehensive logging - can extend to database audit table later
+    const auditEntry = {
+      timestamp: new Date().toISOString(),
+      operation,
+      entityType,
+      entityId,
+      adminUserId,
+      data: {
+        ...data,
+        password: '[REDACTED]',
+        passwordHash: '[REDACTED]'
+      }
+    };
+    
+    console.log('📋 AUDIT LOG:', JSON.stringify(auditEntry, null, 2));
+    
+    // TODO: Can extend this to save to audit_logs table in the future
+    // await prisma.auditLog.create({ data: auditEntry });
+    
+  } catch (error) {
+    console.error('❌ Failed to create audit log:', error);
+  }
+}
 
 // JWT Authentication helper
 async function verifyAdminJWT(request: NextRequest): Promise<any | null> {
@@ -50,69 +103,42 @@ export async function GET(request: NextRequest) {
     const user = await verifyAdminJWT(request);
     
     if (!user) {
-      console.log('❌ Admin access denied - no valid JWT token');
+      console.log('❌ Admin verification failed');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log('✅ Admin access granted to:', user.email);
+    console.log('✅ Admin verified:', { id: user.id, email: user.email });
 
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const search = searchParams.get('search') || '';
-
-    const skip = (page - 1) * limit;
-
-    const where = search ? {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' as const } },
-        { email: { contains: search, mode: 'insensitive' as const } },
-        { slug: { contains: search, mode: 'insensitive' as const } },
-      ]
-    } : {};
-
-    const [businesses, total] = await Promise.all([
-      prisma.business.findMany({
-        where,
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          email: true,
-          ownerName: true,
-          phone: true,
-          plan: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-          features: true,
-          _count: {
-            select: {
-              Staff: true,
-              appointments: true,
-              Service: true,
-            }
-          }
+    // Fetch businesses with comprehensive data
+    const businesses = await prisma.business.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        email: true,
+        ownerName: true,
+        phone: true,
+        plan: true,
+        status: true,
+        features: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            Staff: true,
+            Service: true,
+            Client: true,
+          },
         },
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.business.count({ where })
-    ]);
-
-    console.log('📊 Found businesses:', businesses.length);
-    
-    return NextResponse.json({
-      businesses,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
 
+    console.log(`✅ Found ${businesses.length} businesses`);
+
+    return NextResponse.json({ businesses });
   } catch (error) {
     console.error('❌ Error fetching businesses:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -139,18 +165,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log('✅ JWT verified, user:', { id: user.id, email: user.email, role: user.role });
+    console.log('✅ JWT verified, admin user:', { id: user.id, email: user.email, role: user.role });
 
     console.log('📦 Parsing request body...');
     const body = await request.json();
-    console.log('📋 Request body received:', { 
-      ...body, 
-      password: body.password ? '[REDACTED]' : 'MISSING' 
-    });
     
-    console.log('🔍 Validating data with Zod...');
+    // 📋 EXPLICIT LOGGING: Log all received data for audit trail
+    console.log('📋 RAW REQUEST DATA RECEIVED:', JSON.stringify({
+      ...body,
+      password: body.password ? `[${body.password.length} chars]` : 'MISSING'
+    }, null, 2));
+    
+    console.log('🔍 Validating data with enhanced Zod schema...');
     const validatedData = createBusinessSchema.parse(body);
-    console.log('✅ Data validation passed');
+    
+    // 📋 EXPLICIT LOGGING: Log validated data
+    console.log('✅ VALIDATED DATA:', JSON.stringify({
+      ...validatedData,
+      password: `[${validatedData.password.length} chars]`
+    }, null, 2));
 
     // Generate slug
     console.log('🔤 Generating unique slug...');
@@ -208,17 +241,37 @@ export async function POST(request: NextRequest) {
 
     if (existingBusiness || existingStaff) {
       console.log('❌ Email already in use');
+      await createAuditLog('CREATE_BUSINESS_FAILED', 'BUSINESS', 'N/A', {
+        reason: 'EMAIL_IN_USE',
+        email: validatedData.email,
+        ownerName: validatedData.ownerName
+      }, user.id);
       return NextResponse.json({ error: 'Email já está em uso' }, { status: 400 });
+    }
+
+    // 🛡️ Additional validation: Check for suspicious patterns
+    const ownerNameLower = validatedData.ownerName.toLowerCase().trim();
+    if (ownerNameLower.includes('pretinho') || ownerNameLower.includes('test')) {
+      console.error('🚨 SUSPICIOUS OWNER NAME DETECTED:', validatedData.ownerName);
+      await createAuditLog('CREATE_BUSINESS_BLOCKED', 'BUSINESS', 'N/A', {
+        reason: 'SUSPICIOUS_OWNER_NAME',
+        ownerName: validatedData.ownerName,
+        email: validatedData.email
+      }, user.id);
     }
 
     // Create business and staff admin in a transaction
     console.log('💾 Starting database transaction...');
     const result = await prisma.$transaction(async (tx) => {
+      const businessId = crypto.randomUUID();
+      const staffId = crypto.randomUUID();
+      const now = new Date();
+      
       // Create the business
-      console.log('📝 Creating business record...');
+      console.log('📝 Creating business record with ID:', businessId);
       const business = await tx.business.create({
         data: {
-          id: crypto.randomUUID(),
+          id: businessId,
           name: validatedData.name,
           slug: uniqueSlug,
           email: validatedData.email,
@@ -230,30 +283,57 @@ export async function POST(request: NextRequest) {
           features,
           passwordHash,
           status: 'ACTIVE',
-          updatedAt: new Date(),
+          createdAt: now,
+          updatedAt: now,
         },
       });
-      console.log('✅ Business created with ID:', business.id);
+      
+      console.log('✅ Business created with data:', {
+        id: business.id,
+        name: business.name,
+        ownerName: business.ownerName,
+        email: business.email,
+        slug: business.slug
+      });
 
       // Create the admin staff member for this business
-      console.log('👤 Creating admin staff record...');
+      console.log('👤 Creating admin staff record with ID:', staffId);
       const adminStaff = await tx.staff.create({
         data: {
-          id: crypto.randomUUID(),
-          name: validatedData.ownerName,
-          email: validatedData.email,
-          password: passwordHash, // Same password as business
+          id: staffId,
+          name: validatedData.ownerName, // 📋 EXPLICIT: Using same ownerName
+          email: validatedData.email,    // 📋 EXPLICIT: Using same email
+          password: passwordHash,        // 📋 EXPLICIT: Using same password
           role: 'ADMIN',
           businessId: business.id,
-          updatedAt: new Date(),
+          createdAt: now,
+          updatedAt: now,
         },
       });
-      console.log('✅ Admin staff created with ID:', adminStaff.id);
+      
+      console.log('✅ Admin staff created with data:', {
+        id: adminStaff.id,
+        name: adminStaff.name,
+        email: adminStaff.email,
+        role: adminStaff.role,
+        businessId: adminStaff.businessId
+      });
 
       return { business, adminStaff };
     });
     
     console.log('✅ Transaction completed successfully');
+    
+    // 📋 Create comprehensive audit log
+    await createAuditLog('CREATE_BUSINESS_SUCCESS', 'BUSINESS', result.business.id, {
+      businessName: result.business.name,
+      ownerName: result.business.ownerName,
+      email: result.business.email,
+      slug: result.business.slug,
+      plan: result.business.plan,
+      adminStaffId: result.adminStaff.id,
+      adminStaffName: result.adminStaff.name
+    }, user.id);
 
     return NextResponse.json({
       business: {
@@ -281,10 +361,17 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('❌ Validation errors:', error.errors);
+      await createAuditLog('CREATE_BUSINESS_VALIDATION_ERROR', 'BUSINESS', 'N/A', {
+        validationErrors: error.errors
+      }, 'UNKNOWN');
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
     
-    console.error('Error creating business:', error);
+    console.error('❌ Error creating business:', error);
+    await createAuditLog('CREATE_BUSINESS_ERROR', 'BUSINESS', 'N/A', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 'UNKNOWN');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

@@ -1,10 +1,71 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
-import { z } from 'zod';
-import { Prisma } from '@prisma/client';
-import { getRequestAuthUser } from '@/lib/jwt';
 import { randomUUID } from 'crypto';
+import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt';
+import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
+
+// 🛡️ Enhanced validation schema with data integrity checks
+const staffCreationSchema = z.object({
+  email: z.string().email('Email inválido'),
+  name: z.string()
+    .min(2, 'Nome deve ter pelo menos 2 caracteres')
+    .max(50, 'Nome muito longo')
+    .refine((name) => {
+      // 🔒 Block obviously invalid or generic names in development
+      if (process.env.NODE_ENV === 'development') {
+        const invalidNames = [
+          'pretinho', 'admin', 'test', 'user', 'demo', 'example', 
+          'null', 'undefined', 'guest', 'temp', 'temporary',
+          'xxx', 'aaa', 'bbb', 'ccc', '123', 'abc'
+        ];
+        const lowerName = name.toLowerCase().trim();
+        
+        if (invalidNames.includes(lowerName)) {
+          console.error(`🚨 BLOCKED: Invalid staff name detected: "${name}"`);
+          return false;
+        }
+        
+        // Block names that are too short or just numbers
+        if (lowerName.length < 3 || /^\d+$/.test(lowerName)) {
+          console.error(`🚨 BLOCKED: Suspicious staff name pattern: "${name}"`);
+          return false;
+        }
+      }
+      return true;
+    }, 'Nome do staff inválido ou genérico'),
+  role: z.enum(['ADMIN', 'MANAGER', 'STANDARD']),
+  password: z.string().min(6, 'Password deve ter pelo menos 6 caracteres'),
+  services: z.array(z.string()).optional(),
+});
+
+// 📝 Staff audit log helper
+async function createStaffAuditLog(operation: string, entityId: string, data: any, creatorId: string, businessId: string) {
+  try {
+    const auditEntry = {
+      timestamp: new Date().toISOString(),
+      operation,
+      entityType: 'STAFF',
+      entityId,
+      creatorId,
+      businessId,
+      data: {
+        ...data,
+        password: '[REDACTED]',
+        passwordHash: '[REDACTED]'
+      }
+    };
+    
+    console.log('📋 STAFF AUDIT LOG:', JSON.stringify(auditEntry, null, 2));
+    
+    // TODO: Can extend this to save to audit_logs table in the future
+    // await prisma.auditLog.create({ data: auditEntry });
+    
+  } catch (error) {
+    console.error('❌ Failed to create staff audit log:', error);
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {

@@ -1,0 +1,74 @@
+// 📋 AUDIT LOGS SCHEMA EXAMPLE
+// This can be added to the main schema.prisma file when ready to implement database audit trails
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  
+  // Operation details
+  operation   String   // CREATE_BUSINESS, UPDATE_STAFF, DELETE_CLIENT, etc.
+  entityType  String   // BUSINESS, STAFF, CLIENT, APPOINTMENT, etc.
+  entityId    String   // ID of the affected entity
+  
+  // Actor information
+  actorId     String   // Who performed the action
+  actorType   String   // ADMIN, STAFF, BUSINESS_OWNER, SYSTEM
+  actorEmail  String?  // Email of the actor
+  
+  // Context
+  businessId  String?  // Which business this affects (if applicable)
+  ipAddress   String?  // IP address of the request
+  userAgent   String?  // User agent of the request
+  
+  // Data
+  oldData     Json?    // Previous state (for updates/deletes)
+  newData     Json?    // New state (for creates/updates)
+  metadata    Json?    // Additional context (validation errors, etc.)
+  
+  // Results
+  success     Boolean  @default(true)
+  errorCode   String?  // Error code if failed
+  errorMessage String? // Error message if failed
+  
+  // Relations
+  business    Business? @relation(fields: [businessId], references: [id])
+  
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([businessId, createdAt])
+  @@index([operation, createdAt])
+  @@map("audit_logs")
+}
+
+// 🔍 USAGE EXAMPLES:
+// 
+// 1. Business Creation:
+// {
+//   operation: "CREATE_BUSINESS",
+//   entityType: "BUSINESS", 
+//   entityId: "business_123",
+//   actorId: "admin_456",
+//   actorType: "ADMIN",
+//   newData: { name: "Salon Rosa", ownerName: "Maria Silva", ... }
+// }
+//
+// 2. Staff Name Change:
+// {
+//   operation: "UPDATE_STAFF",
+//   entityType: "STAFF",
+//   entityId: "staff_789", 
+//   actorId: "admin_456",
+//   businessId: "business_123",
+//   oldData: { name: "Pretinho" },
+//   newData: { name: "Miguel Corrected" }
+// }
+//
+// 3. Failed Validation:
+// {
+//   operation: "CREATE_BUSINESS_VALIDATION_ERROR",
+//   entityType: "BUSINESS",
+//   entityId: "N/A",
+//   success: false,
+//   errorCode: "INVALID_OWNER_NAME",
+//   metadata: { invalidName: "pretinho", validationErrors: [...] }
+// } 
