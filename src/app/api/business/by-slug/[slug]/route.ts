@@ -17,41 +17,25 @@ export async function GET(
 
     console.log('🔍 Fetching business by slug:', slug);
 
+    // SIMPLIFIED: Just get basic business data without complex relations
     const business = await prisma.business.findUnique({
       where: { 
-        slug,
+        // slug, // COMMENTED - column does not exist in database
+        id: slug, // TEMPORARY: using id instead of slug
         status: 'ACTIVE' // Only active businesses
       },
-      include: {
-        services: {
-          where: { 
-            // Only include active services if there's a status field
-            // For now, include all services
-          },
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            price: true,
-            duration: true,
-            category: {
-              select: {
-                name: true
-              }
-            }
-          },
-          orderBy: { name: 'asc' }
-        },
-        staff: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            phone: true
-          },
-          orderBy: { name: 'asc' }
-        }
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        logo: true,
+        phone: true,
+        address: true,
+        email: true,
+        type: true,
+        settings: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
 
@@ -64,31 +48,11 @@ export async function GET(
     }
 
     console.log('✅ Business found:', business.name);
-    console.log('📊 Services:', business.services.length);
-    console.log('👥 Staff:', business.staff.length);
 
-    // Return comprehensive business data
-    const businessData = {
-      id: business.id,
-      name: business.name,
-      slug: business.slug,
-      description: business.description,
-      logo: business.logo,
-      phone: business.phone,
-      address: business.address,
-      website: business.website,
-      email: business.email,
-      type: business.type,
-      settings: business.settings,
-      services: business.services,
-      staff: business.staff,
-      createdAt: business.createdAt,
-      updatedAt: business.updatedAt
-    };
-
+    // Return simplified business data
     return NextResponse.json({
       success: true,
-      data: businessData
+      data: business
     });
   } catch (error) {
     console.error('❌ Error fetching business by slug:', error);

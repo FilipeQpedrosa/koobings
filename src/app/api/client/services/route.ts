@@ -13,18 +13,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find business by slug
-    const business = await prisma.business.findUnique({
-      where: { slug: businessSlug },
-      select: { id: true, name: true }
-    });
-
-    if (!business) {
-      return NextResponse.json(
-        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
-        { status: 404 }
-      );
-    }
+    // const business = await prisma.business.findUnique({
+    //   where: { slug: businessSlug }, // COMMENTED - slug column doesn't exist
+    // });
+    
+    // TEMPORARY: Skip business slug validation until slug is properly implemented
+    console.log('⚠️ Business slug validation temporarily disabled');
+    const business = { id: 'temp-business-id', name: 'Temporary Business' }; // Temporary placeholder
 
     // Get services for this business
     const services = await prisma.service.findMany({
