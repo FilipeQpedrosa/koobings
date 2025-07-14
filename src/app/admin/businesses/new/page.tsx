@@ -146,6 +146,12 @@ export default function NewBusinessPage() {
 
     try {
       setCreating(true);
+      
+      console.log('🚀 Creating business with data:', {
+        ...formData,
+        password: '[REDACTED]' // Don't log password
+      });
+      
       const response = await fetch('/api/admin/businesses', {
         method: 'POST',
         headers: {
@@ -154,7 +160,10 @@ export default function NewBusinessPage() {
         body: JSON.stringify(formData),
       });
 
+      console.log('📡 API Response status:', response.status);
+      
       const data = await response.json();
+      console.log('📦 API Response data:', data);
 
       if (response.ok) {
         console.log('✅ Business created successfully:', data.business);
@@ -175,10 +184,14 @@ export default function NewBusinessPage() {
         setShowCredentials(true);
         
       } else {
-        console.error('❌ Business creation failed:', data);
+        console.error('❌ Business creation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: data
+        });
         toast({
           title: "Erro",
-          description: data.error || "Erro ao criar negócio",
+          description: data.error || `Erro ${response.status}: ${response.statusText}`,
           variant: "destructive"
         });
       }
@@ -186,7 +199,7 @@ export default function NewBusinessPage() {
       console.error('❌ Business creation error:', error);
       toast({
         title: "Erro",
-        description: "Erro ao conectar com o servidor",
+        description: "Erro ao conectar com o servidor. Verifique a consola para mais detalhes.",
         variant: "destructive"
       });
     } finally {
@@ -205,15 +218,15 @@ export default function NewBusinessPage() {
     standard: {
       name: 'Standard',
       description: 'Perfeito para negócios em crescimento',
-      price: '€29/mês',
-      features: ['Múltiplos utilizadores', 'Relatórios avançados', 'Integração calendário'],
+      price: '€20/mês ou €100/ano',
+      features: ['Múltiplos utilizadores', 'Relatórios avançados', 'Integração calendário', 'Suporte prioritário'],
       color: 'bg-blue-50 border-blue-200'
     },
     premium: {
       name: 'Premium',
-      description: 'Funcionalidades completas',
-      price: '€59/mês',
-      features: ['Todos os recursos', 'SMS', 'Branding personalizado', 'API'],
+      description: 'Funcionalidades completas para empresas',
+      price: '€59/mês ou €590/ano',
+      features: ['Todos os recursos', 'SMS automáticos', 'Branding personalizado', 'API completa', 'Suporte 24/7'],
       color: 'bg-purple-50 border-purple-200'
     }
   };
