@@ -97,7 +97,7 @@ export async function GET() {
     
     const business = await prisma.business.findUnique({
       where: { email },
-      select: { id: true, name: true, ownerName: true, email: true, slug: true }
+      select: { id: true, name: true, ownerName: true, email: true, /* slug: true */ } // COMMENTED slug - column does not exist
     });
     
     const admin = await prisma.system_admins.findUnique({
