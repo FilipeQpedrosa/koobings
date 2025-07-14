@@ -74,7 +74,8 @@ async function createAuditLog(operation: string, entityType: string, entityId: s
 // JWT Authentication helper
 async function verifyAdminJWT(request: NextRequest): Promise<any | null> {
   try {
-    const token = request.cookies.get('auth-token')?.value;
+    // Try both cookie names for admin authentication
+    const token = request.cookies.get('admin-auth-token')?.value || request.cookies.get('auth-token')?.value;
     
     if (!token) {
       return null;
