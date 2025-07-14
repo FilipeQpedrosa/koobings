@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 interface Business {
   id: string;
   name: string;
-  slug: string;
+  // slug: string; // REMOVED - column doesn't exist in database
   email: string;
   ownerName?: string;
   phone?: string;
@@ -151,8 +151,8 @@ export default function BusinessesPage() {
   };
 
   const getBusinessUrl = (business: Business) => {
-    // Direct link to universal staff portal with business slug for admin access
-    return `/staff/dashboard?businessSlug=${business.slug}`;
+    // Direct link to universal staff portal with business id for admin access
+    return `/staff/dashboard?businessId=${business.id}`;
   };
 
   const getPlanBadgeColor = (plan: string) => {

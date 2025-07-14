@@ -21,7 +21,6 @@ type CreateBusinessData = {
   address: string;
   description: string;
   plan: 'basic' | 'standard' | 'premium';
-  slug: string;
   password: string;
   features: {
     multipleStaff: boolean;
@@ -49,7 +48,6 @@ export default function NewBusinessPage() {
     address: '',
     description: '',
     plan: 'standard',
-    slug: '',
     password: '',
     features: {
       multipleStaff: true,
@@ -367,18 +365,7 @@ export default function NewBusinessPage() {
                     className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="slug" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Slug (opcional)
-                  </Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) => handleInputChange('slug', e.target.value)}
-                    placeholder="deixe vazio para gerar automaticamente"
-                    className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+                {/* REMOVED slug input - column doesn't exist in database */}
               </div>
 
               <div>
@@ -584,10 +571,6 @@ export default function NewBusinessPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Morada:</span>
                       <span className="font-medium">{formData.address || 'Não informado'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Slug:</span>
-                      <span className="font-medium">{formData.slug || 'Gerado automaticamente'}</span>
                     </div>
                   </CardContent>
                 </Card>
