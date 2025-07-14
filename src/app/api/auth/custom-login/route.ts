@@ -21,7 +21,12 @@ export async function POST(request: NextRequest) {
       
       // Get the business data separately
       const business = await (prisma.business as any).findUnique({
-        where: { id: staff.businessId }
+        where: { id: staff.businessId },
+        select: {
+          id: true,
+          name: true,
+          // slug: true, // COMMENTED - column does not exist in current database
+        }
       });
       
       // Verify password
