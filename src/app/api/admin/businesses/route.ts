@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         name: true,
-        slug: true, // UNCOMMENTED - column now exists in production
+        // slug: true, // COMMENTED - column does not exist in current database
         email: true,
         ownerName: true,
         phone: true,
@@ -273,7 +273,7 @@ export async function POST(request: NextRequest) {
         data: {
           id: businessId,
           name: validatedData.name,
-          slug: uniqueSlug, // UNCOMMENTED - column now exists in production
+          // slug: uniqueSlug, // COMMENTED - column does not exist in current database
           email: validatedData.email,
           ownerName: validatedData.ownerName,
           phone: validatedData.phone,
@@ -329,7 +329,7 @@ export async function POST(request: NextRequest) {
       businessName: result.business.name,
       ownerName: result.business.ownerName,
       email: result.business.email,
-      slug: result.business.slug,
+      // slug: result.business.slug, // COMMENTED - field does not exist
       plan: result.business.plan,
       adminStaffId: result.adminStaff.id,
       adminStaffName: result.adminStaff.name
