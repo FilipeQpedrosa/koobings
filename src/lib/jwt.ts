@@ -61,13 +61,29 @@ export function verifyJWTToken(token: string): JWTPayload | null {
 export async function getServerAuthUser(): Promise<JWTPayload | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
     
-    if (!token) {
-      return null;
+    // Try admin token first
+    let token = cookieStore.get('admin-auth-token')?.value;
+    if (token) {
+      const user = verifyJWTToken(token);
+      if (user) return user;
+    }
+    
+    // Try business token
+    token = cookieStore.get('business-auth-token')?.value;
+    if (token) {
+      const user = verifyJWTToken(token);
+      if (user) return user;
+    }
+    
+    // Fallback: try old auth-token for backward compatibility
+    token = cookieStore.get('auth-token')?.value;
+    if (token) {
+      const user = verifyJWTToken(token);
+      if (user) return user;
     }
 
-    return verifyJWTToken(token);
+    return null;
   } catch (error) {
     console.error('❌ Server auth verification failed:', error);
     return null;
@@ -75,17 +91,50 @@ export async function getServerAuthUser(): Promise<JWTPayload | null> {
 }
 
 /**
- * Get authenticated user from NextRequest
+ * Get authenticated user from NextRequest with context awareness
  */
 export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
   try {
-    const token = request.cookies.get('auth-token')?.value;
+    const pathname = request.nextUrl.pathname;
     
-    if (!token) {
-      return null;
+    // For admin routes, prioritize admin token
+    if (pathname.startsWith('/admin')) {
+      const adminToken = request.cookies.get('admin-auth-token')?.value;
+      if (adminToken) {
+        const user = verifyJWTToken(adminToken);
+        if (user && user.role === 'ADMIN') {
+          return user;
+        }
+      }
+    }
+    
+    // For business routes, prioritize business token
+    const businessSlugMatch = pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
+    if (businessSlugMatch) {
+      const businessToken = request.cookies.get('business-auth-token')?.value;
+      if (businessToken) {
+        const user = verifyJWTToken(businessToken);
+        if (user && (user.role === 'BUSINESS_OWNER' || user.role === 'STAFF')) {
+          return user;
+        }
+      }
+    }
+    
+    // Fallback: try all tokens
+    const tokens = [
+      request.cookies.get('admin-auth-token')?.value,
+      request.cookies.get('business-auth-token')?.value,
+      request.cookies.get('auth-token')?.value // backward compatibility
+    ];
+    
+    for (const token of tokens) {
+      if (token) {
+        const user = verifyJWTToken(token);
+        if (user) return user;
+      }
     }
 
-    return verifyJWTToken(token);
+    return null;
   } catch (error) {
     console.error('❌ Request auth verification failed:', error);
     return null;
@@ -93,10 +142,10 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
 }
 
 /**
- * Check if user is admin
+ * Check if user has admin privileges
  */
 export function isAdmin(user: JWTPayload | null): boolean {
-  return user?.isAdmin === true || user?.role === 'ADMIN';
+  return user?.role === 'ADMIN' && user?.isAdmin === true;
 }
 
 /**
