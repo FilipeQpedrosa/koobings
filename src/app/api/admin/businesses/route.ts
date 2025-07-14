@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify } from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
-import { generateSlug, ensureUniqueSlug } from '@/lib/business';
+// import { generateSlug, ensureUniqueSlug } from '@/lib/business'; // REMOVED - functions not used
 import { z } from 'zod';
 import crypto from 'crypto';
 

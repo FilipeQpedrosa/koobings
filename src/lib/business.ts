@@ -61,7 +61,7 @@ export async function getBusinessWithFeatures(slug: string) {
     select: {
       id: true,
       name: true,
-      slug: true,
+      // slug: true, // COMMENTED - column does not exist in current database
       features: true,
       plan: true,
       logo: true,
