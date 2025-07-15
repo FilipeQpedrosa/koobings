@@ -17,20 +17,22 @@ export default function BookingDateTime() {
   
   const serviceId = searchParams.get('serviceId');
   const staffId = searchParams.get('staffId');
-  const businessSlug = searchParams.get('businessSlug') || sessionStorage.getItem('businessSlug') || 'advogados-bla-bla';
+  const businessSlug = searchParams.get('businessSlug');
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!serviceId || !staffId) {
+    // Validate all required parameters
+    if (!serviceId || !staffId || !businessSlug) {
       toast({
         title: 'Erro',
         description: 'Informação de agendamento em falta. Comece novamente.',
         variant: 'destructive'
       });
-      router.push(`/book?businessSlug=${businessSlug}`);
+      router.push('/');
+      return;
     }
   }, [serviceId, staffId, businessSlug, router, toast]);
 
@@ -49,6 +51,10 @@ export default function BookingDateTime() {
   const timeSlots = getTimeSlots();
 
   const handleBack = () => {
+    if (!businessSlug || !serviceId) {
+      router.push('/');
+      return;
+    }
     router.push(`/book/staff?businessSlug=${businessSlug}&serviceId=${serviceId}`);
   };
 
@@ -59,6 +65,16 @@ export default function BookingDateTime() {
         description: 'Por favor selecione data e hora.',
         variant: 'destructive'
       });
+      return;
+    }
+
+    if (!businessSlug || !serviceId || !staffId) {
+      toast({
+        title: 'Erro',
+        description: 'Informação de agendamento em falta.',
+        variant: 'destructive'
+      });
+      router.push('/');
       return;
     }
 

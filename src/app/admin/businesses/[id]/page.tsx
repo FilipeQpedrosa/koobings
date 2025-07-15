@@ -15,7 +15,9 @@ export default function AdminBusinessDetailsPage() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`/api/admin/businesses/${id}`);
+        const res = await fetch(`/api/admin/businesses/${id}`, {
+          credentials: 'include'  // Include cookies for authentication
+        });
         if (!res.ok) throw new Error("Negócio não encontrado");
         const response = await res.json();
         console.log("Business data:", response.data); // Debug log

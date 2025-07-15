@@ -12,93 +12,59 @@ interface Stats {
   completionRate: number;
 }
 
-export default function StaffDashboardPage() {
-  const { user, loading } = useAuth();
+export default function StaffDashboard() {
+  const { user, loading: authLoading } = useAuth();
   const params = useParams();
   const businessSlug = params.businessSlug as string;
   const [stats, setStats] = useState<Stats | null>(null);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [business, setBusiness] = useState<{ name: string; logo?: string | null } | null>(null);
 
   useEffect(() => {
-    async function fetchDashboardData() {
-      console.log('🔍 Dashboard: Starting fetch with user:', {
-        hasUser: !!user,
-        businessId: user?.businessId,
-        businessName: user?.businessName,
-        isAdmin: user?.isAdmin,
-        role: user?.role,
-        requestedBusinessSlug: businessSlug
-      });
-      
-      if (!user) {
-        console.log('❌ Dashboard: No user');
-        setDashboardLoading(false);
-        return;
-      }
-      
-      setDashboardLoading(true);
+    if (authLoading) return;
+
+    if (!user?.businessSlug) {
+      setError('Business information not available. Please try logging in again.');
+      setLoading(false);
+      return;
+    }
+
+    fetchBusinessInfo();
+  }, [authLoading, user?.businessSlug]);
+
+  const fetchBusinessInfo = async () => {
+    try {
+      setLoading(true);
       setError(null);
       
-      try {
-        console.log('📡 Dashboard: Fetching business info...');
-        
-        // Fetch business info
-        const businessResponse = await fetch('/api/business/info', {
-          credentials: 'include',
-          cache: 'no-store'
-        });
-        
-        if (businessResponse.ok) {
-          const businessData = await businessResponse.json();
-          console.log('✅ Dashboard: Business info received:', businessData.data?.name);
-          setBusiness(businessData.data);
-        } else {
-          console.log('⚠️ Dashboard: Business info fetch failed:', businessResponse.status);
-        }
+      const response = await fetch('/api/business/info', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
 
-        // Fetch dashboard stats
-        console.log('📊 Dashboard: Fetching stats...');
-        const statsResponse = await fetch('/api/staff/dashboard/stats', {
-          credentials: 'include',
-          cache: 'no-store'
-        });
-
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          console.log('✅ Dashboard: Stats received:', statsData);
-          setStats({
-            totalAppointments: statsData.totalAppointments || 0,
-            upcomingAppointments: statsData.upcomingAppointments || 0,
-            totalClients: statsData.totalClients || 0,
-            completionRate: statsData.completionRate || 100,
-          });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setBusiness(data.data);
         } else {
-          console.log('❌ Dashboard: Stats fetch failed:', statsResponse.status);
-          // Set default stats instead of error for better UX
-          setStats({
-            totalAppointments: 0,
-            upcomingAppointments: 0,
-            totalClients: 0,
-            completionRate: 100,
-          });
+          setError('Failed to load business information');
         }
-      } catch (err: any) {
-        console.error('❌ Dashboard: Error:', err);
-        setError(err.message || 'Unknown error');
-      } finally {
-        setDashboardLoading(false);
+      } else if (response.status === 404) {
+        setError('Business not found. Please contact support.');
+      } else {
+        setError('Failed to connect to server');
       }
+    } catch (error) {
+      console.error('Error fetching business info:', error);
+      setError('Network error occurred');
+    } finally {
+      setLoading(false);
     }
-    
-    if (!loading && user) {
-      fetchDashboardData();
-    }
-    
-  }, [user, loading, businessSlug]);
+  };
 
-  const companyName = business?.name || user?.businessName || 'Advogados bla bla';
+  // Only use API data, never fallback to potentially hardcoded user.businessName
+  const companyName = business?.name || 'Loading...';
   const logo = business?.logo;
 
   if (loading) {
@@ -151,7 +117,7 @@ export default function StaffDashboardPage() {
       </div>
 
       {/* Loading and Error States with Better Visibility */}
-      {dashboardLoading && (
+      {loading && (
         <div className="bg-white rounded-xl shadow-md p-8 w-full max-w-4xl mx-auto border border-gray-200">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>

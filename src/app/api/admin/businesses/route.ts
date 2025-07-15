@@ -1,9 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verify } from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
-// import { generateSlug, ensureUniqueSlug } from '@/lib/business'; // REMOVED - functions not used
 import { z } from 'zod';
 import crypto from 'crypto';
+
+// Function to generate slug from business name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+    .trim()
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-'); // Replace multiple hyphens with single
+}
+
+// Ensure unique slug
+async function ensureUniqueSlug(baseSlug: string): Promise<string> {
+  let slug = baseSlug;
+  let counter = 1;
+  
+  while (true) {
+    const existing = await prisma.business.findUnique({
+      where: { slug }
+    });
+    
+    if (!existing) {
+      return slug;
+    }
+    
+    slug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+}
 
 // 🛡️ Enhanced validation with data integrity checks
 const createBusinessSchema = z.object({
@@ -98,88 +128,51 @@ async function verifyAdminJWT(request: NextRequest): Promise<any | null> {
 // GET /api/admin/businesses - List all businesses
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Admin businesses API called');
+    console.log('🔍 Admin businesses API called - SIMPLIFIED VERSION');
     
-    // Temporary debug: Check if we can fetch businesses at all
-    console.log('🔧 [DEBUG] Testing direct database query...');
+    // 🔧 SUPER SIMPLE TEST: Just count businesses
     const testCount = await prisma.business.count();
     console.log(`🔧 [DEBUG] Total businesses in database: ${testCount}`);
     
-    // Verify JWT token
-    const user = await verifyAdminJWT(request);
-    
-    if (!user) {
-      console.log('❌ Admin verification failed');
-      
-      // 🔧 TEMPORARY DEBUG: Allow access without JWT to test database query
-      console.log('🔧 [DEBUG] Proceeding without JWT for debugging...');
-      
-      // Fetch businesses with comprehensive data
-      const businesses = await prisma.business.findMany({
-        select: {
-          id: true,
-          name: true,
-          // slug: true, // COMMENTED - column does not exist in current database
-          email: true,
-          ownerName: true,
-          phone: true,
-          plan: true,
-          status: true,
-          features: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: {
-              Staff: true,
-              Service: true,
-              Client: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
-
-      console.log(`🔧 [DEBUG] Found ${businesses.length} businesses without JWT check`);
-      return NextResponse.json({ businesses, debug: true, message: 'Temporary debug mode - JWT disabled' });
-    }
-    
-    console.log('✅ Admin verified:', { id: user.id, email: user.email });
-
-    // Fetch businesses with comprehensive data
+    // 🔧 SUPER SIMPLE TEST: Just fetch basic business data
     const businesses = await prisma.business.findMany({
       select: {
         id: true,
         name: true,
-        // slug: true, // COMMENTED - column does not exist in current database
         email: true,
         ownerName: true,
-        phone: true,
-        plan: true,
         status: true,
-        features: true,
         createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            Staff: true,
-            Service: true,
-            Client: true,
-          },
-        },
       },
+      take: 20, // Limit to 20 results for testing
       orderBy: {
         createdAt: 'desc',
       },
     });
 
-    console.log(`✅ Found ${businesses.length} businesses`);
+    console.log(`🔧 [DEBUG] Found ${businesses.length} businesses in simplified query`);
+    console.log('🔧 [DEBUG] First business:', businesses[0] ? JSON.stringify(businesses[0], null, 2) : 'None');
 
-    return NextResponse.json({ businesses });
+    return NextResponse.json({ 
+      businesses, 
+      count: testCount,
+      debug: true, 
+      message: 'Simplified query - no JWT required' 
+    });
+    
   } catch (error) {
-    console.error('❌ Error fetching businesses:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('❌ Error in simplified businesses query:', error);
+    console.error('❌ Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
+    
+    return NextResponse.json({ 
+      error: 'Simplified query failed', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+      debug: true 
+    }, { status: 500 });
   }
 }
 
@@ -225,9 +218,8 @@ export async function POST(request: NextRequest) {
 
     // Generate slug
     console.log('🔤 Generating unique slug...');
-    // const baseSlug = validatedData.slug || generateSlug(validatedData.name);
-    // const uniqueSlug = await ensureUniqueSlug(baseSlug);
-    const uniqueSlug = 'temporary-slug'; // COMMENTED - slug functionality disabled temporarily
+    const baseSlug = generateSlug(validatedData.name);
+    const uniqueSlug = await ensureUniqueSlug(baseSlug);
     console.log('✅ Unique slug generated:', uniqueSlug);
 
     // Default features based on plan
@@ -312,14 +304,14 @@ export async function POST(request: NextRequest) {
         data: {
           id: businessId,
           name: validatedData.name,
-          // slug: uniqueSlug, // COMMENTED - column does not exist in current database
+          slug: uniqueSlug,
           email: validatedData.email,
           ownerName: validatedData.ownerName,
           phone: validatedData.phone,
           address: validatedData.address,
           description: validatedData.description,
-          plan: validatedData.plan,
-          features,
+          // plan: validatedData.plan, // REMOVED - field doesn't exist in Business model
+          settings: { features, plan: validatedData.plan }, // Store features and plan in settings JSON field
           passwordHash,
           status: 'ACTIVE',
           createdAt: now,
@@ -332,7 +324,7 @@ export async function POST(request: NextRequest) {
         name: business.name,
         ownerName: business.ownerName,
         email: business.email,
-        // slug: business.slug // TEMPORARILY COMMENTED OUT
+        slug: business.slug
       });
 
       // Create the admin staff member for this business
@@ -342,7 +334,7 @@ export async function POST(request: NextRequest) {
           id: staffId,
           name: validatedData.ownerName, // 📋 EXPLICIT: Using same ownerName
           email: validatedData.email,    // 📋 EXPLICIT: Using same email
-          password: passwordHash,        // 📋 EXPLICIT: Using same password
+          password: passwordHash,        // 📋 EXPLICIT: Using same password hash in password field
           role: 'ADMIN',
           businessId: business.id,
           createdAt: now,
@@ -368,8 +360,8 @@ export async function POST(request: NextRequest) {
       businessName: result.business.name,
       ownerName: result.business.ownerName,
       email: result.business.email,
-      // slug: result.business.slug, // COMMENTED - field does not exist
-      plan: result.business.plan,
+      slug: result.business.slug,
+      plan: (result.business.settings as any)?.plan || validatedData.plan, // Access plan from settings with fallback
       adminStaffId: result.adminStaff.id,
       adminStaffName: result.adminStaff.name
     }, user.id);
@@ -378,13 +370,13 @@ export async function POST(request: NextRequest) {
       business: {
         id: result.business.id,
         name: result.business.name,
-        // slug: result.business.slug, // TEMPORARILY COMMENTED OUT
+        slug: result.business.slug,
         email: result.business.email,
         ownerName: result.business.ownerName,
         phone: result.business.phone,
-        plan: result.business.plan,
+        plan: (result.business.settings as any)?.plan || validatedData.plan, // Access plan from settings with fallback
         status: result.business.status,
-        features: result.business.features,
+        features: (result.business.settings as any)?.features || features, // Access features from settings with fallback
         createdAt: result.business.createdAt,
       },
       adminStaff: {
@@ -395,7 +387,7 @@ export async function POST(request: NextRequest) {
       },
       tempPassword: password,
       isCustomPassword: !!validatedData.password,
-      loginUrl: `${process.env.NEXTAUTH_URL}/${validatedData.name.toLowerCase().replace(/\s+/g, '-')}/staff/dashboard` // Use name-based slug temporarily
+      loginUrl: `${process.env.NEXTAUTH_URL}/${result.business.slug}/staff/dashboard`
     }, { status: 201 });
 
   } catch (error) {

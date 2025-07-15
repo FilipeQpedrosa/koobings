@@ -16,22 +16,21 @@ export function generateSlug(name: string): string {
 }
 
 /**
- * Ensure slug is unique by adding suffix if needed
+ * Ensure unique slug by checking database
  */
-export async function ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+export async function ensureUniqueSlug(baseSlug: string): Promise<string> {
   let slug = baseSlug;
   let counter = 1;
-
+  
   while (true) {
     const existing = await prisma.business.findUnique({
-      where: { slug },
-      select: { id: true }
+      where: { slug }
     });
-
-    if (!existing || (excludeId && existing.id === excludeId)) {
+    
+    if (!existing) {
       return slug;
     }
-
+    
     slug = `${baseSlug}-${counter}`;
     counter++;
   }
@@ -61,7 +60,7 @@ export async function getBusinessWithFeatures(slug: string) {
     select: {
       id: true,
       name: true,
-      // slug: true, // COMMENTED - column does not exist in current database
+      slug: true, // Include real slug field
       features: true,
       plan: true,
       logo: true,
@@ -71,59 +70,78 @@ export async function getBusinessWithFeatures(slug: string) {
 }
 
 /**
- * Check if business has a specific feature enabled
+ * Get business by ID with features
  */
-export async function hasFeature(businessId: string, feature: string): Promise<boolean> {
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { features: true, plan: true }
+export async function getBusinessWithFeaturesById(id: string) {
+  return await prisma.business.findUnique({
+    where: { 
+      id,
+      status: 'ACTIVE'
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      features: true,
+      plan: true,
+      logo: true,
+      settings: true
+    }
   });
-
-  if (!business) return false;
-
-  // Check feature flags
-  const features = business.features as Record<string, boolean> || {};
-  if (features[feature] !== undefined) {
-    return features[feature];
-  }
-
-  // Default features by plan
-  const defaultFeatures = getDefaultFeaturesByPlan(business.plan);
-  return defaultFeatures[feature] || false;
 }
 
 /**
- * Get default features by plan
+ * Check if business has feature enabled
  */
-function getDefaultFeaturesByPlan(plan: string): Record<string, boolean> {
-  const planFeatures = {
+export function hasFeature(business: any, feature: string): boolean {
+  if (!business?.features) return false;
+  return business.features[feature] === true;
+}
+
+/**
+ * Get business plan limits
+ */
+export function getPlanLimits(plan: string) {
+  const limits = {
     basic: {
-      multipleStaff: false,
-      advancedReports: false,
-      smsNotifications: false,
-      customBranding: false,
-      apiAccess: false,
-      calendarIntegration: false,
+      maxStaff: 3,
+      maxServices: 10,
+      maxBookingsPerMonth: 100
     },
     standard: {
-      multipleStaff: true,
-      advancedReports: true,
-      smsNotifications: false,
-      customBranding: false,
-      apiAccess: false,
-      calendarIntegration: true,
+      maxStaff: 10,
+      maxServices: 50,
+      maxBookingsPerMonth: 500
     },
     premium: {
-      multipleStaff: true,
-      advancedReports: true,
-      smsNotifications: true,
-      customBranding: true,
-      apiAccess: true,
-      calendarIntegration: true,
+      maxStaff: -1, // unlimited
+      maxServices: -1, // unlimited
+      maxBookingsPerMonth: -1 // unlimited
     }
   };
+  
+  return limits[plan as keyof typeof limits] || limits.basic;
+}
 
-  return planFeatures[plan as keyof typeof planFeatures] || planFeatures.basic;
+/**
+ * Check if business can add more staff
+ */
+export async function canAddMoreStaff(businessId: string): Promise<boolean> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { plan: true },
+  });
+  
+  if (!business) return false;
+  
+  const limits = getPlanLimits(business.plan || 'basic');
+  if (limits.maxStaff === -1) return true; // unlimited
+  
+  const currentStaffCount = await prisma.staff.count({
+    where: { businessId }
+  });
+  
+  return currentStaffCount < limits.maxStaff;
 }
 
 /**

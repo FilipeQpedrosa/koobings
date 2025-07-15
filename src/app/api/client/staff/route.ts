@@ -13,18 +13,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find business by slug
+    // Find business by real slug field
     const business = await prisma.business.findUnique({
-      where: { slug: businessSlug },
-      select: { id: true, name: true }
+      where: { 
+        slug: businessSlug,
+        status: 'ACTIVE' // Only active businesses
+      },
+      select: { 
+        id: true, 
+        name: true,
+        slug: true
+      }
     });
 
     if (!business) {
+      console.log('❌ Business not found for slug:', businessSlug);
       return NextResponse.json(
         { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
         { status: 404 }
       );
     }
+
+    console.log('✅ Business found:', business.name, 'for slug:', businessSlug);
 
     // Get staff for this business
     const staff = await prisma.staff.findMany({
@@ -45,7 +55,8 @@ export async function GET(request: NextRequest) {
       data: {
         business: {
           id: business.id,
-          name: business.name
+          name: business.name,
+          slug: business.slug
         },
         staff: staff
       }

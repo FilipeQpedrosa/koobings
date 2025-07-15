@@ -34,7 +34,7 @@ interface ServiceFormData {
 
 export default function StaffSettingsServicesPage() {
   const { user, loading: authLoading } = useAuth();
-  const businessSlug = user?.businessSlug || 'advogados-bla-bla';
+  const businessSlug = user?.businessSlug;
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -193,10 +193,21 @@ export default function StaffSettingsServicesPage() {
     (service.description && service.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!businessSlug) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
+          <p className="text-red-600">Unable to load services settings. Please try logging in again.</p>
+        </div>
       </div>
     );
   }

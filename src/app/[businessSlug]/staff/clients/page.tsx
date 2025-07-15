@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, User, Phone, Mail, Calendar, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, User, Phone, Mail, Calendar, Edit, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Client {
   id: string;
@@ -20,6 +21,7 @@ interface Client {
 }
 
 export default function StaffClientsPage() {
+  const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -108,7 +110,7 @@ export default function StaffClientsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
           <p className="text-gray-600 mt-1">Manage your client database</p>
         </div>
-        <Link href="/advogados-bla-bla/staff/clients/new">
+        <Link href={`/${user?.businessSlug || 'business'}/staff/clients/new`}>
           <Button>
             <Plus className="h-4 w-4 mr-2" />
             Add Client
@@ -176,22 +178,18 @@ export default function StaffClientsPage() {
         </CardHeader>
         <CardContent>
           {filteredClients.length === 0 ? (
-            <div className="text-center py-8">
-              <User className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No clients found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm ? 'Try a different search term.' : 'Get started by adding your first client.'}
-              </p>
-              {!searchTerm && (
-                <div className="mt-6">
-                  <Link href="/advogados-bla-bla/staff/clients/new">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Client
-                    </Button>
-                  </Link>
-                </div>
-              )}
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No clients yet</h3>
+                <p className="text-gray-500 mb-4">Get started by adding your first client</p>
+                <Link href={`/${user?.businessSlug || 'business'}/staff/clients/new`}>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Client
+                  </Button>
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

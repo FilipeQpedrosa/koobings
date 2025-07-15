@@ -3,9 +3,12 @@ const testAppointmentCreation = async () => {
   try {
     console.log('🧪 Testing appointment creation...');
     
+    // Get business slug from environment or use default
+    const businessSlug = process.env.TEST_BUSINESS_SLUG || 'clube-k';
+    
     // First, get valid staff IDs for the business
     console.log('📤 Getting staff for business...');
-    const staffResponse = await fetch('http://localhost:3000/api/client/staff?businessSlug=advogados-bla-bla');
+    const staffResponse = await fetch(`http://localhost:3000/api/client/staff?businessSlug=${businessSlug}`);
     const staffResult = await staffResponse.json();
     
     console.log('📥 Staff response:', JSON.stringify(staffResult, null, 2));
@@ -20,7 +23,7 @@ const testAppointmentCreation = async () => {
     
     // Get valid services for the business
     console.log('📤 Getting services for business...');
-    const servicesResponse = await fetch('http://localhost:3000/api/client/services?businessSlug=advogados-bla-bla');
+    const servicesResponse = await fetch(`http://localhost:3000/api/client/services?businessSlug=${businessSlug}`);
     const servicesResult = await servicesResponse.json();
     
     console.log('📥 Services response:', JSON.stringify(servicesResult, null, 2));
@@ -35,7 +38,7 @@ const testAppointmentCreation = async () => {
     
     // Test data for appointment creation
     const testData = {
-      businessSlug: 'advogados-bla-bla',
+      businessSlug: businessSlug,
       clientName: 'João Silva',
       clientEmail: 'joao.silva@example.com',
       clientPhone: '912345678',

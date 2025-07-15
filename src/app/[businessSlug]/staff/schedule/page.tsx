@@ -105,19 +105,13 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
           setServices(servicesData.data || []);
         } else {
           console.error('Failed to fetch services:', servicesRes.status, servicesRes.statusText);
-          // Set some default services so modal can still work
-          setServices([
-            { id: 'default-1', name: 'Consulta', duration: 60, price: 50 },
-            { id: 'default-2', name: 'Sessão', duration: 90, price: 75 }
-          ]);
+          // Leave services empty instead of hardcoded fallback
+          setServices([]);
         }
       } catch (error) {
         console.error('Services API error:', error);
-        // Set some default services so modal can still work
-        setServices([
-          { id: 'default-1', name: 'Consulta', duration: 60, price: 50 },
-          { id: 'default-2', name: 'Sessão', duration: 90, price: 75 }
-        ]);
+        // Leave services empty instead of hardcoded fallback
+        setServices([]);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);

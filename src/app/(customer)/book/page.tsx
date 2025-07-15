@@ -32,10 +32,21 @@ export default function ServiceSelectionPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get business slug from URL parameter
-  const businessSlug = searchParams.get('businessSlug') || 'advogados-bla-bla'; // Default for testing
+  // Get business slug from URL parameter - REQUIRED
+  const businessSlug = searchParams.get('businessSlug');
 
   useEffect(() => {
+    // Validate that businessSlug is provided
+    if (!businessSlug) {
+      toast({
+        title: 'Erro',
+        description: 'Link de agendamento inválido. Negócio não especificado.',
+        variant: 'destructive'
+      });
+      router.push('/'); // Redirect to home page
+      return;
+    }
+
     async function fetchServices() {
       try {
         console.log('🔍 Fetching services for business:', businessSlug);
@@ -43,6 +54,15 @@ export default function ServiceSelectionPage() {
         const response = await fetch(`/api/client/services?businessSlug=${businessSlug}`);
         
         if (!response.ok) {
+          if (response.status === 404) {
+            toast({
+              title: 'Negócio Não Encontrado',
+              description: 'O negócio solicitado não foi encontrado ou não está ativo.',
+              variant: 'destructive'
+            });
+            router.push('/');
+            return;
+          }
           throw new Error(`Failed to fetch services: ${response.status}`);
         }
         
@@ -68,10 +88,8 @@ export default function ServiceSelectionPage() {
       }
     }
 
-    if (businessSlug) {
-      fetchServices();
-    }
-  }, [businessSlug, toast]);
+    fetchServices();
+  }, [businessSlug, toast, router]);
 
   const filteredServices = services.filter(service =>
     service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -98,7 +116,7 @@ export default function ServiceSelectionPage() {
     
     // Store selection in session storage
     sessionStorage.setItem('selectedService', selectedService);
-    sessionStorage.setItem('businessSlug', businessSlug);
+    sessionStorage.setItem('businessSlug', businessSlug || ''); // Ensure businessSlug is stored
     
     // Navigate to staff selection
     router.push(`/book/staff?businessSlug=${businessSlug}&serviceId=${selectedService}`);

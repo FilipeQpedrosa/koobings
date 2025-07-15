@@ -5,10 +5,37 @@ import { Button } from '@/components/ui/button';
 import { Tag, ArrowLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from 'react';
 
 export default function StaffSettingsCategoriesPage() {
-  const { user } = useAuth();
-  const businessSlug = user?.businessSlug || 'advogados-bla-bla';
+  const { user, loading: authLoading } = useAuth();
+  const businessSlug = user?.businessSlug;
+
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!businessSlug) {
+      console.error('Business slug not available');
+      return;
+    }
+    
+    // Initialize data loading here
+  }, [authLoading, businessSlug]);
+
+  if (authLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!businessSlug) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
+          <p className="text-red-600">Unable to load business settings. Please try logging in again.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
