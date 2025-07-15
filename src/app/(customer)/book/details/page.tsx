@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,7 +37,7 @@ export default function CustomerDetailsPage() {
   
   const serviceId = searchParams.get('serviceId');
   const staffId = searchParams.get('staffId');
-  const businessSlug = searchParams.get('businessSlug') || sessionStorage.getItem('businessSlug') || 'advogados-bla-bla';
+  const businessSlug = searchParams.get('businessSlug');
 
   const form = useForm<CustomerDetailsForm>({
     resolver: zodResolver(customerDetailsSchema),
@@ -49,18 +49,36 @@ export default function CustomerDetailsPage() {
     },
   });
 
+  // Validate required parameters on component mount
+  useEffect(() => {
+    if (!serviceId || !staffId || !businessSlug) {
+      toast({
+        title: 'Erro',
+        description: 'Informação de agendamento em falta. Comece novamente.',
+        variant: 'destructive'
+      });
+      router.push('/');
+      return;
+    }
+  }, [serviceId, staffId, businessSlug, router, toast]);
+
   const handleBack = () => {
+    if (!businessSlug || !serviceId || !staffId) {
+      router.push('/');
+      return;
+    }
     router.push(`/book/datetime?businessSlug=${businessSlug}&serviceId=${serviceId}&staffId=${staffId}`);
   };
 
   const onSubmit = async (data: CustomerDetailsForm) => {
-    if (!serviceId || !staffId) {
+    // Validate parameters again before submission
+    if (!serviceId || !staffId || !businessSlug) {
       toast({
         title: 'Erro',
         description: 'Informação de agendamento em falta. Comece novamente.',
         variant: 'destructive',
       });
-      router.push(`/book?businessSlug=${businessSlug}`);
+      router.push('/');
       return;
     }
 

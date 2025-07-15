@@ -13,6 +13,7 @@ model Business {
   createdAt                     DateTime                @default(now())
   updatedAt                     DateTime
   name                          String
+  slug                          String                  @unique
   ownerName                     String?
   email                         String                  @unique
   phone                         String?
@@ -45,6 +46,7 @@ model Business {
   system_admins                 system_admins[]         @relation("SystemAdminToBusinesses")
 
   @@index([email])
+  @@index([slug])
 }
 
 model BusinessHours {

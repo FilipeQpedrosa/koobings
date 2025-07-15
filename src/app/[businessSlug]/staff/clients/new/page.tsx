@@ -10,6 +10,7 @@ import { ArrowLeft, Save, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useForm } from 'react-hook-form';
 
 interface ClientFormData {
   name: string;
@@ -19,187 +20,172 @@ interface ClientFormData {
 }
 
 export default function NewClientPage() {
+  const { user, loading: authLoading } = useAuth();
+  const businessSlug = user?.businessSlug;
   const router = useRouter();
-  const { user } = useAuth();
-  const businessSlug = user?.businessSlug || 'advogados-bla-bla'; // Get business slug from user
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [formData, setFormData] = useState<ClientFormData>({
-    name: '',
-    email: '',
-    phone: '',
-    notes: ''
-  });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (error) {
-      setError('');
-    }
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<ClientFormData>();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name.trim() || !formData.email.trim()) {
-      setError('Name and Email are required');
+  if (authLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!businessSlug) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
+          <p className="text-red-600">Unable to access client management. Please try logging in again.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const onSubmit = async (data: ClientFormData) => {
+    if (!data.name.trim() || !data.email.trim()) {
+      setError('Name and email are required');
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     setError('');
 
     try {
-      const response = await fetch('/api/staff/clients', {
+      const response = await fetch('/api/business/clients', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          phone: formData.phone.trim() || undefined,
-          notes: formData.notes.trim() || undefined,
-        }),
+        body: JSON.stringify(data),
       });
 
-      const data = await response.json();
-      
-      if (data.success) {
-        // Success - redirect to clients list
+      if (response.ok) {
+        reset();
         router.push(`/${businessSlug}/staff/clients`);
       } else {
-        setError(data.error || 'Failed to create client');
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to create client');
       }
     } catch (error) {
       console.error('Error creating client:', error);
-      setError('Failed to create client');
+      setError('Network error occurred');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-4">
         <Link href={`/${businessSlug}/staff/clients`}>
-          <Button variant="ghost" size="sm">
+          <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Clients
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Add New Client</h1>
-          <p className="text-gray-600 mt-1">Create a new client profile</p>
+          <h1 className="text-2xl font-bold text-gray-900">Add New Client</h1>
+          <p className="text-gray-600">Create a new client profile</p>
         </div>
       </div>
 
       {/* Form */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <User className="h-5 w-5 mr-2" />
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
             Client Information
           </CardTitle>
           <CardDescription>
-            Enter the client's basic information. Name and email are required.
+            Enter the client's basic information to create their profile.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                {error}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">
-                  Name <span className="text-red-500">*</span>
-                </Label>
+                <Label htmlFor="name">Name *</Label>
                 <Input
                   id="name"
-                  name="name"
                   type="text"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter client's full name"
-                  required
-                  disabled={loading}
+                  placeholder="Enter client name"
+                  {...register('name', { required: 'Name is required' })}
+                  className={errors.name ? 'border-red-500' : ''}
                 />
+                {errors.name && (
+                  <p className="text-red-500 text-sm">{errors.name.message}</p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">
-                  Email <span className="text-red-500">*</span>
-                </Label>
+                <Label htmlFor="email">Email *</Label>
                 <Input
                   id="email"
-                  name="email"
                   type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="client@example.com"
-                  required
-                  disabled={loading}
+                  placeholder="Enter email address"
+                  {...register('email', { 
+                    required: 'Email is required',
+                    pattern: {
+                      value: /^\S+@\S+$/i,
+                      message: 'Invalid email format'
+                    }
+                  })}
+                  className={errors.email ? 'border-red-500' : ''}
                 />
+                {errors.email && (
+                  <p className="text-red-500 text-sm">{errors.email.message}</p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone (optional)</Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
-                name="phone"
                 type="tel"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="+351 123 456 789"
-                disabled={loading}
+                placeholder="Enter phone number"
+                {...register('phone')}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes (optional)</Label>
+              <Label htmlFor="notes">Notes</Label>
               <Textarea
                 id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
                 placeholder="Additional notes about the client..."
                 rows={4}
-                disabled={loading}
+                {...register('notes')}
               />
             </div>
 
-            <div className="flex justify-end space-x-3 pt-6 border-t">
+            <div className="flex gap-3 pt-4">
+              <Button 
+                type="submit" 
+                disabled={submitting}
+                className="flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {submitting ? 'Creating...' : 'Create Client'}
+              </Button>
               <Link href={`/${businessSlug}/staff/clients`}>
-                <Button variant="outline" disabled={loading}>
+                <Button type="button" variant="outline">
                   Cancel
                 </Button>
               </Link>
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Create Client
-                  </>
-                )}
-              </Button>
             </div>
           </form>
         </CardContent>

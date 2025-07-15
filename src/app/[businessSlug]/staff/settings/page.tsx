@@ -20,7 +20,7 @@ interface BusinessPermissions {
 }
 
 export default function StaffSettingsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
 
@@ -45,7 +45,22 @@ export default function StaffSettingsPage() {
     }
   }, [mounted]);
 
-  const businessSlug = user?.businessSlug || 'advogados-bla-bla';
+  const businessSlug = user?.businessSlug;
+
+  if (authLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!businessSlug) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
+          <p className="text-red-600">Unable to load business settings. Please try logging in again.</p>
+        </div>
+      </div>
+    );
+  }
 
   const settingsOptions = [
     {

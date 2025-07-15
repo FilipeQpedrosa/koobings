@@ -13,13 +13,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // const business = await prisma.business.findUnique({
-    //   where: { slug: businessSlug }, // COMMENTED - slug column doesn't exist
-    // });
+    // Find business by real slug field
+    const business = await prisma.business.findUnique({
+      where: { 
+        slug: businessSlug,
+        status: 'ACTIVE' // Only active businesses
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true
+      }
+    });
     
-    // TEMPORARY: Skip business slug validation until slug is properly implemented
-    console.log('⚠️ Business slug validation temporarily disabled');
-    const business = { id: 'temp-business-id', name: 'Temporary Business' }; // Temporary placeholder
+    if (!business) {
+      console.log('❌ Business not found for slug:', businessSlug);
+      return NextResponse.json(
+        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
+        { status: 404 }
+      );
+    }
+
+    console.log('✅ Business found:', business.name, 'for slug:', businessSlug);
 
     // Get services for this business
     const services = await prisma.service.findMany({
@@ -41,7 +56,8 @@ export async function GET(request: NextRequest) {
       data: {
         business: {
           id: business.id,
-          name: business.name
+          name: business.name,
+          slug: business.slug
         },
         services: services
       }

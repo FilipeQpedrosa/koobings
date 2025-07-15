@@ -17,16 +17,16 @@ export async function GET(
 
     console.log('🔍 Fetching business by slug:', slug);
 
-    // SIMPLIFIED: Just get basic business data without complex relations
+    // Use the real slug field from database
     const business = await prisma.business.findUnique({
       where: { 
-        // slug, // COMMENTED - column does not exist in database
-        id: slug, // TEMPORARY: using id instead of slug
+        slug: slug, // Use real slug field
         status: 'ACTIVE' // Only active businesses
       },
       select: {
         id: true,
         name: true,
+        slug: true,
         description: true,
         logo: true,
         phone: true,
@@ -49,7 +49,7 @@ export async function GET(
 
     console.log('✅ Business found:', business.name);
 
-    // Return simplified business data
+    // Return business data with slug
     return NextResponse.json({
       success: true,
       data: business

@@ -33,6 +33,8 @@ const publicRoutes = [
   '/api/test-nextauth',
   '/api/business/by-slug', // Allow business lookup for signin pages
   '/api/client', // Allow client API endpoints
+  '/api/public', // Allow all public API endpoints
+  '/api/debug-user-data', // Allow debug endpoint
 ]
 
 function isPublicRoute(path: string): boolean {

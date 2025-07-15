@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Pause, Play, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cacheKeys, cachedApiCall } from '@/lib/cache';
 import { useRouter } from 'next/navigation';
 
 interface Business {
@@ -20,7 +21,7 @@ interface Business {
   status: string;
   features: Record<string, boolean>;
   createdAt: string;
-  _count: {
+  _count?: {
     staff: number;
     appointments: number;
     services: number;
@@ -30,6 +31,7 @@ interface Business {
 export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const { toast } = useToast();
   const router = useRouter();
@@ -41,36 +43,56 @@ export default function BusinessesPage() {
   const fetchBusinesses = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (search) params.append('search', search);
-      
-      // Add cache-busting parameter to ensure fresh data
-      params.append('_t', Date.now().toString());
-      
-      const response = await fetch(`/api/admin/businesses?${params}`, {
-        // Disable caching to always get fresh data
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
+      setError(null);
+
+      // Use cached API call
+      const data = await cachedApiCall(
+        cacheKeys.BUSINESSES,
+        async () => {
+          const params = new URLSearchParams();
+          if (search) params.append('search', search);
+          params.append('_t', Date.now().toString());
+          
+          // Try the public endpoint first
+          let response = await fetch(`/api/public/businesses?${params}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            }
+          });
+          
+          // If public endpoint fails, fallback to admin endpoint
+          if (!response.ok) {
+            console.log('Public endpoint failed, trying admin endpoint...');
+            response = await fetch(`/api/admin/businesses?${params}`, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache',
+              },
+              credentials: 'include'
+            });
+          }
+          
+          if (response.ok) {
+            const responseData = await response.json();
+            if (responseData.success) {
+              return responseData.businesses || [];
+            } else if (responseData.businesses) {
+              return responseData.businesses;
+            }
+          }
+          
+          throw new Error(`API failed with status: ${response.status}`);
         },
-      });
-      const data = await response.json();
+        5 // Cache for 5 minutes
+      );
+
+      setBusinesses(data);
       
-      if (response.ok) {
-        setBusinesses(data.businesses);
-      } else {
-        toast({
-          title: "Erro",
-          description: data.error || "Erro ao carregar negócios",
-          variant: "destructive"
-        });
-      }
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao conectar com o servidor",
-        variant: "destructive"
-      });
+      console.error('⚠️ All API attempts failed:', error);
+      setError('Failed to load businesses. Please try refreshing the page.');
+      setBusinesses([]);
     } finally {
       setLoading(false);
     }
@@ -207,6 +229,53 @@ export default function BusinessesPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Businesses</h1>
+          <p className="text-gray-600">Manage all registered businesses</p>
+        </div>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading businesses...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Businesses</h1>
+          <p className="text-gray-600">Manage all registered businesses</p>
+        </div>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+              <div className="text-red-600 mb-4">
+                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Businesses</h3>
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={fetchBusinesses}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -277,17 +346,17 @@ export default function BusinessesPage() {
                 <div className="space-y-3">
                   <div className="flex items-center text-sm text-gray-600">
                     <Users className="h-4 w-4 mr-2" />
-                    <span>{business._count.staff} funcionários</span>
+                    <span>{business._count?.staff || 0} funcionários</span>
                   </div>
                   
                   <div className="flex items-center text-sm text-gray-600">
                     <Calendar className="h-4 w-4 mr-2" />
-                    <span>{business._count.appointments} marcações</span>
+                    <span>{business._count?.appointments || 0} marcações</span>
                   </div>
                   
                   <div className="flex items-center text-sm text-gray-600">
                     <Settings className="h-4 w-4 mr-2" />
-                    <span>{business._count.services} serviços</span>
+                    <span>{business._count?.services || 0} serviços</span>
                   </div>
                   
                   <div className="pt-3 border-t space-y-2">

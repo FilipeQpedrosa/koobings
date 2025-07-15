@@ -1,162 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-interface StaffResult {
-  id: string;
-  name: string;
-  email: string;
-  businessId: string;
-  role: any;
-}
-
-interface BusinessResult {
-  id: string;
-  name: string;
-  ownerName: string | null;
-  email: string;
-  // slug: string | null; // REMOVED - column does not exist in current database
-}
-
-interface AdminResult {
-  id: string;
-  name: string;
-  email: string;
-  role: any;
-}
-
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const email = searchParams.get('email');
+
+  if (!email) {
+    return NextResponse.json({ 
+      error: 'Email parameter is required',
+      usage: 'Add ?email=user@example.com to the URL'
+    }, { status: 400 });
+  }
+
+  console.log('🔍 Debug user data for email:', email);
+
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email') || 'miguel@lanche.com';
-    const debug = searchParams.get('debug');
-    
-    // Simple protection - only allow in development or with debug key
-    if (process.env.NODE_ENV === 'production' && debug !== 'allow123') {
-      return NextResponse.json({ 
-        error: 'Debug endpoint not available in production without debug key',
-        hint: 'Add ?debug=allow123 to access'
-      }, { status: 403 });
-    }
-    
-    console.log('🔍 Checking database for:', email);
-    
-    const results = {
-      searchEmail: email,
-      staff: null as StaffResult | null,
-      business: null as BusinessResult | null,
-      admin: null as AdminResult | null,
-      pretinhoRecords: {
-        staff: [] as StaffResult[],
-        business: [] as BusinessResult[],
-        admin: [] as AdminResult[]
-      }
-    };
-    
-    // Check Staff table
-    const staff = await prisma.staff.findUnique({
-      where: { email }
-    });
-    
-    if (staff) {
-      results.staff = {
-        id: staff.id,
-        name: staff.name,
-        email: staff.email,
-        businessId: staff.businessId,
-        role: staff.role
-      };
-    }
-    
-    // Check Business table
-    const business = await prisma.business.findUnique({
-      where: { email }
-    });
-    
-    if (business) {
-      results.business = {
-        id: business.id,
-        name: business.name,
-        ownerName: business.ownerName,
-        email: business.email,
-        // slug: business.slug // COMMENTED - column does not exist in current database
-      };
-    }
-    
-    // Check System_admins table
+    // Check in system_admins table
     const admin = await prisma.system_admins.findUnique({
       where: { email }
     });
-    
+
     if (admin) {
-      results.admin = {
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-        role: admin.role
-      };
+      return NextResponse.json({
+        found: true,
+        type: 'system_admin',
+        data: {
+          id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          role: admin.role,
+          createdAt: admin.createdAt
+        }
+      });
     }
-    
-    // Find any records with "Pretinho" name
-    const staffWithPretinho = await prisma.staff.findMany({
-      where: { 
-        name: { contains: 'Pretinho', mode: 'insensitive' }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        businessId: true,
-        role: true
+
+    // Check in business table
+    const business = await prisma.business.findUnique({
+      where: { email }
+    });
+
+    if (business) {
+      return NextResponse.json({
+        found: true,
+        type: 'business_owner',
+        data: {
+          id: business.id,
+          email: business.email,
+          name: business.name,
+          ownerName: business.ownerName,
+          slug: business.slug,
+          status: business.status,
+          createdAt: business.createdAt
+        }
+      });
+    }
+
+    // Check in staff table
+    const staff = await prisma.staff.findUnique({
+      where: { email },
+      include: {
+        Business: {
+          select: {
+            name: true,
+            slug: true
+          }
+        }
       }
     });
-    
-    const businessWithPretinho = await prisma.business.findMany({
-      where: { 
-        OR: [
-          { name: { contains: 'Pretinho', mode: 'insensitive' } },
-          { ownerName: { contains: 'Pretinho', mode: 'insensitive' } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        ownerName: true,
-        email: true,
-        // slug: true, // COMMENTED - column does not exist in current database
-        status: true,
-        plan: true,
-        createdAt: true
-      }
-    });
-    
-    const adminWithPretinho = await prisma.system_admins.findMany({
-      where: { 
-        name: { contains: 'Pretinho', mode: 'insensitive' }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true
-      }
-    });
-    
-    results.pretinhoRecords = {
-      staff: staffWithPretinho,
-      business: businessWithPretinho,
-      admin: adminWithPretinho
-    };
-    
+
+    if (staff) {
+      return NextResponse.json({
+        found: true,
+        type: 'staff',
+        data: {
+          id: staff.id,
+          email: staff.email,
+          name: staff.name,
+          role: staff.role,
+          businessId: staff.businessId,
+          businessName: staff.Business?.name,
+          businessSlug: staff.Business?.slug,
+          createdAt: staff.createdAt
+        }
+      });
+    }
+
+    // User not found in any table
     return NextResponse.json({
-      success: true,
-      data: results
+      found: false,
+      message: `No user found with email: ${email}`,
+      searchedIn: ['system_admins', 'business', 'staff']
     });
-    
+
   } catch (error) {
-    console.error('❌ Error checking user data:', error);
+    console.error('❌ Error searching for user:', error);
     return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to check user data',
+      error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }

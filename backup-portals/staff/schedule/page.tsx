@@ -213,23 +213,14 @@ export default function StaffSchedule() {
           const servicesData = await servicesRes.json();
           setServices(servicesData.data || []);
         } else {
-          setServices([
-            { id: 'default-1', name: 'Serviço Premium', duration: 60, price: 75 },
-            { id: 'default-2', name: 'Serviço Básico', duration: 30, price: 50 },
-            { id: 'default-3', name: 'Consulta', duration: 30, price: 40 },
-            { id: 'default-4', name: 'Serviço Completo', duration: 90, price: 120 },
-            { id: 'default-5', name: 'Serviço Rápido', duration: 30, price: 35 }
-          ]);
+          console.error('Failed to fetch services:', servicesRes.status, servicesRes.statusText);
+          // Leave services empty instead of hardcoded fallback
+          setServices([]);
         }
       } catch (error) {
         console.error('Services loading failed:', error);
-        setServices([
-          { id: 'default-1', name: 'Serviço Premium', duration: 60, price: 75 },
-          { id: 'default-2', name: 'Serviço Básico', duration: 30, price: 50 },
-          { id: 'default-3', name: 'Consulta', duration: 30, price: 40 },
-          { id: 'default-4', name: 'Serviço Completo', duration: 90, price: 120 },
-          { id: 'default-5', name: 'Serviço Rápido', duration: 30, price: 35 }
-        ]);
+        // Leave services empty instead of hardcoded fallback
+        setServices([]);
       }
     } catch (error) {
       console.error('Failed to load booking data:', error);

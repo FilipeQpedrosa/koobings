@@ -21,7 +21,7 @@ type EditBusinessData = {
   address: string;
   description: string;
   plan: 'basic' | 'standard' | 'premium';
-  slug: string;
+  // slug: string; // REMOVED - column doesn't exist in database
   status: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'INACTIVE';
   password: string;
   features: {
@@ -50,7 +50,7 @@ export default function EditBusinessPage() {
     address: '',
     description: '',
     plan: 'standard',
-    slug: '',
+    // slug: '', // REMOVED - column doesn't exist in database
     status: 'ACTIVE',
     password: '',
     features: {
@@ -70,7 +70,9 @@ export default function EditBusinessPage() {
   const fetchBusiness = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/admin/businesses/${id}`);
+      const response = await fetch(`/api/admin/businesses/${id}`, {
+        credentials: 'include'  // Include cookies for authentication
+      });
       const data = await response.json();
       
       if (response.ok) {
@@ -86,7 +88,7 @@ export default function EditBusinessPage() {
           address: businessData.address || '',
           description: businessData.description || '',
           plan: businessData.plan || 'standard',
-          slug: businessData.slug || '',
+          // slug: businessData.slug || '', // REMOVED - column doesn't exist in database
           status: businessData.status || 'ACTIVE',
           password: '',
           features: {
@@ -148,6 +150,7 @@ export default function EditBusinessPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',  // Include cookies for authentication
         body: JSON.stringify(formData),
       });
 
@@ -315,6 +318,7 @@ export default function EditBusinessPage() {
                     className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+                {/* REMOVED - Slug field doesn't exist in database
                 <div>
                   <Label htmlFor="slug" className="text-sm font-medium text-gray-700 mb-2 block">
                     Slug
@@ -326,6 +330,7 @@ export default function EditBusinessPage() {
                     className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+                */}
               </div>
 
               <div>

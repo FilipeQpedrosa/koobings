@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           name: true,
-          // slug: true, // COMMENTED - column does not exist in current database
+          slug: true, // Use real slug from database
         }
       });
       
@@ -34,8 +34,7 @@ export async function POST(request: NextRequest) {
       
       if (isValidPassword) {
         // Use business slug from database
-        // const businessSlug = business?.slug || 'staff'; // COMMENTED - slug column does not exist
-        const businessSlug = 'staff'; // Temporary fallback
+        const businessSlug = business?.slug || 'staff'; // Fallback only if slug is missing
         const dashboardUrl = `/${businessSlug}/staff/dashboard`;
         
         // Create JWT token directly
@@ -91,7 +90,7 @@ export async function POST(request: NextRequest) {
         email: true,
         ownerName: true,
         passwordHash: true,
-        // slug: true, // COMMENTED - column does not exist in current database
+        slug: true, // Use real slug from database
       }
     });
 
@@ -103,8 +102,7 @@ export async function POST(request: NextRequest) {
       
       if (isValidPassword) {
         // Use business slug from database
-        // const businessSlug = business.slug || 'business'; // COMMENTED - slug column does not exist
-        const businessSlug = 'business'; // Temporary fallback
+        const businessSlug = business.slug || 'business'; // Fallback only if slug is missing
         const dashboardUrl = `/${businessSlug}/staff/dashboard`;
         
         // Create JWT token directly

@@ -26,7 +26,7 @@ export default function StaffSelectionPage() {
   const { toast } = useToast();
   
   const serviceId = searchParams.get('serviceId');
-  const businessSlug = searchParams.get('businessSlug') || sessionStorage.getItem('businessSlug') || 'advogados-bla-bla';
+  const businessSlug = searchParams.get('businessSlug');
 
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -34,13 +34,14 @@ export default function StaffSelectionPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!serviceId) {
+    // Validate required parameters
+    if (!serviceId || !businessSlug) {
       toast({
         title: 'Erro',
         description: 'Informação de agendamento em falta. Comece novamente.',
         variant: 'destructive'
       });
-      router.push(`/book?businessSlug=${businessSlug}`);
+      router.push('/');
       return;
     }
 
@@ -51,6 +52,15 @@ export default function StaffSelectionPage() {
         const response = await fetch(`/api/client/staff?businessSlug=${businessSlug}`);
         
         if (!response.ok) {
+          if (response.status === 404) {
+            toast({
+              title: 'Negócio Não Encontrado',
+              description: 'O negócio solicitado não foi encontrado.',
+              variant: 'destructive'
+            });
+            router.push('/');
+            return;
+          }
           throw new Error(`Failed to fetch staff: ${response.status}`);
         }
         
@@ -80,6 +90,10 @@ export default function StaffSelectionPage() {
   }, [serviceId, businessSlug, toast, router]);
 
   const handleBack = () => {
+    if (!businessSlug) {
+      router.push('/');
+      return;
+    }
     router.push(`/book?businessSlug=${businessSlug}`);
   };
 

@@ -137,19 +137,18 @@ export async function GET(request: NextRequest) {
     if (user.isAdmin && requestedBusinessSlug) {
       console.log('👑 Admin requesting business:', requestedBusinessSlug);
       try {
-        // COMMENTED - slug field doesn't exist in database
-        // const requestedBusiness = await prisma.business.findUnique({
-        //   where: { slug: requestedBusinessSlug },
-        //   select: { id: true, name: true }
-        // });
+        // Use real slug field from database
+        const requestedBusiness = await prisma.business.findUnique({
+          where: { slug: requestedBusinessSlug },
+          select: { id: true, name: true, slug: true }
+        });
         
-        // For now, skip this functionality until slug is properly implemented
-        // if (requestedBusiness) {
-        console.log('⚠️ Business lookup by slug temporarily disabled');
-        // targetBusinessId = requestedBusiness.id;
-        // } else {
+        if (requestedBusiness) {
+          console.log('✅ Admin business found:', requestedBusiness.name);
+          targetBusinessId = requestedBusiness.id;
+        } else {
           console.log('❌ Requested business not found:', requestedBusinessSlug);
-        // }
+        }
       } catch (error) {
         console.error('❌ Error finding requested business:', error);
       }
@@ -163,7 +162,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            // slug: true, // COMMENTED - column does not exist in current database
+            slug: true, // Include real slug field
             logo: true,
             description: true,
             phone: true,
@@ -185,7 +184,7 @@ export async function GET(request: NextRequest) {
               id: business.id,
               name: business.name,
               logo: business.logo,
-              // slug: business.slug, // COMMENTED - field does not exist
+              slug: business.slug, // Include real slug field
               description: business.description,
               phone: business.phone,
               address: business.address,
@@ -202,20 +201,13 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Fallback to JWT data (for non-admin users or when business not found)
-    const businessInfo = {
-      id: user.businessId,
-      name: user.businessName,
-      logo: null,
-      // slug: user.businessSlug // COMMENTED - field doesn't exist
-    };
-    
-    console.log('🏢 Returning business info from JWT:', businessInfo);
+    // No business found in database - return error instead of potentially hardcoded JWT data
+    console.log('❌ No business found for user:', user.email);
     
     return NextResponse.json({ 
-      success: true, 
-      data: businessInfo
-    });
+      success: false,
+      error: 'Business information not found in database'
+    }, { status: 404 });
     
   } catch (error) {
     console.error('🚨 Business info error:', error);

@@ -33,10 +33,10 @@ interface Booking {
 
 export default function StaffBookingsPage() {
   const { user, loading: authLoading } = useAuth();
-  const businessSlug = user?.businessSlug || 'advogados-bla-bla';
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const businessSlug = user?.businessSlug;
+  const [appointments, setAppointments] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('today');
@@ -44,6 +44,12 @@ export default function StaffBookingsPage() {
   useEffect(() => {
     if (authLoading) return;
     
+    if (!businessSlug) {
+      setError('Business information not available. Please try logging in again.');
+      setLoading(false);
+      return;
+    }
+
     async function fetchBookings() {
       try {
         setLoading(true);
@@ -58,7 +64,7 @@ export default function StaffBookingsPage() {
           const data = await response.json();
           
           if (data.success && data.data.appointments) {
-            setBookings(data.data.appointments);
+            setAppointments(data.data.appointments);
           } else {
             setError(data.error || 'Failed to load bookings');
           }
@@ -74,7 +80,7 @@ export default function StaffBookingsPage() {
     }
 
     fetchBookings();
-  }, [authLoading]);
+  }, [authLoading, businessSlug]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -96,7 +102,7 @@ export default function StaffBookingsPage() {
     }
   };
 
-  const filteredBookings = bookings.filter(booking => {
+  const filteredBookings = appointments.filter(booking => {
     const matchesSearch = 
       booking.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.services.some(service => service.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -213,7 +219,7 @@ export default function StaffBookingsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{bookings.length}</div>
+            <div className="text-2xl font-bold">{appointments.length}</div>
           </CardContent>
         </Card>
         
@@ -224,7 +230,7 @@ export default function StaffBookingsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {bookings.filter(b => b.status === 'PENDING').length}
+              {appointments.filter(b => b.status === 'PENDING').length}
             </div>
           </CardContent>
         </Card>
@@ -236,7 +242,7 @@ export default function StaffBookingsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {bookings.filter(b => b.status === 'CONFIRMED').length}
+              {appointments.filter(b => b.status === 'CONFIRMED').length}
             </div>
           </CardContent>
         </Card>
@@ -248,7 +254,7 @@ export default function StaffBookingsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {bookings.filter(b => b.status === 'COMPLETED').length}
+              {appointments.filter(b => b.status === 'COMPLETED').length}
             </div>
           </CardContent>
         </Card>
