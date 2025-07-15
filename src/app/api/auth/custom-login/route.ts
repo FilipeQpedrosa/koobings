@@ -7,9 +7,12 @@ const JWT_SECRET = process.env.NEXTAUTH_SECRET!;
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, businessSlug } = await request.json();
 
     console.log('🔐 Login attempt for email:', email);
+    if (businessSlug) {
+      console.log('🏢 Specific business requested:', businessSlug);
+    }
 
     // First, try to find staff member
     const staff = await (prisma.staff as any).findUnique({
@@ -28,6 +31,13 @@ export async function POST(request: NextRequest) {
           slug: true, // Use real slug from database
         }
       });
+      
+      // 🚨 CRITICAL FIX: If businessSlug is specified, only allow login for that specific business
+      if (businessSlug && business?.slug !== businessSlug) {
+        console.log('❌ Staff login denied: business slug mismatch');
+        console.log('❌ Staff business:', business?.slug, 'Requested:', businessSlug);
+        return NextResponse.json({ error: 'Invalid credentials for this business' }, { status: 401 });
+      }
       
       // Verify password
       const isValidPassword = await compare(password, staff.password);
@@ -81,29 +91,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If staff not found, try business owner
-    const business = await (prisma.business as any).findUnique({
-      where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        ownerName: true,
-        passwordHash: true,
-        slug: true, // Use real slug from database
-      }
-    });
+    // 🚨 CRITICAL FIX: If businessSlug is specified, find business by slug AND email
+    // If staff not found, try business owner with SPECIFIC business slug
+    let business;
+    if (businessSlug) {
+      console.log('🎯 Looking for business owner with specific slug:', businessSlug);
+      business = await (prisma.business as any).findFirst({
+        where: { 
+          email,
+          slug: businessSlug 
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          ownerName: true,
+          passwordHash: true,
+          slug: true, // Use real slug from database
+        }
+      });
+    } else {
+      // Legacy behavior: find any business with this email
+      console.log('🔍 Looking for any business owner with email:', email);
+      business = await (prisma.business as any).findUnique({
+        where: { email },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          ownerName: true,
+          passwordHash: true,
+          slug: true, // Use real slug from database
+        }
+      });
+    }
 
     if (business) {
-      console.log('🏢 Business owner found:', business.ownerName || business.name);
+      console.log('🏢 Business owner found:', business.ownerName || business.name, 'for business:', business.slug);
       
       // Verify password
       const isValidPassword = await compare(password, business.passwordHash);
       
       if (isValidPassword) {
         // Use business slug from database
-        const businessSlug = business.slug || 'business'; // Fallback only if slug is missing
-        const dashboardUrl = `/${businessSlug}/staff/dashboard`;
+        const businessSlugForToken = business.slug || 'business'; // Fallback only if slug is missing
+        const dashboardUrl = `/${businessSlugForToken}/staff/dashboard`;
         
         // Create JWT token directly
         const token = sign({
@@ -113,11 +145,11 @@ export async function POST(request: NextRequest) {
           role: 'BUSINESS_OWNER',
           businessId: business.id,
           businessName: business.name,
-          businessSlug: businessSlug,
+          businessSlug: businessSlugForToken,
           isAdmin: false  // Business owners are not system admins
         }, JWT_SECRET, { expiresIn: '7d' });
         
-        console.log('✅ Business owner login successful for:', business.ownerName || business.name);
+        console.log('✅ Business owner login successful for:', business.ownerName || business.name, 'business:', business.slug);
         
         // Set cookie and redirect
         const response = NextResponse.json({ 
@@ -129,7 +161,7 @@ export async function POST(request: NextRequest) {
             name: business.ownerName || business.name,
             role: 'BUSINESS_OWNER',
             businessName: business.name,
-            businessSlug: businessSlug,
+            businessSlug: businessSlugForToken,
             isAdmin: false  // Business owners are not system admins
           }
         });

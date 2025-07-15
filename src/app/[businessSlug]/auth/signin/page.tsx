@@ -64,7 +64,11 @@ export default function BusinessSignIn() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ 
+          email, 
+          password,
+          businessSlug: businessSlug // 🚨 CRITICAL FIX: Send specific business slug
+        }),
       });
 
       const data = await response.json();
