@@ -20,68 +20,50 @@ interface BusinessPermissions {
 }
 
 export default function StaffSettingsPage() {
+  // 🔥 ALL HOOKS AT THE TOP - NEVER CONDITIONAL
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
-
   const [permissions, setPermissions] = useState<BusinessPermissions>({
     allowStaffToViewAllBookings: false,
     restrictStaffToViewAllClients: false,
     restrictStaffToViewAllNotes: false,
     requireAdminCancelApproval: false,
   });
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Fix hydration by waiting for client mount
+  // 🔥 HYDRATION SAFETY - Wait for client mount
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted) {
+    if (mounted && !authLoading && user?.businessSlug) {
       fetchBusinessPermissions();
     }
-  }, [mounted]);
-
-  const businessSlug = user?.businessSlug;
-
-  if (authLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!businessSlug) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
-          <p className="text-red-600">Unable to load business settings. Please try logging in again.</p>
-        </div>
-      </div>
-    );
-  }
+  }, [mounted, authLoading, user?.businessSlug]);
 
   const settingsOptions = [
     {
       title: 'Services',
       description: 'Manage your business services and pricing',
       icon: Package,
-      href: `/${businessSlug}/staff/settings/services`,
+      href: `/${user?.businessSlug}/staff/settings/services`,
       color: 'text-blue-600'
     },
     {
       title: 'Categories',
       description: 'Organize services into categories',
       icon: Tag,
-      href: `/${businessSlug}/staff/settings/categories`,
+      href: `/${user?.businessSlug}/staff/settings/categories`,
       color: 'text-green-600'
     },
     {
       title: 'Staff',
       description: 'Manage staff members and permissions',
       icon: Users,
-      href: `/${businessSlug}/staff/settings/staff`,
+      href: `/${user?.businessSlug}/staff/settings/staff`,
       color: 'text-purple-600'
     }
   ];
@@ -144,13 +126,33 @@ export default function StaffSettingsPage() {
     }));
   };
 
-  // Don't render dynamic content until mounted on client
+  // 🔥 CRITICAL: Prevent rendering until mounted (hydration safety)
   if (!mounted) {
     return (
       <div className="space-y-6 p-6">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
           <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // 🔥 Loading states after mounting
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user?.businessSlug) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
+          <p className="text-red-600">Unable to load business settings. Please try logging in again.</p>
         </div>
       </div>
     );
@@ -194,189 +196,210 @@ export default function StaffSettingsPage() {
 
         {/* General Settings Tab */}
         <TabsContent value="general" className="space-y-6">
-          {/* Settings Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {settingsOptions.map((option) => (
-              <Card key={option.title} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <option.icon className={`h-5 w-5 mr-2 ${option.color}`} />
-                    {option.title}
-                  </CardTitle>
-                  <CardDescription>{option.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href={option.href}>
-                    <Button variant="outline" className="w-full justify-between">
-                      Configure
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Settings</CardTitle>
+              <CardDescription>
+                Manage the core aspects of your business
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {settingsOptions.map((option) => {
+                  const IconComponent = option.icon;
+                  return (
+                    <Link key={option.title} href={option.href} className="block">
+                      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                        <CardContent className="p-6">
+                          <div className="flex items-start space-x-4">
+                            <div className={`p-2 rounded-lg bg-gray-50`}>
+                              <IconComponent className={`h-6 w-6 ${option.color}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 flex items-center">
+                                {option.title}
+                                <ArrowRight className="h-4 w-4 ml-2 text-gray-400" />
+                              </h3>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {option.description}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* General Settings */}
+          {/* Business Information */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                General Settings
+                <Database className="h-5 w-5 mr-2" />
+                Business Information
               </CardTitle>
               <CardDescription>
-                Basic business configuration
+                View and manage your business profile
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Business Name</label>
-                  <div className="p-2 bg-gray-50 rounded text-gray-900 mt-1">
-                    {user?.businessName || 'Not set'}
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Business Name</Label>
+                    <p className="text-sm text-gray-900">{user?.businessName || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Business Slug</Label>
+                    <p className="text-sm text-gray-900">{user?.businessSlug || 'Not set'}</p>
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Business Slug</label>
-                  <div className="p-2 bg-gray-50 rounded text-gray-900 mt-1">
-                    {businessSlug}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t">
-                <p className="text-sm text-gray-500">
-                  Need to update business information? Contact your administrator.
-                </p>
+                
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription>
+                    <span className="text-blue-800">
+                      To modify business information, please contact support or use the admin panel.
+                    </span>
+                  </AlertDescription>
+                </Alert>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Permissions Tab */}
-        <TabsContent value="permissions">
+        {/* Staff Permissions Tab */}
+        <TabsContent value="permissions" className="space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center">
-                  <Shield className="h-5 w-5 mr-2" />
-                  Permissões de Staff por Padrão
-                </CardTitle>
-                <CardDescription>
-                  Configure as permissões padrão para membros da equipa deste negócio.
-                </CardDescription>
-              </div>
-              <Button onClick={savePermissions} disabled={saving || loading}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Salvando...' : 'Salvar'}
-              </Button>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Shield className="h-5 w-5 mr-2" />
+                Staff Permissions
+              </CardTitle>
+              <CardDescription>
+                Control what your staff members can view and do
+              </CardDescription>
             </CardHeader>
-            {loading ? (
-              <CardContent>
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-                    <p>Carregando configurações...</p>
-                  </div>
+            <CardContent className="space-y-6">
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading permissions...</p>
                 </div>
-              </CardContent>
-            ) : (
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                    <Eye className="h-5 w-5 text-blue-500 mt-0.5" />
-                    <div className="flex-1">
+              ) : (
+                <>
+                  {/* Booking Permissions */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-gray-900 flex items-center">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Booking Permissions
+                    </h3>
+                    
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label htmlFor="allow-view-all-bookings" className="text-base font-medium">
-                            Ver Todos os Agendamentos
+                          <Label htmlFor="view-all-bookings" className="font-medium">
+                            Allow staff to view all bookings
                           </Label>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Permitir que staff padrão veja agendamentos de todos os membros da equipa, ou apenas os seus próprios.
+                          <p className="text-sm text-gray-500">
+                            When enabled, staff can see bookings from all staff members
                           </p>
                         </div>
                         <Switch
-                          id="allow-view-all-bookings"
+                          id="view-all-bookings"
                           checked={permissions.allowStaffToViewAllBookings}
-                          onCheckedChange={(checked) => updatePermission('allowStaffToViewAllBookings', checked)}
+                          onCheckedChange={(value) => updatePermission('allowStaffToViewAllBookings', value)}
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                    <Users className="h-5 w-5 text-green-500 mt-0.5" />
-                    <div className="flex-1">
+                  {/* Client Permissions */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-gray-900 flex items-center">
+                      <Users className="h-4 w-4 mr-2" />
+                      Client Permissions
+                    </h3>
+                    
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label htmlFor="restrict-client-access" className="text-base font-medium">
-                            Restringir Acesso a Clientes
+                          <Label htmlFor="restrict-client-view" className="font-medium">
+                            Restrict staff to view all clients
                           </Label>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Se ativo, staff só pode ver clientes que criaram. Se inativo, pode ver todos os clientes do negócio.
+                          <p className="text-sm text-gray-500">
+                            When enabled, staff can only see their own clients
                           </p>
                         </div>
                         <Switch
-                          id="restrict-client-access"
+                          id="restrict-client-view"
                           checked={permissions.restrictStaffToViewAllClients}
-                          onCheckedChange={(checked) => updatePermission('restrictStaffToViewAllClients', checked)}
+                          onCheckedChange={(value) => updatePermission('restrictStaffToViewAllClients', value)}
                         />
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                    <Database className="h-5 w-5 text-yellow-500 mt-0.5" />
-                    <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label htmlFor="restrict-notes-access" className="text-base font-medium">
-                            Restringir Acesso a Notas
+                          <Label htmlFor="restrict-notes-view" className="font-medium">
+                            Restrict staff to view all notes
                           </Label>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Se ativo, staff só pode ver notas que criaram. Se inativo, pode ver todas as notas dos clientes.
+                          <p className="text-sm text-gray-500">
+                            When enabled, staff can only see notes they created
                           </p>
                         </div>
                         <Switch
-                          id="restrict-notes-access"
+                          id="restrict-notes-view"
                           checked={permissions.restrictStaffToViewAllNotes}
-                          onCheckedChange={(checked) => updatePermission('restrictStaffToViewAllNotes', checked)}
+                          onCheckedChange={(value) => updatePermission('restrictStaffToViewAllNotes', value)}
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-start space-x-3 p-4 border rounded-lg">
-                    <Lock className="h-5 w-5 text-red-500 mt-0.5" />
-                    <div className="flex-1">
+                  {/* Administrative Permissions */}
+                  <div className="space-y-4">
+                    <h3 className="font-medium text-gray-900 flex items-center">
+                      <Lock className="h-4 w-4 mr-2" />
+                      Administrative Controls
+                    </h3>
+                    
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label htmlFor="require-cancel-approval" className="text-base font-medium">
-                            Aprovação para Cancelamentos
+                          <Label htmlFor="admin-cancel-approval" className="font-medium">
+                            Require admin approval for cancellations
                           </Label>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Requerer aprovação de administrador para cancelar agendamentos.
+                          <p className="text-sm text-gray-500">
+                            When enabled, staff must get admin approval to cancel appointments
                           </p>
                         </div>
                         <Switch
-                          id="require-cancel-approval"
+                          id="admin-cancel-approval"
                           checked={permissions.requireAdminCancelApproval}
-                          onCheckedChange={(checked) => updatePermission('requireAdminCancelApproval', checked)}
+                          onCheckedChange={(value) => updatePermission('requireAdminCancelApproval', value)}
                         />
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Nota:</strong> Estas configurações aplicam-se a todos os membros da equipa deste negócio. 
-                    As alterações terão efeito imediato para novos agendamentos e acessos.
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            )}
+                  {/* Save Button */}
+                  <div className="pt-4 border-t">
+                    <Button 
+                      onClick={savePermissions}
+                      disabled={saving}
+                      className="w-full sm:w-auto"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {saving ? 'Saving...' : 'Save Permissions'}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

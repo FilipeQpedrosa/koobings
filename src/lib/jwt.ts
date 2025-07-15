@@ -97,7 +97,34 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
   try {
     const pathname = request.nextUrl.pathname;
     
-    // For admin routes, prioritize admin token
+    // 🚨 CRITICAL FIX: For admins, ALWAYS prioritize admin token first
+    // This prevents business data contamination when admins access business routes
+    const adminToken = request.cookies.get('admin-auth-token')?.value;
+    if (adminToken) {
+      const adminUser = verifyJWTToken(adminToken);
+      if (adminUser && adminUser.role === 'ADMIN' && adminUser.isAdmin) {
+        console.log('🔑 Admin token found, using admin privileges for:', adminUser.email);
+        
+        // For business routes, admin should have access without business-specific data
+        const businessSlugMatch = pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
+        if (businessSlugMatch) {
+          const businessSlug = businessSlugMatch[1];
+          console.log('👑 Admin accessing business route:', businessSlug);
+          
+          // Admin can access any business - return admin user without business contamination
+          return {
+            ...adminUser,
+            businessId: undefined, // Clear any business data contamination
+            businessName: undefined,
+            businessSlug: undefined
+          };
+        }
+        
+        return adminUser;
+      }
+    }
+    
+    // For admin routes, prioritize admin token (redundant check but safer)
     if (pathname.startsWith('/admin')) {
       const adminToken = request.cookies.get('admin-auth-token')?.value;
       if (adminToken) {
@@ -108,7 +135,7 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
       }
     }
     
-    // For business routes, prioritize business token
+    // For business routes, check business token (only for non-admins)
     const businessSlugMatch = pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
     if (businessSlugMatch) {
       const businessToken = request.cookies.get('business-auth-token')?.value;
@@ -120,9 +147,8 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
       }
     }
     
-    // Fallback: try all tokens
+    // Fallback: try all tokens (but admin was already checked above)
     const tokens = [
-      request.cookies.get('admin-auth-token')?.value,
       request.cookies.get('business-auth-token')?.value,
       request.cookies.get('auth-token')?.value // backward compatibility
     ];

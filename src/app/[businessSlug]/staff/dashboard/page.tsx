@@ -30,34 +30,83 @@ export default function StaffDashboard() {
       return;
     }
 
-    fetchBusinessInfo();
+    fetchDashboardData();
   }, [authLoading, user?.businessSlug]);
 
-  const fetchBusinessInfo = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/business/info', {
-        credentials: 'include',
-        cache: 'no-store'
+      console.log('📊 Dashboard: Fetching business info and stats...');
+      
+      // Fetch both business info and stats in parallel
+      const [businessRes, statsRes] = await Promise.all([
+        fetch('/api/business/info', {
+          credentials: 'include',
+          cache: 'no-store'
+        }),
+        fetch('/api/staff/dashboard/stats', {
+          credentials: 'include',
+          cache: 'no-store'
+        })
+      ]);
+
+      console.log('📊 Dashboard: API responses:', {
+        businessOk: businessRes.ok,
+        statsOk: statsRes.ok,
+        businessStatus: businessRes.status,
+        statsStatus: statsRes.status
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setBusiness(data.data);
+      // Handle business info
+      if (businessRes.ok) {
+        const businessData = await businessRes.json();
+        if (businessData.success) {
+          setBusiness(businessData.data);
+          console.log('✅ Dashboard: Business info loaded:', businessData.data.name);
         } else {
+          console.log('❌ Dashboard: Business info failed:', businessData.error);
           setError('Failed to load business information');
         }
-      } else if (response.status === 404) {
+      } else if (businessRes.status === 404) {
         setError('Business not found. Please contact support.');
       } else {
         setError('Failed to connect to server');
       }
+
+      // Handle stats
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        console.log('📊 Dashboard: Stats received:', statsData);
+        setStats({
+          totalAppointments: statsData.totalAppointments || 0,
+          upcomingAppointments: statsData.upcomingAppointments || 0,
+          totalClients: statsData.totalClients || 0,
+          completionRate: statsData.completionRate || 0,
+        });
+        console.log('✅ Dashboard: Stats loaded successfully');
+      } else {
+        console.log('❌ Dashboard: Stats failed:', statsRes.status);
+        // Set default stats if API fails
+        setStats({
+          totalAppointments: 0,
+          upcomingAppointments: 0,
+          totalClients: 0,
+          completionRate: 0,
+        });
+      }
+
     } catch (error) {
-      console.error('Error fetching business info:', error);
+      console.error('❌ Dashboard: Error fetching data:', error);
       setError('Network error occurred');
+      // Set default stats on error
+      setStats({
+        totalAppointments: 0,
+        upcomingAppointments: 0,
+        totalClients: 0,
+        completionRate: 0,
+      });
     } finally {
       setLoading(false);
     }

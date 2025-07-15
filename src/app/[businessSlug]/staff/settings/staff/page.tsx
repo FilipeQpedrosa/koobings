@@ -21,24 +21,9 @@ interface StaffMember {
 }
 
 export default function StaffSettingsStaffPage() {
+  // 🔥 ALL HOOKS AT THE TOP - NEVER CONDITIONAL
   const { user, loading: authLoading } = useAuth();
-  const businessSlug = user?.businessSlug;
-
-  if (authLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!businessSlug) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
-          <p className="text-red-600">Unable to load staff settings. Please try logging in again.</p>
-        </div>
-      </div>
-    );
-  }
-  
+  const [mounted, setMounted] = useState(false);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -69,9 +54,22 @@ export default function StaffSettingsStaffPage() {
     role: 'STANDARD' as 'ADMIN' | 'MANAGER' | 'STANDARD'
   });
 
+  // 🔥 HYDRATION SAFETY - Wait for client mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Only fetch staff after mounting and auth is loaded
+  useEffect(() => {
+    if (mounted && !authLoading && user?.businessSlug) {
+      fetchStaffMembers();
+    }
+  }, [mounted, authLoading, user?.businessSlug]);
+
   // Fetch staff members
   const fetchStaffMembers = async () => {
     try {
+      setLoading(true);
       const response = await fetch('/api/business/staff', {
         credentials: 'include'
       });
@@ -88,10 +86,6 @@ export default function StaffSettingsStaffPage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchStaffMembers();
-  }, []);
 
   // Handle form submission for creating staff
   const handleCreateStaff = async (e: React.FormEvent) => {
@@ -255,12 +249,44 @@ export default function StaffSettingsStaffPage() {
     }
   };
 
+  // 🔥 CRITICAL: Prevent rendering until mounted (hydration safety)
+  if (!mounted) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // 🔥 Loading states after mounting
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user?.businessSlug) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Business Information Missing</h3>
+          <p className="text-red-600">Unable to load staff settings. Please try logging in again.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Link href={`/${businessSlug}/staff/settings`}>
+          <Link href={`/${user.businessSlug}/staff/settings`}>
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar para Configurações
