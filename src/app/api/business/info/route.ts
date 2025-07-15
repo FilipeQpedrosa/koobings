@@ -125,26 +125,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log('✅ Token valid for user:', user.name, 'isAdmin:', user.isAdmin);
+    console.log('✅ Token valid for user:', user.name, 'isAdmin:', user.isAdmin, 'role:', user.role, 'businessId:', user.businessId);
     
     // Check if admin is requesting a specific business via query parameter OR route path
     const url = new URL(request.url);
     let requestedBusinessSlug = url.searchParams.get('businessSlug');
+    console.log('🔍 Query businessSlug:', requestedBusinessSlug);
     
     // 🚨 CRITICAL FIX: For admins, extract business slug from the Referer header (the page they're coming from)
-    if (user.isAdmin && !requestedBusinessSlug) {
-      const referer = request.headers.get('referer');
-      if (referer) {
-        const refererUrl = new URL(referer);
-        const pathMatch = refererUrl.pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
-        if (pathMatch) {
-          requestedBusinessSlug = pathMatch[1];
-          console.log('👑 Admin accessing business from referer:', requestedBusinessSlug);
-        }
+    const referer = request.headers.get('referer');
+    console.log('🔍 Referer header:', referer);
+    
+    if (user.isAdmin && !requestedBusinessSlug && referer) {
+      const refererUrl = new URL(referer);
+      console.log('🔍 Referer pathname:', refererUrl.pathname);
+      const pathMatch = refererUrl.pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
+      console.log('🔍 Path match result:', pathMatch);
+      if (pathMatch) {
+        requestedBusinessSlug = pathMatch[1];
+        console.log('👑 Admin accessing business from referer:', requestedBusinessSlug);
       }
     }
     
     let targetBusinessId = user.businessId;
+    console.log('🎯 Initial targetBusinessId:', targetBusinessId);
     
     // If admin requests a specific business (or we detected it from referer), allow it
     if (user.isAdmin && requestedBusinessSlug) {
@@ -156,9 +160,12 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true, slug: true }
         });
         
+        console.log('🔍 Database lookup result:', requestedBusiness);
+        
         if (requestedBusiness) {
           console.log('✅ Admin business found:', requestedBusiness.name);
           targetBusinessId = requestedBusiness.id;
+          console.log('🎯 Updated targetBusinessId:', targetBusinessId);
         } else {
           console.log('❌ Requested business not found:', requestedBusinessSlug);
           return NextResponse.json({ 
@@ -170,6 +177,8 @@ export async function GET(request: NextRequest) {
         console.error('❌ Error finding requested business:', error);
       }
     }
+    
+    console.log('🎯 Final targetBusinessId:', targetBusinessId);
     
     // Get business from database if businessId is available
     if (targetBusinessId) {
