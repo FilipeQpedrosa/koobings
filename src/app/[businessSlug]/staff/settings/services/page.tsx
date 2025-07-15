@@ -66,14 +66,25 @@ export default function StaffSettingsServicesPage() {
       setLoading(true);
       setError('');
       
+      console.log('🔧 DEBUG: Fetching services...');
+      
       const response = await fetch('/api/business/services', {
         credentials: 'include',
-        cache: 'no-store'
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
+      
+      console.log('🔧 DEBUG: Fetch response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
+        console.log('🔧 DEBUG: Fetch response data:', data);
+        
         if (data.success) {
+          console.log('🔧 DEBUG: Setting services to:', data.data.length, 'items');
           setServices(data.data);
         } else {
           setError(data.error || 'Failed to load services');
@@ -82,7 +93,7 @@ export default function StaffSettingsServicesPage() {
         setError('Failed to load services');
       }
     } catch (err) {
-      console.error('Error fetching services:', err);
+      console.error('🔧 DEBUG: Error fetching services:', err);
       setError('Failed to load services');
     } finally {
       setLoading(false);
@@ -177,7 +188,13 @@ export default function StaffSettingsServicesPage() {
       
       if (data.success) {
         console.log('🔧 DEBUG: Service created successfully, refreshing list');
-        await fetchServices(); // Refresh the list
+        console.log('🔧 DEBUG: Current services before refresh:', services.length);
+        
+        // Force refresh the services list
+        setLoading(true);
+        await fetchServices();
+        
+        console.log('🔧 DEBUG: Services refreshed');
         closeModal();
       } else {
         console.log('🔧 DEBUG: Service creation failed:', data.error);
