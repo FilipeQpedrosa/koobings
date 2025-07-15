@@ -127,13 +127,26 @@ export async function GET(request: NextRequest) {
     
     console.log('✅ Token valid for user:', user.name, 'isAdmin:', user.isAdmin);
     
-    // Check if admin is requesting a specific business via query parameter
+    // Check if admin is requesting a specific business via query parameter OR route path
     const url = new URL(request.url);
-    const requestedBusinessSlug = url.searchParams.get('businessSlug');
+    let requestedBusinessSlug = url.searchParams.get('businessSlug');
+    
+    // 🚨 CRITICAL FIX: For admins, extract business slug from the Referer header (the page they're coming from)
+    if (user.isAdmin && !requestedBusinessSlug) {
+      const referer = request.headers.get('referer');
+      if (referer) {
+        const refererUrl = new URL(referer);
+        const pathMatch = refererUrl.pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
+        if (pathMatch) {
+          requestedBusinessSlug = pathMatch[1];
+          console.log('👑 Admin accessing business from referer:', requestedBusinessSlug);
+        }
+      }
+    }
     
     let targetBusinessId = user.businessId;
     
-    // If admin requests a specific business, allow it
+    // If admin requests a specific business (or we detected it from referer), allow it
     if (user.isAdmin && requestedBusinessSlug) {
       console.log('👑 Admin requesting business:', requestedBusinessSlug);
       try {
@@ -148,6 +161,10 @@ export async function GET(request: NextRequest) {
           targetBusinessId = requestedBusiness.id;
         } else {
           console.log('❌ Requested business not found:', requestedBusinessSlug);
+          return NextResponse.json({ 
+            success: false,
+            error: 'Business not found'
+          }, { status: 404 });
         }
       } catch (error) {
         console.error('❌ Error finding requested business:', error);
@@ -210,8 +227,11 @@ export async function GET(request: NextRequest) {
     }, { status: 404 });
     
   } catch (error) {
-    console.error('🚨 Business info error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('❌ Business info error:', error);
+    return NextResponse.json({ 
+      success: false,
+      error: 'Internal server error' 
+    }, { status: 500 });
   }
 }
 
