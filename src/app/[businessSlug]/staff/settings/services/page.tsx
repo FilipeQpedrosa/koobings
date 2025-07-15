@@ -33,8 +33,9 @@ interface ServiceFormData {
 }
 
 export default function StaffSettingsServicesPage() {
+  // 🔥 ALL HOOKS AT THE TOP - NEVER CONDITIONAL
   const { user, loading: authLoading } = useAuth();
-  const businessSlug = user?.businessSlug;
+  const [mounted, setMounted] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,10 +50,16 @@ export default function StaffSettingsServicesPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // 🔥 HYDRATION SAFETY - Wait for client mount
   useEffect(() => {
-    if (authLoading) return;
-    fetchServices();
-  }, [authLoading]);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !authLoading && user?.businessSlug) {
+      fetchServices();
+    }
+  }, [mounted, authLoading, user?.businessSlug]);
 
   const fetchServices = async () => {
     try {
@@ -193,6 +200,18 @@ export default function StaffSettingsServicesPage() {
     (service.description && service.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // 🔥 CRITICAL: Prevent rendering until mounted (hydration safety)
+  if (!mounted) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -201,7 +220,7 @@ export default function StaffSettingsServicesPage() {
     );
   }
 
-  if (!businessSlug) {
+  if (!user?.businessSlug) {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -217,7 +236,7 @@ export default function StaffSettingsServicesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Link href={`/${businessSlug}/staff/settings`}>
+          <Link href={`/${user.businessSlug}/staff/settings`}>
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Settings
