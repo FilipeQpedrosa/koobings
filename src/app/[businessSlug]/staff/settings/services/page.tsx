@@ -128,6 +128,9 @@ export default function StaffSettingsServicesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🔧 DEBUG: handleSubmit called');
+    console.log('🔧 DEBUG: formData:', formData);
+    
     if (!formData.name.trim()) {
       setError('Service name is required');
       return;
@@ -143,6 +146,15 @@ export default function StaffSettingsServicesPage() {
       
       const method = editingService ? 'PUT' : 'POST';
       
+      console.log('🔧 DEBUG: Making request to:', url);
+      console.log('🔧 DEBUG: Method:', method);
+      console.log('🔧 DEBUG: Body:', {
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        duration: formData.duration,
+        price: formData.price,
+      });
+      
       const response = await fetch(url, {
         method,
         headers: {
@@ -157,16 +169,22 @@ export default function StaffSettingsServicesPage() {
         }),
       });
 
+      console.log('🔧 DEBUG: Response status:', response.status);
+      console.log('🔧 DEBUG: Response headers:', response.headers);
+      
       const data = await response.json();
+      console.log('🔧 DEBUG: Response data:', data);
       
       if (data.success) {
+        console.log('🔧 DEBUG: Service created successfully, refreshing list');
         await fetchServices(); // Refresh the list
         closeModal();
       } else {
+        console.log('🔧 DEBUG: Service creation failed:', data.error);
         setError(data.error || `Failed to ${editingService ? 'update' : 'create'} service`);
       }
     } catch (error) {
-      console.error('Error saving service:', error);
+      console.error('🔧 DEBUG: Error saving service:', error);
       setError(`Failed to ${editingService ? 'update' : 'create'} service`);
     } finally {
       setSubmitting(false);
