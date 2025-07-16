@@ -127,32 +127,41 @@ export async function GET(request: NextRequest) {
     
     console.log('✅ Token valid for user:', user.name, 'isAdmin:', user.isAdmin, 'role:', user.role, 'businessId:', user.businessId);
     
-    // Check if admin is requesting a specific business via query parameter OR route path
+    // 🚨 CRITICAL FIX: Get businessSlug from multiple sources
     const url = new URL(request.url);
     let requestedBusinessSlug = url.searchParams.get('businessSlug');
     console.log('🔍 Query businessSlug:', requestedBusinessSlug);
     
-    // 🚨 CRITICAL FIX: For admins, extract business slug from the Referer header (the page they're coming from)
+    // Try to get businessSlug from referer header
     const referer = request.headers.get('referer');
     console.log('🔍 Referer header:', referer);
     
-    if (user.isAdmin && !requestedBusinessSlug && referer) {
+    if (!requestedBusinessSlug && referer) {
       const refererUrl = new URL(referer);
       console.log('🔍 Referer pathname:', refererUrl.pathname);
       const pathMatch = refererUrl.pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
       console.log('🔍 Path match result:', pathMatch);
       if (pathMatch) {
         requestedBusinessSlug = pathMatch[1];
-        console.log('👑 Admin accessing business from referer:', requestedBusinessSlug);
+        console.log('🎯 Business slug from referer:', requestedBusinessSlug);
+      }
+    }
+    
+    // 🚀 NEW: Also try to get businessSlug from current request path (if it's a business route)
+    if (!requestedBusinessSlug) {
+      const currentPathMatch = url.pathname.match(/^\/([^\/]+)\/(staff|clients|dashboard|settings)/);
+      if (currentPathMatch) {
+        requestedBusinessSlug = currentPathMatch[1];
+        console.log('🎯 Business slug from current path:', requestedBusinessSlug);
       }
     }
     
     let targetBusinessId = user.businessId;
     console.log('🎯 Initial targetBusinessId:', targetBusinessId);
     
-    // If admin requests a specific business (or we detected it from referer), allow it
-    if (user.isAdmin && requestedBusinessSlug) {
-      console.log('👑 Admin requesting business:', requestedBusinessSlug);
+    // If we have a specific business slug (from any source), use it
+    if (requestedBusinessSlug) {
+      console.log('🔍 Looking up business by slug:', requestedBusinessSlug);
       try {
         // Use real slug field from database
         const requestedBusiness = await prisma.business.findUnique({
@@ -163,9 +172,19 @@ export async function GET(request: NextRequest) {
         console.log('🔍 Database lookup result:', requestedBusiness);
         
         if (requestedBusiness) {
-          console.log('✅ Admin business found:', requestedBusiness.name);
-          targetBusinessId = requestedBusiness.id;
-          console.log('🎯 Updated targetBusinessId:', targetBusinessId);
+          console.log('✅ Business found by slug:', requestedBusiness.name);
+          
+          // Security check: only allow if user has permission
+          if (user.isAdmin || user.businessId === requestedBusiness.id) {
+            targetBusinessId = requestedBusiness.id;
+            console.log('🎯 Updated targetBusinessId:', targetBusinessId);
+          } else {
+            console.log('❌ User does not have permission for this business');
+            return NextResponse.json({ 
+              success: false,
+              error: 'Access denied to this business'
+            }, { status: 403 });
+          }
         } else {
           console.log('❌ Requested business not found:', requestedBusinessSlug);
           return NextResponse.json({ 
@@ -202,7 +221,7 @@ export async function GET(request: NextRequest) {
         });
         
         if (business) {
-          console.log('🏢 Returning business info from database:', business.name);
+          console.log('🏢 Returning business info from database:', business.name, 'slug:', business.slug);
           
           return NextResponse.json({ 
             success: true, 

@@ -1,6 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// HEAD method for efficient existence checking (used by middleware)
+export async function HEAD(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const { slug } = await params;
+
+    if (!slug) {
+      return new NextResponse(null, { status: 400 });
+    }
+
+    // Check if middleware is calling (avoid infinite loops)
+    const isMiddlewareCheck = request.headers.get('x-middleware-check');
+    if (!isMiddlewareCheck) {
+      return new NextResponse(null, { status: 400 });
+    }
+
+    console.log('🔍 Middleware checking business existence:', slug);
+
+    const business = await prisma.business.findUnique({
+      where: { 
+        slug: slug,
+        status: 'ACTIVE'
+      },
+      select: { id: true } // Minimal data for existence check
+    });
+
+    return new NextResponse(null, { 
+      status: business ? 200 : 404 
+    });
+
+  } catch (error) {
+    console.error('❌ Business existence check error:', error);
+    return new NextResponse(null, { status: 500 });
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
