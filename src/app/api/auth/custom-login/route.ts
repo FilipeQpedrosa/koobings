@@ -14,6 +14,28 @@ export async function POST(request: NextRequest) {
       console.log('🏢 Specific business requested:', businessSlug);
     }
 
+    // 🚨 CRITICAL SECURITY FIX: Clear all existing sessions before login
+    console.log('🧹 Clearing any existing sessions before login...');
+    
+    const response = NextResponse.json({ success: false }); // Temporary response
+    
+    // Clear ALL possible auth cookies before processing login
+    const cookiesToClear = [
+      'auth-token',
+      'business-auth-token', 
+      'admin-auth-token'
+    ];
+    
+    cookiesToClear.forEach(cookieName => {
+      response.cookies.set(cookieName, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        expires: new Date(0),
+        path: '/'
+      });
+    });
+
     // First, try to find staff member
     const staff = await (prisma.staff as any).findUnique({
       where: { email }
@@ -76,6 +98,23 @@ export async function POST(request: NextRequest) {
             staffRole: staff.role,
             isAdmin: staff.role === 'ADMIN'
           }
+        });
+        
+        // 🚨 SECURITY FIX: Clear all other cookies first, then set ONLY the correct one
+        response.cookies.set('admin-auth-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: new Date(0),
+          path: '/'
+        });
+        
+        response.cookies.set('auth-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: new Date(0),
+          path: '/'
         });
         
         // Use business-specific cookie name
@@ -166,6 +205,23 @@ export async function POST(request: NextRequest) {
           }
         });
         
+        // 🚨 SECURITY FIX: Clear all other cookies first, then set ONLY the correct one
+        response.cookies.set('admin-auth-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: new Date(0),
+          path: '/'
+        });
+        
+        response.cookies.set('auth-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: new Date(0),
+          path: '/'
+        });
+        
         // Use business-specific cookie name
         response.cookies.set('business-auth-token', token, {
           httpOnly: true,
@@ -222,6 +278,23 @@ export async function POST(request: NextRequest) {
             staffRole: 'ADMIN',
             isAdmin: true
           }
+        });
+        
+        // 🚨 SECURITY FIX: Clear all other cookies first, then set ONLY the correct one
+        response.cookies.set('business-auth-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: new Date(0),
+          path: '/'
+        });
+        
+        response.cookies.set('auth-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: new Date(0),
+          path: '/'
         });
         
         // Use admin-specific cookie name
