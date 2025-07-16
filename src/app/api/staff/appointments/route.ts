@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getRequestAuthUser } from '@/lib/jwt';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { startOfDay, endOfDay } from 'date-fns';
 
 export async function GET(req: NextRequest) {

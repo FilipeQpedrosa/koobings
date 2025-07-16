@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from 'next/server'
-import { getRequestAuthUser } from '@/lib/jwt';
+import { NextRequest, NextResponse } from 'next/server'
+import { getRequestAuthUser } from '@/lib/jwt-safe'
 
 /**
  * Extract business slug from pathname (simplified version for middleware)

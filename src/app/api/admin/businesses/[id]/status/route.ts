@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestAuthUser } from '@/lib/jwt';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -147,7 +147,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       });
 
       // Delete service categories
-      await tx.serviceCategory.deleteMany({
+      await tx.service_categories.deleteMany({
         where: { businessId: params.id }
       });
 

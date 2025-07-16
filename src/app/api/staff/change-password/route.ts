@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestAuthUser } from '@/lib/jwt';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { prisma } from '@/lib/prisma';
 import { compare, hash } from 'bcryptjs';
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
 import { z } from 'zod';
-import { getRequestAuthUser } from '@/lib/jwt';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { randomUUID } from 'crypto';
 
 export async function GET(request: NextRequest) {
