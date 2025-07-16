@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
         ownerName: true,
         phone: true,
         status: true,
-        slug: true,
         createdAt: true,
         _count: {
           select: {
@@ -56,7 +55,6 @@ export async function GET(request: NextRequest) {
         phone: business.phone || '',
         plan: 'standard', // Default plan for display
         status: business.status,
-        slug: business.slug,
         features: {}, // Empty features for display
         createdAt: business.createdAt.toISOString(),
         _count: {

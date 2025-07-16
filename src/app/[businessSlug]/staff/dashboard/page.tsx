@@ -38,11 +38,14 @@ export default function StaffDashboard() {
       setLoading(true);
       setError(null);
       
-      console.log('📊 Dashboard: Fetching business info and stats...');
+      console.log('📊 Dashboard: Fetching business info and stats for businessSlug:', businessSlug);
+      
+      // 🚨 CRITICAL FIX: Pass businessSlug as query parameter to ensure correct business data
+      const businessInfoUrl = `/api/business/info?businessSlug=${encodeURIComponent(businessSlug)}`;
       
       // Fetch both business info and stats in parallel
       const [businessRes, statsRes] = await Promise.all([
-        fetch('/api/business/info', {
+        fetch(businessInfoUrl, {
           credentials: 'include',
           cache: 'no-store'
         }),
@@ -64,7 +67,7 @@ export default function StaffDashboard() {
         const businessData = await businessRes.json();
         if (businessData.success) {
           setBusiness(businessData.data);
-          console.log('✅ Dashboard: Business info loaded:', businessData.data.name);
+          console.log('✅ Dashboard: Business info loaded:', businessData.data.name, 'slug:', businessData.data.slug);
         } else {
           console.log('❌ Dashboard: Business info failed:', businessData.error);
           setError('Failed to load business information');
