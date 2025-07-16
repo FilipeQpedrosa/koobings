@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestAuthUser } from '@/lib/jwt';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay, parse, format, addMinutes, isAfter, isBefore } from 'date-fns';
 
@@ -29,7 +29,7 @@ export async function GET(
     const dayEnd = endOfDay(selectedDate);
 
     // Get existing appointments for the staff on this date
-    const existingAppointments = await prisma.appointment.findMany({
+    const existingAppointments = await prisma.appointments.findMany({
       where: {
         staffId: staffId,
         scheduledFor: {

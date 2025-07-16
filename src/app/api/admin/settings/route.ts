@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getRequestAuthUser } from '@/lib/jwt';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import prisma from '@/lib/prisma';
 
 // Helper function to transform database settings to UI format

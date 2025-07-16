@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
-import { getRequestAuthUser } from '@/lib/jwt';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 
