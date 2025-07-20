@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Force cache bust - Fixed Prisma query 2025-07-20T08:25:00Z
 export async function GET(request: NextRequest) {
   try {
     console.log('🏢 Fetching businesses for marketplace with visibility controls...');
@@ -102,7 +103,8 @@ export async function GET(request: NextRequest) {
         success: false,
         error: 'Failed to fetch businesses',
         details: errorMessage,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: '2025-07-20T08:25:00Z'
       },
       { status: 500 }
     );
