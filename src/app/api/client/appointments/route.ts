@@ -145,7 +145,8 @@ export async function POST(request: NextRequest) {
       const notificationResponse = await fetch(`https://koobings.com/api/appointments/${appointment.id}/notifications`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Internal-Request': 'true' // Mark as internal request
         },
         body: JSON.stringify({
           status: 'PENDING',
