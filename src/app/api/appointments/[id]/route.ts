@@ -156,7 +156,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     
     // Trigger automatic notifications for status changes
     try {
-      const notificationResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/appointments/${params.id}/notifications`, {
+      const notificationResponse = await fetch(`https://koobings.com/api/appointments/${params.id}/notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
