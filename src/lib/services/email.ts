@@ -1,4 +1,4 @@
-import { sendBrevoEmail } from './brevo-email';
+import { sendGmailEmail } from './gmail-smtp'; // Switch back to Gmail
 
 export interface EmailOptions {
   to: string | string[];
@@ -9,34 +9,34 @@ export interface EmailOptions {
 }
 
 /**
- * Main email sending function - now uses Brevo
+ * Main email sending function - using Gmail SMTP for reliable delivery
  * Automatically handles appointment-related notifications
  */
 export async function sendEmail(options: EmailOptions) {
   try {
-    console.log('📧 [EMAIL_SERVICE] Sending email via Brevo...');
+    console.log('📧 [EMAIL_SERVICE] Sending email via Gmail SMTP...');
     
-    const result = await sendBrevoEmail({
+    const result = await sendGmailEmail({
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
-      from: options.from || process.env.BREVO_FROM_EMAIL || 'admin@koobings.com'
+      from: options.from || process.env.GMAIL_USER || 'koobings.noreply@gmail.com'
     });
 
     if (result.success) {
-      console.log('✅ [EMAIL_SERVICE] Email sent successfully via Brevo');
+      console.log('✅ [EMAIL_SERVICE] Email sent successfully via Gmail SMTP');
       return {
         success: true,
         messageId: result.messageId,
-        service: 'Brevo'
+        service: 'Gmail SMTP'
       };
     } else {
-      console.error('❌ [EMAIL_SERVICE] Brevo failed:', result.error);
+      console.error('❌ [EMAIL_SERVICE] Gmail SMTP failed:', result.error);
       return {
         success: false,
         error: result.error,
-        service: 'Brevo'
+        service: 'Gmail SMTP'
       };
     }
   } catch (error: any) {
@@ -44,7 +44,7 @@ export async function sendEmail(options: EmailOptions) {
     return {
       success: false,
       error: error.message || 'Unknown error',
-      service: 'Brevo'
+      service: 'Gmail SMTP'
     };
   }
 }
