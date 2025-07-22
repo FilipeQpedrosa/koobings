@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { getRequestAuthUser } from '@/lib/jwt';  // Use @/lib/jwt instead of jwt-safe
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -9,10 +9,14 @@ const statusUpdateSchema = z.object({
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    console.log('🔧 [DEBUG] PUT /admin/businesses/[id]/status called for business:', params.id);
+    
     // Check JWT authentication
     const user = getRequestAuthUser(request);
+    console.log('🔧 [DEBUG] Authentication result:', user ? { id: user.id, email: user.email, role: user.role, isAdmin: user.isAdmin } : 'No user found');
     
     if (!user) {
+      console.log('❌ [DEBUG] No authenticated user found');
       return NextResponse.json(
         { error: 'Não autenticado' },
         { status: 401 }
@@ -21,14 +25,20 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     // Check if user is admin
     if (!user.isAdmin || user.role !== 'ADMIN') {
+      console.log('❌ [DEBUG] User is not admin:', { role: user.role, isAdmin: user.isAdmin });
       return NextResponse.json(
         { error: 'Acesso negado - apenas administradores do sistema' },
         { status: 403 }
       );
     }
 
+    console.log('✅ [DEBUG] Admin authentication successful');
+
     const body = await request.json();
+    console.log('🔧 [DEBUG] Request body:', body);
+    
     const { status } = statusUpdateSchema.parse(body);
+    console.log('🔧 [DEBUG] Validated status:', status);
 
     // Check if business exists
     const existingBusiness = await prisma.business.findUnique({
@@ -37,11 +47,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     });
 
     if (!existingBusiness) {
+      console.log('❌ [DEBUG] Business not found:', params.id);
       return NextResponse.json(
         { error: 'Negócio não encontrado' },
         { status: 404 }
       );
     }
+
+    console.log('✅ [DEBUG] Business found:', existingBusiness);
 
     // Update business status
     const updatedBusiness = await prisma.business.update({
@@ -53,11 +66,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         status: true,
         email: true,
         ownerName: true,
-        // slug: true, // COMMENTED - column does not exist in current database
-        plan: true,
+        type: true,  // Use 'type' instead of 'plan'
         createdAt: true,
         updatedAt: true,
-        features: true
+        settings: true  // Use 'settings' instead of 'features'
       }
     });
 
@@ -70,16 +82,22 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   } catch (error) {
     console.error('❌ Error updating business status:', error);
+    console.error('❌ Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
     
     if (error instanceof z.ZodError) {
+      console.log('❌ [DEBUG] Zod validation error:', error.errors);
       return NextResponse.json(
-        { error: 'Status inválido' },
+        { error: 'Status inválido', details: error.errors },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: 'Erro interno do servidor', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

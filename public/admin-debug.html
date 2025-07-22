@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login Debug - Koobings</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #f5f5f5; 
+            padding: 20px;
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            color: #333; 
+        }
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: bold; 
+        }
+        input { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            font-size: 16px; 
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin-bottom: 20px;
+        }
+        button:disabled { 
+            background: #ccc; 
+        }
+        .log { 
+            background: #f8f8f8; 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            font-size: 12px; 
+            max-height: 400px; 
+            overflow-y: auto; 
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .warning { color: orange; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Admin Login Debug</h1>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" value="f.queirozpedrosa@gmail.com" required autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" value="admin123" required autocomplete="current-password">
+            </div>
+            
+            <button type="submit" id="submitBtn">🚀 Test Login</button>
+        </form>
+        
+        <div class="log" id="logOutput">Ready to test...\n</div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/admin-login.html" style="color: #007acc;">← Back to Simple Login</a>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const logOutput = document.getElementById('logOutput');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            logOutput.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        function checkCookies() {
+            const cookies = document.cookie;
+            log(`🍪 All cookies: ${cookies || 'None found'}`, 'info');
+            
+            if (cookies) {
+                const cookieArray = cookies.split(';').map(c => c.trim());
+                cookieArray.forEach(cookie => {
+                    if (cookie.startsWith('admin-auth-token=')) {
+                        log(`✅ Admin token found: ${cookie.substring(0, 50)}...`, 'success');
+                    } else if (cookie.startsWith('admin-token-debug=')) {
+                        log(`🔍 Debug token found: ${cookie}`, 'info');
+                    } else {
+                        log(`📝 Other cookie: ${cookie}`, 'info');
+                    }
+                });
+            }
+        }
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            logOutput.innerHTML = '';
+            log('🔄 Starting login test...', 'info');
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            log(`📧 Email: ${email}`, 'info');
+            log(`🔑 Password: ${'*'.repeat(password.length)}`, 'info');
+            
+            // Show current cookies before login
+            log('🍪 Cookies BEFORE login:', 'warning');
+            checkCookies();
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '🔄 Testing...';
+            
+            try {
+                log('🧹 Clearing existing cookies...', 'info');
+                
+                // Clear existing cookies
+                document.cookie = 'admin-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.koobings.com';
+                document.cookie = 'admin-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                document.cookie = 'admin-token-debug=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.koobings.com';
+                document.cookie = 'admin-token-debug=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                
+                log('📡 Sending login request to /api/simple-admin-login...', 'info');
+                
+                const response = await fetch('/api/simple-admin-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                
+                log(`📊 Response status: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+                
+                // Log response headers for debugging
+                const setCookieHeaders = response.headers.get('set-cookie');
+                if (setCookieHeaders) {
+                    log(`🍪 Server set-cookie headers: ${setCookieHeaders}`, 'info');
+                }
+                
+                const result = await response.json();
+                log(`📋 Response data: ${JSON.stringify(result, null, 2)}`, 'info');
+                
+                if (result.success) {
+                    log('✅ Login successful!', 'success');
+                    
+                    // Wait a moment for cookies to be set
+                    setTimeout(() => {
+                        log('🍪 Cookies AFTER login:', 'warning');
+                        checkCookies();
+                        
+                        const adminToken = document.cookie.split(';').find(c => c.trim().startsWith('admin-auth-token='));
+                        const debugToken = document.cookie.split(';').find(c => c.trim().startsWith('admin-token-debug='));
+                        
+                        if (adminToken) {
+                            log('✅ Admin token cookie successfully set!', 'success');
+                            log('🔄 Will redirect to /admin/dashboard in 3 seconds...', 'info');
+                            setTimeout(() => {
+                                log('🚀 Redirecting now...', 'success');
+                                window.location.replace('/admin/dashboard');
+                            }, 3000);
+                        } else if (debugToken) {
+                            log('🔍 Debug token found but main token missing - checking server logs', 'warning');
+                            log('🔄 Will redirect to /admin/dashboard in 5 seconds anyway...', 'info');
+                            setTimeout(() => {
+                                log('🚀 Redirecting now...', 'success');
+                                window.location.replace('/admin/dashboard');
+                            }, 5000);
+                        } else {
+                            log('❌ Neither admin token nor debug token found!', 'error');
+                            log('🔍 This indicates a cookie setting problem', 'error');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = '🚀 Test Login';
+                        }
+                    }, 1000);
+                } else {
+                    log(`❌ Login failed: ${result.error || 'Unknown error'}`, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '🚀 Test Login';
+                }
+            } catch (error) {
+                log(`💥 Network error: ${error.message}`, 'error');
+                log(`📄 Error details: ${error.stack}`, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 Test Login';
+            }
+        });
+        
+        // Auto-fill and show current state
+        window.addEventListener('load', () => {
+            log('🌐 Page loaded successfully', 'success');
+            log(`🔗 Current URL: ${window.location.href}`, 'info');
+            log('🍪 Initial cookies check:', 'warning');
+            checkCookies();
+            log('📝 Form pre-filled with credentials', 'info');
+        });
+    </script>
+</body>
+</html> 

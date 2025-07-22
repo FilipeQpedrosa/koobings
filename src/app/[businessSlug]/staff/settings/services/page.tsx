@@ -68,7 +68,9 @@ export default function StaffSettingsServicesPage() {
       
       console.log('🔧 DEBUG: Fetching services...');
       
-      const response = await fetch('/api/business/services', {
+      // Add timestamp to prevent cache
+      const timestamp = Date.now();
+      const response = await fetch(`/api/business/services?t=${timestamp}`, {
         credentials: 'include',
         cache: 'no-store',
         headers: {
@@ -85,6 +87,11 @@ export default function StaffSettingsServicesPage() {
         
         if (data.success) {
           console.log('🔧 DEBUG: Setting services to:', data.data.length, 'items');
+          console.log('🔧 DEBUG: Services list:', data.data.map((s: any) => ({ 
+            id: s.id, 
+            name: s.name, 
+            createdAt: s.createdAt 
+          })));
           setServices(data.data);
         } else {
           setError(data.error || 'Failed to load services');

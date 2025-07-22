@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: { scheduledFor: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 50, // Limit to 50 for performance
     });
     
@@ -242,28 +242,35 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const formattedAppointment = {
-      id: appointment.id,
-      client: {
-        id: appointment.Client?.id,
-        name: appointment.Client?.name,
-        email: appointment.Client?.email,
-      },
-      scheduledFor: appointment.scheduledFor.toISOString(),
-      status: appointment.status,
-      notes: appointment.notes || undefined,
-      staff: appointment.Staff ? {
-        id: appointment.Staff.id,
-        name: appointment.Staff.name,
-      } : undefined,
-      services: appointment.Service ? [{
-        id: appointment.Service.id,
-        name: appointment.Service.name,
-        duration: appointment.Service.duration,
-      }] : [],
-    };
+    console.log('[POST /api/business/appointments] Appointment created successfully:', appointment.id);
 
-    return NextResponse.json({ success: true, data: formattedAppointment });
+    // 🔔 SEND AUTOMATIC NOTIFICATIONS FOR NEW APPOINTMENT
+    try {
+      console.log('[POST /api/business/appointments] Sending automatic notifications...');
+      
+      const notificationResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/appointments/${appointment.id}/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'PENDING',
+          sendEmail: true
+        })
+      });
+      
+      if (notificationResponse.ok) {
+        const notificationResult = await notificationResponse.json();
+        console.log('[POST /api/business/appointments] ✅ Notifications sent successfully:', notificationResult.data);
+      } else {
+        console.log('[POST /api/business/appointments] ⚠️ Notification sending failed:', notificationResponse.status);
+      }
+    } catch (error) {
+      console.log('[POST /api/business/appointments] ⚠️ Notification error (non-blocking):', error);
+      // Non-blocking error - don't fail the appointment creation
+    }
+
+    return NextResponse.json({ success: true, data: appointment });
   } catch (error: any) {
     console.error('POST /business/appointments error:', error);
     return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_CREATE_ERROR', message: error.message || 'Internal Server Error' } }, { status: 500 });

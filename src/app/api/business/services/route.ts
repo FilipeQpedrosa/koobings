@@ -20,12 +20,29 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
     }
 
+    console.log('🔧 DEBUG: Fetching services for businessId:', businessId);
+
     const services = await prisma.service.findMany({
       where: { businessId },
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ success: true, data: services });
+    console.log('🔧 DEBUG: Found', services.length, 'services for business');
+    console.log('🔧 DEBUG: Latest service:', services[0] ? {
+      id: services[0].id,
+      name: services[0].name,
+      createdAt: services[0].createdAt
+    } : 'No services found');
+
+    const response = NextResponse.json({ success: true, data: services });
+    
+    // Add anti-cache headers to ensure fresh data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    response.headers.set('Surrogate-Control', 'no-store');
+    
+    return response;
   } catch (error) {
     console.error('GET /business/services error:', error);
     return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 });
@@ -79,6 +96,14 @@ export async function POST(request: NextRequest) {
         ...validatedData,
         businessId,
       },
+    });
+
+    console.log('🔧 DEBUG: Service created successfully:', {
+      id: service.id,
+      name: service.name,
+      businessId: service.businessId,
+      createdAt: service.createdAt,
+      timestamp: new Date().toISOString()
     });
 
     return NextResponse.json({ success: true, data: service }, { status: 201 });

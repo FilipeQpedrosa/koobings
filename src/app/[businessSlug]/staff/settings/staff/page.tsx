@@ -70,18 +70,42 @@ export default function StaffSettingsStaffPage() {
   const fetchStaffMembers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/business/staff', {
-        credentials: 'include'
+      
+      console.log('🔧 DEBUG: Fetching staff members...');
+      
+      // Add timestamp to prevent cache
+      const timestamp = Date.now();
+      const response = await fetch(`/api/business/staff?t=${timestamp}`, {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
+      
+      console.log('🔧 DEBUG: Fetch response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        setStaffMembers(data.data || []);
+        console.log('🔧 DEBUG: Fetch response data:', data);
+        
+        if (data.success) {
+          console.log('🔧 DEBUG: Setting staff to:', data.data.length, 'items');
+          console.log('🔧 DEBUG: Staff list:', data.data.map((s: any) => ({ 
+            id: s.id, 
+            name: s.name, 
+            role: s.role 
+          })));
+          setStaffMembers(data.data || []);
+        } else {
+          console.error('Failed to fetch staff members:', data.error);
+        }
       } else {
         console.error('Failed to fetch staff members');
       }
     } catch (error) {
-      console.error('Error fetching staff members:', error);
+      console.error('🔧 DEBUG: Error fetching staff members:', error);
     } finally {
       setLoading(false);
     }

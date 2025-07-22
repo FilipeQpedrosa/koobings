@@ -3,6 +3,38 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+// Helper function to validate business portal settings
+async function validateBusinessPortalSettings(businessId: string) {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { settings: true, name: true }
+  });
+  
+  if (!business) {
+    return { valid: false, error: 'Business not found' };
+  }
+  
+  const settings = business.settings as any || {};
+  
+  // Check if client portal is enabled
+  if (settings.clientPortalEnabled === false) {
+    return { 
+      valid: false, 
+      error: 'Portal cliente não está disponível para este negócio' 
+    };
+  }
+  
+  // Check if online booking is allowed
+  if (settings.allowOnlineBooking === false) {
+    return { 
+      valid: false, 
+      error: 'Marcações online não estão disponíveis para este negócio' 
+    };
+  }
+  
+  return { valid: true, autoConfirm: settings.autoConfirmBookings !== false };
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,11 +48,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get the service to calculate endTime
+    // Get the service
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
       include: {
-        business: true
+        Business: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       }
     });
 
@@ -28,6 +65,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } },
         { status: 404 }
+      );
+    }
+
+    // 🔒 VALIDATE BUSINESS PORTAL SETTINGS
+    const portalValidation = await validateBusinessPortalSettings(service.businessId);
+    
+    if (!portalValidation.valid) {
+      return NextResponse.json(
+        { success: false, error: { code: 'PORTAL_DISABLED', message: portalValidation.error } },
+        { status: 403 }
       );
     }
 
@@ -40,12 +87,12 @@ export async function POST(request: Request) {
     const existingAppointment = await prisma.appointments.findFirst({
       where: {
         scheduledFor: startDateTime,
-        service: { id: serviceId },
-        staff: { id: staffId }
+        Service: { id: serviceId },
+        Staff: { id: staffId }
       },
       include: {
-        service: true,
-        staff: true
+        Service: true,
+        Staff: true
       }
     });
 
@@ -73,7 +120,7 @@ export async function POST(request: Request) {
       create: {
         ...clientData,
         business: {
-          connect: { id: service.businessId }
+          connect: { id: service.BusinessId }
         }
       },
       update: {} // Don't update existing client data
@@ -86,22 +133,22 @@ export async function POST(request: Request) {
         duration: service.duration,
         status: 'PENDING',
         notes: customerInfo?.notes,
-        service: {
+        Service: {
           connect: { id: serviceId }
         },
-        staff: {
+        Staff: {
           connect: { id: staffId }
         },
         client: {
           connect: { id: client.id }
         },
         business: {
-          connect: { id: service.businessId }
+          connect: { id: service.BusinessId }
         }
       },
       include: {
-        service: true,
-        staff: true,
+        Service: true,
+        Staff: true,
         client: true,
         business: true
       }

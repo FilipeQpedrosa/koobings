@@ -18,7 +18,7 @@ interface Appointment {
   services: { name: string }[];
   scheduledFor: string;
   duration: number;
-  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
   notes?: string;
 }
 
@@ -79,46 +79,112 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      console.log('🔄 BookingModal: Starting to fetch data...');
+      
+      // Add timestamp to prevent cache
+      const timestamp = Date.now();
+      
       // Load clients and staff - these work
       const [clientsRes, staffRes] = await Promise.all([
-        fetch('/api/business/clients'),
-        fetch('/api/business/staff')
+        fetch(`/api/business/clients?t=${timestamp}`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        }),
+        fetch(`/api/business/staff?t=${timestamp}`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        })
       ]);
+      
+      console.log('👥 BookingModal: Clients response status:', clientsRes.status);
+      console.log('👤 BookingModal: Staff response status:', staffRes.status);
       
       if (clientsRes.ok) {
         const clientsData = await clientsRes.json();
-        setClients(clientsData.data?.clients || []);
+        console.log('👥 BookingModal: Clients data received:', clientsData);
+        console.log('👥 BookingModal: Number of clients:', clientsData.data?.clients?.length || 0);
+        
+        const clientsList = clientsData.data?.clients || [];
+        setClients(clientsList);
+        
+        if (clientsList.length > 0) {
+          console.log('👥 BookingModal: Sample clients:', clientsList.slice(0, 3).map((c: any) => ({ id: c.id, name: c.name, email: c.email })));
+        } else {
+          console.log('👥 BookingModal: No clients found in response');
+        }
       } else {
-        console.error('Failed to fetch clients:', clientsRes.status, clientsRes.statusText);
+        console.error('❌ BookingModal: Failed to fetch clients:', clientsRes.status, clientsRes.statusText);
+        const errorText = await clientsRes.text();
+        console.error('❌ BookingModal: Clients error response:', errorText);
       }
       
       if (staffRes.ok) {
         const staffData = await staffRes.json();
-        setStaffList(staffData.data || []);
+        console.log('👤 BookingModal: Staff data received:', staffData);
+        console.log('👤 BookingModal: Number of staff:', staffData.data?.length || 0);
+        
+        const staffList = staffData.data || [];
+        setStaffList(staffList);
+        
+        if (staffList.length > 0) {
+          console.log('👤 BookingModal: Sample staff:', staffList.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name })));
+        }
       } else {
-        console.error('Failed to fetch staff:', staffRes.status, staffRes.statusText);
+        console.error('❌ BookingModal: Failed to fetch staff:', staffRes.status, staffRes.statusText);
+        const errorText = await staffRes.text();
+        console.error('❌ BookingModal: Staff error response:', errorText);
       }
 
       // Try to load services, but don't block if it fails
       try {
-        const servicesRes = await fetch('/api/services');
+        console.log('🛠️ BookingModal: Fetching services...');
+        const servicesRes = await fetch(`/api/services?t=${timestamp}`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        console.log('🛠️ BookingModal: Services response status:', servicesRes.status);
+        
         if (servicesRes.ok) {
           const servicesData = await servicesRes.json();
-          setServices(servicesData.data || []);
+          console.log('🛠️ BookingModal: Services data received:', servicesData);
+          console.log('🛠️ BookingModal: Number of services:', servicesData.data?.length || 0);
+          
+          const servicesList = servicesData.data || [];
+          setServices(servicesList);
+          
+          if (servicesList.length > 0) {
+            console.log('🛠️ BookingModal: Sample services:', servicesList.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name })));
+          }
         } else {
-          console.error('Failed to fetch services:', servicesRes.status, servicesRes.statusText);
+          console.error('❌ BookingModal: Failed to fetch services:', servicesRes.status, servicesRes.statusText);
+          const errorText = await servicesRes.text();
+          console.error('❌ BookingModal: Services error response:', errorText);
           // Leave services empty instead of hardcoded fallback
           setServices([]);
         }
       } catch (error) {
-        console.error('Services API error:', error);
+        console.error('❌ BookingModal: Services API error:', error);
         // Leave services empty instead of hardcoded fallback  
         setServices([]);
       }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      console.error('❌ BookingModal: Failed to fetch data:', error);
     } finally {
       setLoading(false);
+      console.log('✅ BookingModal: Data fetch completed');
     }
   }, []);
 
@@ -621,10 +687,14 @@ function getStatusColor(status: Appointment['status']) {
   switch (status) {
     case 'PENDING':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'ACCEPTED':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'REJECTED':
+      return 'bg-red-100 text-red-800 border-red-200';
     case 'COMPLETED':
       return 'bg-green-100 text-green-800 border-green-200';
     case 'CANCELLED':
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'bg-gray-100 text-gray-800 border-gray-200';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-200';
   }
@@ -633,6 +703,8 @@ function getStatusColor(status: Appointment['status']) {
 function getStatusLabel(status: Appointment['status']) {
   switch (status) {
     case 'PENDING': return 'Pendente';
+    case 'ACCEPTED': return 'Aceito';
+    case 'REJECTED': return 'Rejeitado';
     case 'COMPLETED': return 'Concluído';
     case 'CANCELLED': return 'Cancelado';
     default: return status;
@@ -642,41 +714,75 @@ function getStatusLabel(status: Appointment['status']) {
 // Memoized appointment card component for better mobile performance
 const AppointmentCard = React.memo(({ apt, onStatusChange, updatingId }: {
   apt: Appointment;
-  onStatusChange: (id: string, status: 'PENDING' | 'COMPLETED' | 'CANCELLED') => void;
+  onStatusChange: (id: string, status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED') => void;
   updatingId: string | null;
-}) => (
-  <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-    <div className="flex justify-between items-start mb-2 gap-2">
-      <h3 className="font-bold text-lg text-gray-900 break-words overflow-hidden flex-1 min-w-0">
-        {apt.client.name}
-      </h3>
-      <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap flex-shrink-0")}>
-        {getStatusLabel(apt.status)}
-      </Badge>
-    </div>
-    <div className="text-gray-700 break-words overflow-hidden">{apt.services?.[0]?.name}</div>
-    <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
-    <div className="text-sm text-gray-500">{apt.duration} min</div>
-    {apt.notes && apt.notes.trim() !== "" && (
-      <div className="mt-2 p-2 bg-blue-50 rounded-md">
-        <p className="text-xs font-medium text-blue-800">Notas:</p>
-        <p className="text-sm text-blue-700 break-words overflow-hidden">{apt.notes}</p>
+}) => {
+  
+  // Get available next statuses based on current status
+  const getAvailableStatuses = (currentStatus: string) => {
+    switch (currentStatus) {
+      case 'PENDING':
+        return [
+          { value: 'PENDING', label: 'Pendente' },
+          { value: 'ACCEPTED', label: 'Aceitar' },
+          { value: 'REJECTED', label: 'Rejeitar' }
+        ];
+      case 'ACCEPTED':
+        return [
+          { value: 'ACCEPTED', label: 'Aceito' },
+          { value: 'COMPLETED', label: 'Concluir' },
+          { value: 'CANCELLED', label: 'Cancelar' }
+        ];
+      case 'REJECTED':
+      case 'COMPLETED':
+      case 'CANCELLED':
+        return [
+          { value: currentStatus, label: currentStatus === 'COMPLETED' ? 'Concluído' : 
+                                       currentStatus === 'CANCELLED' ? 'Cancelado' : 'Rejeitado' }
+        ];
+      default:
+        return [{ value: currentStatus, label: currentStatus }];
+    }
+  };
+
+  const availableStatuses = getAvailableStatuses(apt.status);
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+      <div className="flex justify-between items-start mb-2 gap-2">
+        <h3 className="font-bold text-lg text-gray-900 break-words overflow-hidden flex-1 min-w-0">
+          {apt.client.name}
+        </h3>
+        <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap flex-shrink-0")}>
+          {getStatusLabel(apt.status)}
+        </Badge>
       </div>
-    )}
-    <div className="mt-4">
-      <select
-        className="w-full border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-        value={apt.status}
-        disabled={updatingId === apt.id}
-        onChange={e => onStatusChange(apt.id, e.target.value as 'PENDING' | 'COMPLETED' | 'CANCELLED')}
-      >
-        <option value="PENDING">Pendente</option>
-        <option value="COMPLETED">Concluído</option>
-        <option value="CANCELLED">Cancelado</option>
-      </select>
+      <div className="text-gray-700 break-words overflow-hidden">{apt.services?.[0]?.name}</div>
+      <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
+      <div className="text-sm text-gray-500">{apt.duration} min</div>
+      {apt.notes && apt.notes.trim() !== "" && (
+        <div className="mt-2 p-2 bg-blue-50 rounded-md">
+          <p className="text-xs font-medium text-blue-800">Notas:</p>
+          <p className="text-sm text-blue-700 break-words overflow-hidden">{apt.notes}</p>
+        </div>
+      )}
+      <div className="mt-4">
+        <select
+          className="w-full border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+          value={apt.status}
+          disabled={updatingId === apt.id || availableStatuses.length === 1}
+          onChange={e => onStatusChange(apt.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
+        >
+          {availableStatuses.map(status => (
+            <option key={status.value} value={status.value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
-  </div>
-));
+  );
+});
 AppointmentCard.displayName = 'AppointmentCard';
 
 interface RecentAppointmentsProps {
@@ -697,19 +803,33 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
       try {
         console.log('📅 RecentAppointments: Fetching appointments...');
         
-        // Build API URL with businessSlug parameter for admin access
-        // Remove date filter to show ALL recent appointments, not just today's
-        const apiUrl = `/api/business/appointments`;
+        // Add timestamp to prevent cache
+        const timestamp = Date.now();
+        const apiUrl = `/api/business/appointments?t=${timestamp}`;
         
         console.log('📅 RecentAppointments: API URL:', apiUrl);
         
-        const response = await fetch(apiUrl, { credentials: 'include' });
+        const response = await fetch(apiUrl, { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        console.log('📅 RecentAppointments: Response status:', response.status);
         
         if (response.ok) {
           const data = await response.json();
           const appointmentsArray = data?.data?.appointments || [];
           
           console.log('📅 RecentAppointments: Received appointments:', appointmentsArray.length);
+          console.log('📅 RecentAppointments: Appointments list:', appointmentsArray.map((a: any) => ({ 
+            id: a.id, 
+            clientName: a.client?.name,
+            scheduledFor: a.scheduledFor 
+          })));
           
           const formattedAppointments: Appointment[] = appointmentsArray.map((apt: any) => ({
             id: apt.id,
@@ -720,7 +840,11 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
             services: apt.services || [],
             scheduledFor: apt.scheduledFor,
             duration: apt.duration || 60,
-            status: apt.status,
+            status: apt.status?.toLowerCase() === 'pending' ? 'PENDING' : 
+                   apt.status?.toLowerCase() === 'accepted' ? 'ACCEPTED' :
+                   apt.status?.toLowerCase() === 'rejected' ? 'REJECTED' :
+                   apt.status?.toLowerCase() === 'completed' ? 'COMPLETED' : 
+                   apt.status?.toLowerCase() === 'cancelled' ? 'CANCELLED' : 'PENDING',
             notes: apt.notes
           }));
           
@@ -738,9 +862,9 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
     }
 
     fetchAppointmentsAsync();
-  }, [businessSlug]); // Remove todayString dependency
+  }, [businessSlug]);
 
-  const handleStatusChange = useCallback(async (id: string, newStatus: 'PENDING' | 'COMPLETED' | 'CANCELLED') => {
+  const handleStatusChange = useCallback(async (id: string, newStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED') => {
     setUpdatingId(id);
     try {
       const res = await fetch(`/api/appointments/${id}`, {
@@ -767,21 +891,35 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
     const fetchAppointmentsAsync = async () => {
       setLoading(true);
       try {
-        console.log('📅 RecentAppointments: Fetching appointments...');
+        console.log('📅 RecentAppointments: Refreshing appointments after booking created...');
         
-        // Build API URL with businessSlug parameter for admin access
-        // Remove date filter to show ALL recent appointments, not just today's
-        const apiUrl = `/api/business/appointments`;
+        // Add timestamp to prevent cache
+        const timestamp = Date.now();
+        const apiUrl = `/api/business/appointments?t=${timestamp}`;
         
         console.log('📅 RecentAppointments: API URL:', apiUrl);
         
-        const response = await fetch(apiUrl, { credentials: 'include' });
+        const response = await fetch(apiUrl, { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        console.log('📅 RecentAppointments: Response status:', response.status);
         
         if (response.ok) {
           const data = await response.json();
           const appointmentsArray = data?.data?.appointments || [];
           
-          console.log('📅 RecentAppointments: Received appointments:', appointmentsArray.length);
+          console.log('📅 RecentAppointments: Received appointments after refresh:', appointmentsArray.length);
+          console.log('📅 RecentAppointments: Latest appointments:', appointmentsArray.slice(0, 3).map((a: any) => ({ 
+            id: a.id, 
+            clientName: a.client?.name,
+            scheduledFor: a.scheduledFor 
+          })));
           
           const formattedAppointments: Appointment[] = appointmentsArray.map((apt: any) => ({
             id: apt.id,
@@ -792,17 +930,21 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
             services: apt.services || [],
             scheduledFor: apt.scheduledFor,
             duration: apt.duration || 60,
-            status: apt.status,
+            status: apt.status?.toLowerCase() === 'pending' ? 'PENDING' : 
+                   apt.status?.toLowerCase() === 'accepted' ? 'ACCEPTED' :
+                   apt.status?.toLowerCase() === 'rejected' ? 'REJECTED' :
+                   apt.status?.toLowerCase() === 'completed' ? 'COMPLETED' : 
+                   apt.status?.toLowerCase() === 'cancelled' ? 'CANCELLED' : 'PENDING',
             notes: apt.notes
           }));
           
           setAppointments(formattedAppointments);
         } else {
-          console.error('❌ RecentAppointments: Failed to fetch appointments:', response.status);
+          console.error('❌ RecentAppointments: Failed to refresh appointments:', response.status);
           setAppointments([]);
         }
       } catch (error) {
-        console.error('❌ RecentAppointments: Error fetching appointments:', error);
+        console.error('❌ RecentAppointments: Error refreshing appointments:', error);
         setAppointments([]);
       } finally {
         setLoading(false);
@@ -889,15 +1031,51 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                             </Badge>
                           </td>
                           <td className="px-2 py-4">
-                            <select
-                              className="border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs w-full"
-                              value={apt.status}
-                              onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'COMPLETED' | 'CANCELLED')}
-                            >
-                              <option value="PENDING">Pendente</option>
-                              <option value="COMPLETED">Concluído</option>
-                              <option value="CANCELLED">Cancelado</option>
-                            </select>
+                            {(() => {
+                              // Get available next statuses based on current status
+                              const getAvailableStatuses = (currentStatus: string) => {
+                                switch (currentStatus) {
+                                  case 'PENDING':
+                                    return [
+                                      { value: 'PENDING', label: 'Pendente' },
+                                      { value: 'ACCEPTED', label: 'Aceitar' },
+                                      { value: 'REJECTED', label: 'Rejeitar' }
+                                    ];
+                                  case 'ACCEPTED':
+                                    return [
+                                      { value: 'ACCEPTED', label: 'Aceito' },
+                                      { value: 'COMPLETED', label: 'Concluir' },
+                                      { value: 'CANCELLED', label: 'Cancelar' }
+                                    ];
+                                  case 'REJECTED':
+                                  case 'COMPLETED':
+                                  case 'CANCELLED':
+                                    return [
+                                      { value: currentStatus, label: currentStatus === 'COMPLETED' ? 'Concluído' : 
+                                       currentStatus === 'CANCELLED' ? 'Cancelado' : 'Rejeitado' }
+                                    ];
+                                  default:
+                                    return [{ value: currentStatus, label: currentStatus }];
+                                }
+                              };
+
+                              const availableStatuses = getAvailableStatuses(apt.status);
+
+                              return (
+                                <select
+                                  className="border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs w-full"
+                                  value={apt.status}
+                                  disabled={availableStatuses.length === 1}
+                                  onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
+                                >
+                                  {availableStatuses.map(status => (
+                                    <option key={status.value} value={status.value}>
+                                      {status.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              );
+                            })()}
                           </td>
                         </tr>
                       ))

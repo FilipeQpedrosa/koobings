@@ -15,7 +15,7 @@ interface AppointmentEvent {
   startTime: string;
   endTime: string;
   duration: number;
-  status: 'confirmed' | 'pending' | 'completed' | 'cancelled';
+  status: 'confirmed' | 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
   phone?: string;
   notes?: string;
 }
@@ -608,73 +608,82 @@ export default function StaffSchedule() {
     loadAppointments();
   }, [user, loading, authenticated, router, selectedDate]);
 
-  const loadAppointments = useCallback(() => {
+  const loadAppointments = useCallback(async () => {
     setIsLoading(true);
     
-    const dateStr = selectedDate.toISOString().split('T')[0];
-    
-    const mockAppointments: AppointmentEvent[] = [
-      {
-        id: '1',
-        clientName: 'João Silva',
-        service: 'Serviço Premium',
-        startTime: `${dateStr}T09:00:00`,
-        endTime: `${dateStr}T10:00:00`,
-        duration: 60,
-        status: 'confirmed',
-        phone: '+351 912 345 678',
-        notes: 'Cliente regular'
-      },
-      {
-        id: '2',
-        clientName: 'Pedro Santos',
-        service: 'Serviço Básico',
-        startTime: `${dateStr}T10:30:00`,
-        endTime: `${dateStr}T11:00:00`,
-        duration: 30,
-        status: 'confirmed',
-        phone: '+351 963 789 012'
-      },
-      {
-        id: '3',
-        clientName: 'Miguel Costa',
-        service: 'Consulta',
-        startTime: `${dateStr}T11:00:00`,
-        endTime: `${dateStr}T11:30:00`,
-        duration: 30,
-        status: 'pending',
-        phone: '+351 987 654 321'
-      },
-      {
-        id: '4',
-        clientName: 'Carlos Oliveira',
-        service: 'Serviço Completo',
-        startTime: `${dateStr}T14:00:00`,
-        endTime: `${dateStr}T15:30:00`,
-        duration: 90,
-        status: 'confirmed',
-        phone: '+351 911 222 333'
-      },
-      {
-        id: '5',
-        clientName: 'António Ferreira',
-        service: 'Serviço Rápido',
-        startTime: `${dateStr}T15:30:00`,
-        endTime: `${dateStr}T16:00:00`,
-        duration: 30,
-        status: 'completed',
-        phone: '+351 933 444 555'
+    try {
+      console.log('📅 Schedule: Fetching appointments...');
+      
+      // Add timestamp to prevent cache
+      const timestamp = Date.now();
+      const apiUrl = `/api/business/appointments?t=${timestamp}`;
+      
+      const response = await fetch(apiUrl, { 
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      console.log('📅 Schedule: Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        const appointmentsArray = data?.data?.appointments || [];
+        
+        console.log('📅 Schedule: Received appointments:', appointmentsArray.length);
+        
+        // Convert API data to AppointmentEvent format
+        const formattedAppointments: AppointmentEvent[] = appointmentsArray.map((apt: any) => {
+          const startTime = new Date(apt.scheduledFor);
+          const endTime = new Date(startTime.getTime() + (apt.duration || 60) * 60000);
+          
+          return {
+            id: apt.id,
+            clientName: apt.client?.name || 'Cliente Desconhecido',
+            service: apt.services?.[0]?.name || 'Serviço Desconhecido',
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: apt.duration || 60,
+            status: apt.status?.toLowerCase() === 'pending' ? 'pending' : 
+                   apt.status?.toLowerCase() === 'accepted' ? 'accepted' :
+                   apt.status?.toLowerCase() === 'rejected' ? 'rejected' :
+                   apt.status?.toLowerCase() === 'completed' ? 'completed' : 
+                   apt.status?.toLowerCase() === 'cancelled' ? 'cancelled' : 'confirmed',
+            phone: apt.client?.phone,
+            notes: apt.notes
+          };
+        });
+        
+        // Filter appointments for the selected date
+        const dateStr = selectedDate.toISOString().split('T')[0];
+        const filteredAppointments = formattedAppointments.filter(apt => {
+          const aptDate = new Date(apt.startTime).toISOString().split('T')[0];
+          return aptDate === dateStr;
+        });
+        
+        console.log('📅 Schedule: Appointments for', dateStr, ':', filteredAppointments.length);
+        setAppointments(filteredAppointments);
+      } else {
+        console.error('❌ Schedule: Failed to fetch appointments:', response.status);
+        setAppointments([]);
       }
-    ];
-    
-    setAppointments(mockAppointments);
-    setIsLoading(false);
+    } catch (error) {
+      console.error('❌ Schedule: Error fetching appointments:', error);
+      setAppointments([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, [selectedDate]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'border-green-500 bg-green-50';
       case 'pending': return 'border-yellow-500 bg-yellow-50';
+      case 'accepted': return 'border-blue-500 bg-blue-50';
+      case 'rejected': return 'border-red-500 bg-red-50';
       case 'completed': return 'border-blue-500 bg-blue-50';
       case 'cancelled': return 'border-red-500 bg-red-50';
       default: return 'border-gray-500 bg-gray-50';
@@ -685,6 +694,8 @@ export default function StaffSchedule() {
     switch (status) {
       case 'confirmed': return 'Confirmado';
       case 'pending': return 'Pendente';
+      case 'accepted': return 'Aceito';
+      case 'rejected': return 'Rejeitado';
       case 'completed': return 'Concluído';
       case 'cancelled': return 'Cancelado';
       default: return status;

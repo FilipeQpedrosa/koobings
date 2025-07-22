@@ -532,6 +532,8 @@ enum AdminRole {
 
 enum AppointmentStatus {
   PENDING
+  ACCEPTED
+  REJECTED
   CONFIRMED
   COMPLETED
   CANCELLED

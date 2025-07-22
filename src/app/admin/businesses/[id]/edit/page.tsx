@@ -9,9 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Building2, User, Settings, Shield, Save, Key, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Building2, User, Settings, Shield, Save, Key, AlertCircle, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 type EditBusinessData = {
   name: string;
@@ -20,17 +22,23 @@ type EditBusinessData = {
   phone: string;
   address: string;
   description: string;
-  plan: 'basic' | 'standard' | 'premium';
-  // slug: string; // REMOVED - column doesn't exist in database
+  type: 'basic' | 'standard' | 'premium';  // Use specific types instead of generic string
   status: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'INACTIVE';
   password: string;
-  features: {
+  settings: {  // Use 'settings' instead of 'features'
     multipleStaff: boolean;
     advancedReports: boolean;
     smsNotifications: boolean;
     customBranding: boolean;
     apiAccess: boolean;
     calendarIntegration: boolean;
+    clientPortalEnabled?: boolean;
+    allowOnlineBooking?: boolean;
+    allowSelfRegistration?: boolean;
+    requireApproval?: boolean;
+    autoConfirmBookings?: boolean;
+    paymentsEnabled?: boolean;
+    maxClients?: number;  // Fix: number instead of boolean
   };
 };
 
@@ -49,17 +57,24 @@ export default function EditBusinessPage() {
     phone: '',
     address: '',
     description: '',
-    plan: 'standard',
+    type: 'standard',
     // slug: '', // REMOVED - column doesn't exist in database
     status: 'ACTIVE',
     password: '',
-    features: {
+    settings: {
       multipleStaff: true,
       advancedReports: true,
       smsNotifications: false,
       customBranding: false,
       apiAccess: false,
       calendarIntegration: true,
+      clientPortalEnabled: true,
+      allowOnlineBooking: true,
+      allowSelfRegistration: true,
+      requireApproval: false,
+      autoConfirmBookings: true,
+      paymentsEnabled: false,
+      maxClients: 0,
     }
   });
 
@@ -87,17 +102,23 @@ export default function EditBusinessPage() {
           phone: businessData.phone || '',
           address: businessData.address || '',
           description: businessData.description || '',
-          plan: businessData.plan || 'standard',
-          // slug: businessData.slug || '', // REMOVED - column doesn't exist in database
+          type: (['basic', 'standard', 'premium'].includes(businessData.type)) ? businessData.type : 'standard', // Ensure valid type
           status: businessData.status || 'ACTIVE',
           password: '',
-          features: {
-            multipleStaff: businessData.features?.multipleStaff ?? true,
-            advancedReports: businessData.features?.advancedReports ?? true,
-            smsNotifications: businessData.features?.smsNotifications ?? false,
-            customBranding: businessData.features?.customBranding ?? false,
-            apiAccess: businessData.features?.apiAccess ?? false,
-            calendarIntegration: businessData.features?.calendarIntegration ?? true,
+          settings: {
+            multipleStaff: businessData.settings?.multipleStaff ?? true,
+            advancedReports: businessData.settings?.advancedReports ?? true,
+            smsNotifications: businessData.settings?.smsNotifications ?? false,
+            customBranding: businessData.settings?.customBranding ?? false,
+            apiAccess: businessData.settings?.apiAccess ?? false,
+            calendarIntegration: businessData.settings?.calendarIntegration ?? true,
+            clientPortalEnabled: businessData.settings?.clientPortalEnabled ?? true,
+            allowOnlineBooking: businessData.settings?.allowOnlineBooking ?? true,
+            allowSelfRegistration: businessData.settings?.allowSelfRegistration ?? true,
+            requireApproval: businessData.settings?.requireApproval ?? false,
+            autoConfirmBookings: businessData.settings?.autoConfirmBookings ?? true,
+            paymentsEnabled: businessData.settings?.paymentsEnabled ?? false,
+            maxClients: businessData.settings?.maxClients || 0,
           }
         });
       } else {
@@ -124,20 +145,20 @@ export default function EditBusinessPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleFeatureChange = (feature: keyof EditBusinessData['features'], value: boolean) => {
+  const handleFeatureChange = (feature: keyof EditBusinessData['settings'], value: boolean) => {
     setFormData(prev => ({
       ...prev,
-      features: { ...prev.features, [feature]: value }
+      settings: { ...prev.settings, [feature]: value }
     }));
   };
 
   const updateBusiness = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.ownerName) {
+    if (!formData.email || !formData.ownerName) {
       toast({
         title: "Erro",
-        description: "Nome do negócio, email e nome do proprietário são obrigatórios",
+        description: "Email e nome do proprietário são obrigatórios",
         variant: "destructive"
       });
       return;
@@ -145,13 +166,17 @@ export default function EditBusinessPage() {
 
     try {
       setSaving(true);
+      
+      // Remove 'name' from the data being sent since it's read-only
+      const { name, ...updateData } = formData;
+      
       const response = await fetch(`/api/admin/businesses/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',  // Include cookies for authentication
-        body: JSON.stringify(formData),
+        body: JSON.stringify(updateData),
       });
 
       const data = await response.json();
@@ -159,7 +184,7 @@ export default function EditBusinessPage() {
       if (response.ok) {
         toast({
           title: "Sucesso",
-          description: `Negócio "${data.business.name}" atualizado com sucesso!`,
+          description: `Negócio "${business?.name}" atualizado com sucesso!`,
         });
         
         // Refresh data
@@ -261,7 +286,7 @@ export default function EditBusinessPage() {
                 {getStatusText(formData.status)}
               </Badge>
               <Badge variant="outline">
-                {planFeatures[formData.plan].name}
+                {planFeatures[formData.type]?.name || formData.type || 'Standard'}
               </Badge>
             </div>
           </div>
@@ -281,15 +306,27 @@ export default function EditBusinessPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="name" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Nome do Negócio <span className="text-red-500">*</span>
+                    Nome do Negócio <span className="text-gray-400">(não editável)</span>
                   </Label>
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    required
-                    className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    readOnly
+                    disabled
+                    className="bg-gray-50 cursor-not-allowed text-gray-600"
                   />
+                  {business?.slug && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-xs text-blue-800">
+                          <p className="font-medium mb-1">🔒 Nome protegido por segurança</p>
+                          <p className="mb-1">URL do portal: <code className="bg-blue-100 px-1 rounded">koobings.com/{business.slug}/staff/dashboard</code></p>
+                          <p>Para alterar o nome, contacte o suporte técnico.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="email" className="text-sm font-medium text-gray-700 mb-2 block">
@@ -443,16 +480,16 @@ export default function EditBusinessPage() {
                     <Card 
                       key={key} 
                       className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                        formData.plan === key 
+                        formData.type === key 
                           ? 'ring-2 ring-blue-500 border-blue-500' 
                           : 'hover:border-gray-300'
                       }`}
-                      onClick={() => handleInputChange('plan', key)}
+                      onClick={() => handleInputChange('type', key)}
                     >
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg">{plan.name}</CardTitle>
-                          <Badge variant={formData.plan === key ? "default" : "secondary"}>
+                          <Badge variant={formData.type === key ? "default" : "secondary"}>
                             {plan.price}
                           </Badge>
                         </div>
@@ -466,7 +503,9 @@ export default function EditBusinessPage() {
               <div className="space-y-4">
                 <Label className="text-lg font-medium text-gray-900">Funcionalidades Específicas</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(formData.features).map(([key, value]) => {
+                  {Object.entries(formData.settings).filter(([key, value]) => 
+                    typeof value === 'boolean' && !['clientPortalEnabled', 'allowOnlineBooking', 'allowSelfRegistration', 'autoConfirmBookings', 'paymentsEnabled'].includes(key)
+                  ).map(([key, value]) => {
                     const featureLabels = {
                       multipleStaff: { name: 'Múltiplos Funcionários', desc: 'Permite adicionar vários membros da equipa' },
                       advancedReports: { name: 'Relatórios Avançados', desc: 'Relatórios detalhados e analytics' },
@@ -477,6 +516,7 @@ export default function EditBusinessPage() {
                     };
                     
                     const feature = featureLabels[key as keyof typeof featureLabels];
+                    if (!feature) return null;
                     
                     return (
                       <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
@@ -487,12 +527,178 @@ export default function EditBusinessPage() {
                         <Switch
                           id={key}
                           checked={value}
-                          onCheckedChange={(checked) => handleFeatureChange(key as keyof EditBusinessData['features'], checked)}
+                          onCheckedChange={(checked) => handleFeatureChange(key as keyof EditBusinessData['settings'], checked)}
                         />
                       </div>
                     );
                   })}
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Client Portal Settings */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Configurações do Portal Cliente
+              </CardTitle>
+              <CardDescription>
+                Controle o acesso e funcionalidades disponíveis para clientes deste negócio
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Main Toggle */}
+              <div className="flex items-center space-x-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <Switch
+                  id="client-portal-enabled"
+                  checked={formData.settings.clientPortalEnabled ?? true}
+                  onCheckedChange={(checked) => 
+                    setFormData(prev => ({
+                      ...prev,
+                      settings: {
+                        ...prev.settings,
+                        clientPortalEnabled: checked
+                      }
+                    }))
+                  }
+                />
+                <div className="flex-1">
+                  <Label htmlFor="client-portal-enabled" className="text-sm font-medium">
+                    Ativar Portal Cliente
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Permite que clientes acedam ao portal e façam marcações online
+                  </p>
+                </div>
+                <Badge variant={formData.settings.clientPortalEnabled ? 'default' : 'secondary'}>
+                  {formData.settings.clientPortalEnabled ? 'Ativo' : 'Inativo'}
+                </Badge>
+              </div>
+
+              {/* Client Settings Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="allow-online-booking"
+                    checked={formData.settings.allowOnlineBooking ?? true}
+                    onCheckedChange={(checked) => 
+                      setFormData(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          allowOnlineBooking: checked
+                        }
+                      }))
+                    }
+                    disabled={!formData.settings.clientPortalEnabled}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="allow-online-booking" className="text-sm font-medium">
+                      Marcações Online
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Clientes podem agendar serviços
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="allow-self-registration"
+                    checked={formData.settings.allowSelfRegistration ?? true}
+                    onCheckedChange={(checked) => 
+                      setFormData(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          allowSelfRegistration: checked
+                        }
+                      }))
+                    }
+                    disabled={!formData.settings.clientPortalEnabled}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="allow-self-registration" className="text-sm font-medium">
+                      Registo Automático
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Clientes podem criar conta automaticamente
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 md:col-span-2">
+                  <Switch
+                    id="auto-confirm-bookings"
+                    checked={formData.settings.autoConfirmBookings ?? true}
+                    onCheckedChange={(checked) => 
+                      setFormData(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          autoConfirmBookings: checked
+                        }
+                      }))
+                    }
+                    disabled={!formData.settings.clientPortalEnabled}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="auto-confirm-bookings" className="text-sm font-medium">
+                      Aprovação Automática de Marcações
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Se ativo: marcações são aprovadas automaticamente. Se desativo: staff aprova manualmente cada marcação.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Payment Settings */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">Configurações de Pagamento</h4>
+                <div className="flex items-center space-x-2 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <Switch
+                    id="payments-enabled"
+                    checked={formData.settings.paymentsEnabled ?? false}
+                    onCheckedChange={(checked) => 
+                      setFormData(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          paymentsEnabled: checked
+                        }
+                      }))
+                    }
+                    disabled={!formData.settings.clientPortalEnabled}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="payments-enabled" className="text-sm font-medium">
+                      Pagamentos pela Plataforma
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Permite pagamentos online via Stripe (requer configuração)
+                    </p>
+                  </div>
+                  <Badge variant={formData.settings.paymentsEnabled ? 'default' : 'secondary'}>
+                    {formData.settings.paymentsEnabled ? 'Ativo' : 'Inativo'}
+                  </Badge>
+                </div>
+                
+                {!formData.settings.paymentsEnabled && (
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <span className="text-amber-800">
+                        <strong>Nota:</strong> Pagamentos estão desativados. Quando a integração com Stripe estiver 
+                        disponível, poderá ativar esta funcionalidade.
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             </CardContent>
           </Card>
