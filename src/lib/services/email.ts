@@ -1,4 +1,4 @@
-import { sendSendGridEmail } from './sendgrid-email';
+import { sendBrevoEmail } from './brevo-email';
 
 export interface EmailOptions {
   to: string | string[];
@@ -9,34 +9,34 @@ export interface EmailOptions {
 }
 
 /**
- * Main email sending function - now uses SendGrid
+ * Main email sending function - now uses Brevo
  * Automatically handles appointment-related notifications
  */
 export async function sendEmail(options: EmailOptions) {
   try {
-    console.log('📧 [EMAIL_SERVICE] Sending email via SendGrid...');
+    console.log('📧 [EMAIL_SERVICE] Sending email via Brevo...');
     
-    const result = await sendSendGridEmail({
+    const result = await sendBrevoEmail({
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
-      from: options.from || 'admin@koobings.com'
+      from: options.from || process.env.BREVO_FROM_EMAIL || 'admin@koobings.com'
     });
 
     if (result.success) {
-      console.log('✅ [EMAIL_SERVICE] Email sent successfully via SendGrid');
+      console.log('✅ [EMAIL_SERVICE] Email sent successfully via Brevo');
       return {
         success: true,
         messageId: result.messageId,
-        service: 'SendGrid'
+        service: 'Brevo'
       };
     } else {
-      console.error('❌ [EMAIL_SERVICE] SendGrid failed:', result.error);
+      console.error('❌ [EMAIL_SERVICE] Brevo failed:', result.error);
       return {
         success: false,
         error: result.error,
-        service: 'SendGrid'
+        service: 'Brevo'
       };
     }
   } catch (error: any) {
@@ -44,7 +44,7 @@ export async function sendEmail(options: EmailOptions) {
     return {
       success: false,
       error: error.message || 'Unknown error',
-      service: 'SendGrid'
+      service: 'Brevo'
     };
   }
 }
