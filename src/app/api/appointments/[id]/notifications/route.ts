@@ -180,9 +180,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   try {
     console.log('🔔 [NOTIFICATIONS] Processing notifications for appointment:', params.id);
     
-    const user = getRequestAuthUser(request);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Allow internal requests (from appointment creation)
+    const isInternalRequest = request.headers.get('X-Internal-Request') === 'true';
+    
+    if (!isInternalRequest) {
+      const user = getRequestAuthUser(request);
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const { status, sendEmail = true } = await request.json();
