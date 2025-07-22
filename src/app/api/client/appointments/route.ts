@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
     console.log('[CLIENT_APPOINTMENTS_POST] Finding/creating client...');
 
     // Find or create client
-    const uniqueEmail = `${clientEmail}_${Date.now()}`;
     let client = await prisma.client.findFirst({
       where: {
         email: clientEmail,
@@ -89,12 +88,12 @@ export async function POST(request: NextRequest) {
 
     if (!client) {
       console.log('[CLIENT_APPOINTMENTS_POST] Creating new client...');
-      // Create new client with unique email
+      // Create new client with real email (no unique modification)
       client = await prisma.client.create({
         data: {
           id: `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: clientName,
-          email: uniqueEmail, // Use unique email to avoid conflicts
+          email: clientEmail, // Use actual email address
           phone: clientPhone || null,
           businessId: business.id,
           updatedAt: new Date()
