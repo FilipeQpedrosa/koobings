@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, ExternalLink, Settings, Users, Calendar, Edit, Pause, Play, Trash2 } from 'lucide-react';
+import { Plus, Search, Settings, Users, Calendar, Edit, Pause, Play, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cacheKeys, cachedApiCall } from '@/lib/cache';
 import { useRouter } from 'next/navigation';
@@ -13,13 +13,13 @@ import { useRouter } from 'next/navigation';
 interface Business {
   id: string;
   name: string;
-  // slug: string; // REMOVED - column doesn't exist in database
+  slug: string;  // Add slug since it exists in DB
   email: string;
   ownerName?: string;
   phone?: string;
-  plan: string;
+  type: string;  // Use 'type' instead of 'plan'
   status: string;
-  features: Record<string, boolean>;
+  settings: Record<string, any>;  // Use 'settings' instead of 'features'
   createdAt: string;
   _count?: {
     staff: number;
@@ -99,16 +99,27 @@ export default function BusinessesPage() {
   };
 
   const updateBusinessStatus = async (businessId: string, newStatus: string) => {
+    console.log('🔧 [DEBUG] updateBusinessStatus called with:', { businessId, newStatus });
+    
     try {
+      console.log('🔧 [DEBUG] Making API call to update business status...');
+      
       const response = await fetch(`/api/admin/businesses/${businessId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status: newStatus }),
+        credentials: 'include' // Add credentials for authentication
+      });
+
+      console.log('🔧 [DEBUG] API response received:', { 
+        status: response.status, 
+        statusText: response.statusText 
       });
 
       const data = await response.json();
+      console.log('🔧 [DEBUG] API response data:', data);
 
       if (response.ok) {
         toast({
@@ -117,8 +128,10 @@ export default function BusinessesPage() {
         });
         
         // Reload businesses list
+        console.log('🔧 [DEBUG] Reloading businesses list...');
         await fetchBusinesses();
       } else {
+        console.error('🔧 [DEBUG] API error:', data);
         toast({
           title: "Erro",
           description: data.error || "Erro ao atualizar status",
@@ -126,6 +139,7 @@ export default function BusinessesPage() {
         });
       }
     } catch (error) {
+      console.error('🔧 [DEBUG] Network error:', error);
       toast({
         title: "Erro",
         description: "Erro ao conectar com o servidor",
@@ -170,11 +184,6 @@ export default function BusinessesPage() {
         variant: "destructive"
       });
     }
-  };
-
-  const getBusinessUrl = (business: Business) => {
-    // Direct link to universal staff portal with business id for admin access
-    return `/staff/dashboard?businessId=${business.id}`;
   };
 
   const getPlanBadgeColor = (plan: string) => {
@@ -322,15 +331,23 @@ export default function BusinessesPage() {
               <CardHeader>
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg truncate">{business.name}</CardTitle>
+                    <CardTitle 
+                      className="text-lg truncate cursor-pointer hover:text-blue-600 transition-colors"
+                      onClick={() => {
+                        console.log('🔧 [DEBUG] Business name clicked:', business.id);
+                        router.push(`/admin/businesses/${business.id}`);
+                      }}
+                    >
+                      {business.name}
+                    </CardTitle>
                     <p className="text-sm text-gray-600 truncate">{business.email}</p>
                   </div>
                   <div className="flex flex-col gap-2 ml-3 flex-shrink-0">
                     <Badge 
                       variant="secondary" 
-                      className={`${getPlanBadgeColor(business.plan)} text-xs px-2 py-1 text-center`}
+                      className={`${getPlanBadgeColor(business.type)} text-xs px-2 py-1 text-center`}
                     >
-                      {business.plan}
+                      {business.type}
                     </Badge>
                     <Badge 
                       variant="secondary" 
@@ -364,29 +381,25 @@ export default function BusinessesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
-                        onClick={() => window.open(getBusinessUrl(business), '_blank')}
-                      >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Abrir Portal
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/admin/businesses/${business.id}/edit`)}
+                        onClick={() => {
+                          console.log('🔧 [DEBUG] Edit button clicked for business:', business.id);
+                          router.push(`/admin/businesses/${business.id}/edit`);
+                        }}
                         title="Editar negócio"
-                        className="px-3"
+                        className="flex-1"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
                       </Button>
-                    </div>
-                    
-                    <div className="flex gap-2">
+                      
                       {business.status === 'ACTIVE' ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => updateBusinessStatus(business.id, 'SUSPENDED')}
+                          onClick={() => {
+                            console.log('🔧 [DEBUG] Pausar button clicked for business:', business.id);
+                            updateBusinessStatus(business.id, 'SUSPENDED');
+                          }}
                           className="flex-1 text-orange-600 hover:text-orange-700"
                         >
                           <Pause className="h-4 w-4 mr-2" />
@@ -396,7 +409,10 @@ export default function BusinessesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => updateBusinessStatus(business.id, 'ACTIVE')}
+                          onClick={() => {
+                            console.log('🔧 [DEBUG] Ativar button clicked for business (was SUSPENDED):', business.id);
+                            updateBusinessStatus(business.id, 'ACTIVE');
+                          }}
                           className="flex-1 text-green-600 hover:text-green-700"
                         >
                           <Play className="h-4 w-4 mr-2" />
@@ -406,7 +422,10 @@ export default function BusinessesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => updateBusinessStatus(business.id, 'ACTIVE')}
+                          onClick={() => {
+                            console.log('🔧 [DEBUG] Ativar button clicked for business (was OTHER):', business.id);
+                            updateBusinessStatus(business.id, 'ACTIVE');
+                          }}
                           className="flex-1 text-green-600 hover:text-green-700"
                         >
                           <Play className="h-4 w-4 mr-2" />
@@ -417,7 +436,10 @@ export default function BusinessesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => deleteBusiness(business.id)}
+                        onClick={() => {
+                          console.log('🔧 [DEBUG] Delete button clicked for business:', business.id);
+                          deleteBusiness(business.id);
+                        }}
                         className="px-3 text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />

@@ -42,7 +42,20 @@ export default function AdminBusinessDetailsPage() {
           <h1 className="text-2xl font-bold text-gray-900 break-words">{business.name || "Nome não definido"}</h1>
           <p className="text-sm text-gray-500 mt-1">ID do Negócio: {business.id}</p>
         </div>
-        <Button variant="outline" onClick={() => router.push(`/admin/businesses/${id}/edit`)}>Editar</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push(`/admin/businesses/${id}/visibility`)}>
+            Visibilidade
+          </Button>
+          <Button variant="outline" onClick={() => router.push(`/admin/businesses/${id}/payments`)}>
+            Pagamentos
+          </Button>
+          <Button variant="outline" onClick={() => router.push(`/admin/businesses/${id}/clients`)}>
+            Clientes
+          </Button>
+          <Button variant="outline" onClick={() => router.push(`/admin/businesses/${id}/edit`)}>
+            Editar
+          </Button>
+        </div>
       </div>
       
       <div className="bg-white rounded-lg shadow p-6 mb-8">
@@ -75,12 +88,12 @@ export default function AdminBusinessDetailsPage() {
       </div>
 
       {/* Staff List */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-2">Equipe</h2>
-        <div className="bg-white rounded-lg shadow p-6">
-          {business.staff && business.staff.length > 0 ? (
+      {business.Staff && business.Staff.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">Equipe</h2>
+          <div className="bg-white rounded-lg shadow p-6">
             <ul className="space-y-3">
-              {business.staff.map((s: any) => (
+              {business.Staff.map((s: any) => (
                 <li key={s.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                   <div>
                     <span className="font-medium text-gray-900">{s.name}</span>
@@ -90,17 +103,17 @@ export default function AdminBusinessDetailsPage() {
                 </li>
               ))}
             </ul>
-          ) : <div className="text-gray-500 text-center py-4">Nenhum membro da equipe encontrado.</div>}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Services List */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-2">Serviços</h2>
-        <div className="bg-white rounded-lg shadow p-6">
-          {business.services && business.services.length > 0 ? (
+      {business.Service && business.Service.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">Serviços</h2>
+          <div className="bg-white rounded-lg shadow p-6">
             <ul className="space-y-3">
-              {business.services.map((s: any) => (
+              {business.Service.map((s: any) => (
                 <li key={s.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                   <span className="font-medium text-gray-900">{s.name}</span>
                   <div className="flex gap-2">
@@ -110,29 +123,54 @@ export default function AdminBusinessDetailsPage() {
                 </li>
               ))}
             </ul>
-          ) : <div className="text-gray-500 text-center py-4">Nenhum serviço encontrado.</div>}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Bookings Summary */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">Agendamentos Recentes</h2>
-        <div className="bg-white rounded-lg shadow p-6">
-          {business.appointments && business.appointments.length > 0 ? (
+      {business.appointments && business.appointments.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Agendamentos Recentes</h2>
+          <div className="bg-white rounded-lg shadow p-6">
             <ul className="space-y-3">
               {business.appointments.slice(0, 5).map((appointment: any) => (
                 <li key={appointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <div>
-                    <span className="font-medium text-gray-900">{appointment.client?.name || 'Cliente Desconhecido'}</span>
-                    <span className="text-sm text-gray-500 ml-2">{appointment.service?.name || 'Serviço Desconhecido'}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-gray-900">{appointment.Client?.name || 'Cliente Desconhecido'}</span>
+                      <span className="text-sm text-gray-500">{appointment.Service?.name || 'Serviço Desconhecido'}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span>📅 {new Date(appointment.scheduledFor).toLocaleString('pt-PT')}</span>
+                      <span>⏱️ {appointment.duration || appointment.Service?.duration || 30} min</span>
+                      {appointment.Service?.price && (
+                        <span>💰 €{appointment.Service.price}</span>
+                      )}
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        appointment.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                        appointment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        appointment.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {appointment.status}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-400">{new Date(appointment.scheduledFor).toLocaleString('pt-BR')}</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-xs text-gray-400">
+                      {new Date(appointment.createdAt).toLocaleDateString('pt-PT')}
+                    </span>
+                    {/* Source indicator - placeholder for now, will be enhanced when we add source field */}
+                    <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">
+                      {appointment.Client?.email?.includes('_') ? '🌐 Online' : '👥 Manual'}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
-          ) : <div className="text-gray-500 text-center py-4">Nenhum agendamento recente.</div>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 } 

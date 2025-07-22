@@ -55,15 +55,32 @@ export default function StaffBookingsPage() {
         setLoading(true);
         setError('');
         
-        const response = await fetch('/api/business/appointments', {
+        console.log('🔧 DEBUG: Fetching appointments...');
+        
+        // Add timestamp to prevent cache
+        const timestamp = Date.now();
+        const response = await fetch(`/api/business/appointments?t=${timestamp}`, {
           credentials: 'include',
-          cache: 'no-store'
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         });
+        
+        console.log('🔧 DEBUG: Fetch response status:', response.status);
         
         if (response.ok) {
           const data = await response.json();
+          console.log('🔧 DEBUG: Fetch response data:', data);
           
           if (data.success && data.data.appointments) {
+            console.log('🔧 DEBUG: Setting appointments to:', data.data.appointments.length, 'items');
+            console.log('🔧 DEBUG: Appointments list:', data.data.appointments.map((a: any) => ({ 
+              id: a.id, 
+              clientName: a.client?.name,
+              scheduledFor: a.scheduledFor 
+            })));
             setAppointments(data.data.appointments);
           } else {
             setError(data.error || 'Failed to load bookings');
@@ -72,7 +89,7 @@ export default function StaffBookingsPage() {
           setError('Failed to load bookings');
         }
       } catch (err) {
-        console.error('Error fetching bookings:', err);
+        console.error('🔧 DEBUG: Error fetching bookings:', err);
         setError('Failed to load bookings');
       } finally {
         setLoading(false);

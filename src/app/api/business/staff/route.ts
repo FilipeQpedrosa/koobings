@@ -116,22 +116,25 @@ export async function GET(request: NextRequest) {
             name: true
           }
         }
+      },
+      orderBy: {
+        name: 'asc'
       }
     });
 
     console.log('📊 Found staff members:', staffMembers.length);
-    console.log('👥 Staff data:', JSON.stringify(staffMembers, null, 2));
-
-    const response = { success: true, data: staffMembers };
-    console.log('📤 Returning response:', JSON.stringify(response, null, 2));
-
-    return NextResponse.json(response);
+    
+    const response = NextResponse.json({ success: true, data: staffMembers });
+    
+    // Prevent browser caching of dynamic staff data
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
-    console.error('GET /business/staff error:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
-      { status: 500 }
-    );
+    console.error('Error fetching staff:', error);
+    return NextResponse.json({ success: false, error: { code: 'STAFF_FETCH_ERROR', message: 'Failed to fetch staff' } }, { status: 500 });
   }
 }
 

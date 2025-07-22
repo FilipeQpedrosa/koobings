@@ -154,8 +154,9 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
       return null;
     }
     
-    // For API routes and other paths, try all tokens
+    // For API routes and other paths, try ALL tokens including admin
     const tokens = [
+      request.cookies.get('admin-auth-token')?.value,  // 🔧 FIX: Added admin token check for API routes
       request.cookies.get('business-auth-token')?.value,
       request.cookies.get('auth-token')?.value
     ];

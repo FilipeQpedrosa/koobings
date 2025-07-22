@@ -174,7 +174,6 @@ export default function StaffSelectionPage() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{staff.name}</h3>
-                      <p className="text-sm text-gray-600">{staff.email}</p>
                       {staff.phone && (
                         <p className="text-sm text-gray-500">{staff.phone}</p>
                       )}

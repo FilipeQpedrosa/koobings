@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getRequestAuthUser } from '@/lib/jwt';  // Use the same JWT system as status API
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 const updateBusinessSchema = z.object({
@@ -11,64 +10,40 @@ const updateBusinessSchema = z.object({
   ownerName: z.string().min(2, 'Nome do proprietário é obrigatório').optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
-  plan: z.enum(['basic', 'standard', 'premium']).optional(),
-  features: z.record(z.boolean()).optional(),
+  type: z.string().optional(),  // Use 'type' instead of 'plan'
+  settings: z.record(z.any()).optional(),  // Use 'settings' instead of 'features'
   password: z.string().min(6, 'Password deve ter pelo menos 6 caracteres').optional(),
   status: z.enum(['ACTIVE', 'PENDING', 'SUSPENDED', 'INACTIVE']).optional(),
   description: z.string().optional(),
 });
-
-async function verifyAdminAccess(request: NextRequest): Promise<{ isAdmin: boolean; userEmail?: string }> {
-  try {
-    // Try NextAuth session first
-    const session = await getServerSession(authOptions) as any;
-    
-    if (session?.user?.email) {
-      console.log('✅ NextAuth session found:', session.user.email);
-      
-      // Check if user is system admin
-      const admin = await prisma.system_admins.findUnique({
-        where: { email: session.user.email }
-      });
-      
-      if (admin) {
-        console.log('✅ System admin verified:', admin.name);
-        return { isAdmin: true, userEmail: session.user.email };
-      }
-    }
-
-    // Fallback: Check Authorization header for JWT
-    const authHeader = request.headers.get('Authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      console.log('🔍 Checking JWT token fallback...');
-      // For now, we'll allow any Bearer token as a temporary measure
-      // You can implement proper JWT verification here later
-      return { isAdmin: true, userEmail: 'jwt-user@temp.com' };
-    }
-
-    console.log('❌ No valid authentication found');
-    return { isAdmin: false };
-  } catch (error) {
-    console.error('❌ Auth verification error:', error);
-    return { isAdmin: false };
-  }
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function GET(request: NextRequest, { params }: any) {
   try {
     console.log('🔍 GET Business request for ID:', params.id);
 
-    // Verify admin access
-    const { isAdmin, userEmail } = await verifyAdminAccess(request);
-    if (!isAdmin) {
+    // Use the same JWT authentication as the status API
+    const user = getRequestAuthUser(request);
+    console.log('🔧 [DEBUG] Authentication result:', user ? { id: user.id, email: user.email, role: user.role, isAdmin: user.isAdmin } : 'No user found');
+    
+    if (!user) {
+      console.log('❌ [DEBUG] No authenticated user found');
       return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Access denied - admin only' } },
+        { error: 'Não autenticado' },
         { status: 401 }
       );
     }
 
-    console.log('✅ Admin access verified for:', userEmail);
+    // Check if user is admin
+    if (!user.isAdmin || user.role !== 'ADMIN') {
+      console.log('❌ [DEBUG] User is not admin:', { role: user.role, isAdmin: user.isAdmin });
+      return NextResponse.json(
+        { error: 'Acesso negado - apenas administradores do sistema' },
+        { status: 403 }
+      );
+    }
+
+    console.log('✅ Admin access verified for:', user.email);
 
     const business = await prisma.business.findUnique({
       where: { id: params.id },
@@ -93,13 +68,28 @@ export async function GET(request: NextRequest, { params }: any) {
           select: {
             id: true,
             scheduledFor: true,
+            duration: true,
+            status: true,
+            createdAt: true,
+            notes: true,
             Client: {
               select: {
-                name: true
+                id: true,
+                name: true,
+                email: true
               }
             },
             Service: {
               select: {
+                id: true,
+                name: true,
+                duration: true,
+                price: true
+              }
+            },
+            Staff: {
+              select: {
+                id: true,
                 name: true
               }
             }
@@ -128,10 +118,11 @@ export async function GET(request: NextRequest, { params }: any) {
 
     console.log('✅ Business found:', business.name);
     return NextResponse.json({ success: true, data: business });
+
   } catch (error) {
     console.error('❌ Error fetching business:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'BUSINESS_FETCH_ERROR', message: 'Internal Server Error' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch business' } },
       { status: 500 }
     );
   }
@@ -144,16 +135,28 @@ export async function PUT(
   try {
     console.log('🔍 PUT Business request for ID:', params.id);
 
-    // Verify admin access
-    const { isAdmin, userEmail } = await verifyAdminAccess(request);
-    if (!isAdmin) {
+    // Use the same JWT authentication as the status API
+    const user = getRequestAuthUser(request);
+    console.log('🔧 [DEBUG] Authentication result:', user ? { id: user.id, email: user.email, role: user.role, isAdmin: user.isAdmin } : 'No user found');
+    
+    if (!user) {
+      console.log('❌ [DEBUG] No authenticated user found');
       return NextResponse.json(
-        { error: 'Acesso negado - apenas administradores do sistema' },
+        { error: 'Não autenticado' },
         { status: 401 }
       );
     }
 
-    console.log('✅ Admin access verified for:', userEmail);
+    // Check if user is admin
+    if (!user.isAdmin || user.role !== 'ADMIN') {
+      console.log('❌ [DEBUG] User is not admin:', { role: user.role, isAdmin: user.isAdmin });
+      return NextResponse.json(
+        { error: 'Acesso negado - apenas administradores do sistema' },
+        { status: 403 }
+      );
+    }
+
+    console.log('✅ Admin access verified for:', user.email);
 
     const body = await request.json();
     console.log('📝 Update business request:', { id: params.id, body });
@@ -207,10 +210,10 @@ export async function PUT(
     if (validatedData.ownerName) updateData.ownerName = validatedData.ownerName;
     if (validatedData.phone !== undefined) updateData.phone = validatedData.phone;
     if (validatedData.address !== undefined) updateData.address = validatedData.address;
-    if (validatedData.plan !== undefined) updateData.plan = validatedData.plan;
+    if (validatedData.type !== undefined) updateData.type = validatedData.type;
     if (validatedData.status) updateData.status = validatedData.status;
     if (validatedData.description !== undefined) updateData.description = validatedData.description;
-    if (validatedData.features) updateData.settings = validatedData.features; // Store features in settings JSON field
+    if (validatedData.settings) updateData.settings = validatedData.settings; // Store features in settings JSON field
 
     console.log('📋 Business update data:', updateData);
 

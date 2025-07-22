@@ -125,6 +125,32 @@ export async function POST(request: NextRequest) {
 
     console.log('[CLIENT_APPOINTMENTS_POST] Appointment created:', appointment);
 
+    // 🔔 SEND AUTOMATIC NOTIFICATIONS FOR NEW APPOINTMENT
+    try {
+      console.log('[CLIENT_APPOINTMENTS_POST] Sending automatic notifications...');
+      
+      const notificationResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/appointments/${appointment.id}/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'PENDING',
+          sendEmail: true
+        })
+      });
+      
+      if (notificationResponse.ok) {
+        const notificationResult = await notificationResponse.json();
+        console.log('[CLIENT_APPOINTMENTS_POST] ✅ Notifications sent successfully:', notificationResult.data);
+      } else {
+        console.log('[CLIENT_APPOINTMENTS_POST] ⚠️ Notification sending failed:', notificationResponse.status);
+      }
+    } catch (error) {
+      console.log('[CLIENT_APPOINTMENTS_POST] ⚠️ Notification error (non-blocking):', error);
+      // Non-blocking error - don't fail the appointment creation
+    }
+
     return NextResponse.json({
       success: true,
       data: {
