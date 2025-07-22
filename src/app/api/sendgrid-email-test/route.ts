@@ -105,4 +105,4 @@ export async function POST(request: NextRequest) {
       service: 'SendGrid'
     }, { status: 500 });
   }
-} 
+} // Force redeploy Tue Jul 22 09:00:40 WEST 2025
