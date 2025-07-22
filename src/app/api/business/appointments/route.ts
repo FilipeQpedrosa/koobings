@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
     try {
       console.log('[POST /api/business/appointments] Sending automatic notifications...');
       
-      const notificationResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/appointments/${appointment.id}/notifications`, {
+      const notificationResponse = await fetch(`https://koobings.com/api/appointments/${appointment.id}/notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
