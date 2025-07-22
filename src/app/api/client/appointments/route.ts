@@ -141,6 +141,8 @@ export async function POST(request: NextRequest) {
     // 🔔 SEND AUTOMATIC NOTIFICATIONS FOR NEW APPOINTMENT
     try {
       console.log('[CLIENT_APPOINTMENTS_POST] Sending automatic notifications...');
+      console.log('[CLIENT_APPOINTMENTS_POST] Appointment ID:', appointment.id);
+      console.log('[CLIENT_APPOINTMENTS_POST] Notification URL:', `https://koobings.com/api/appointments/${appointment.id}/notifications`);
       
       const notificationResponse = await fetch(`https://koobings.com/api/appointments/${appointment.id}/notifications`, {
         method: 'POST',
@@ -154,14 +156,19 @@ export async function POST(request: NextRequest) {
         })
       });
       
+      console.log('[CLIENT_APPOINTMENTS_POST] Notification response status:', notificationResponse.status);
+      console.log('[CLIENT_APPOINTMENTS_POST] Notification response headers:', Object.fromEntries(notificationResponse.headers.entries()));
+      
       if (notificationResponse.ok) {
         const notificationResult = await notificationResponse.json();
-        console.log('[CLIENT_APPOINTMENTS_POST] ✅ Notifications sent successfully:', notificationResult.data);
+        console.log('[CLIENT_APPOINTMENTS_POST] ✅ Notifications sent successfully:', notificationResult);
       } else {
-        console.log('[CLIENT_APPOINTMENTS_POST] ⚠️ Notification sending failed:', notificationResponse.status);
+        const errorText = await notificationResponse.text();
+        console.log('[CLIENT_APPOINTMENTS_POST] ⚠️ Notification sending failed:', notificationResponse.status, errorText);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log('[CLIENT_APPOINTMENTS_POST] ⚠️ Notification error (non-blocking):', error);
+      console.log('[CLIENT_APPOINTMENTS_POST] Error stack:', error?.stack);
       // Non-blocking error - don't fail the appointment creation
     }
 
