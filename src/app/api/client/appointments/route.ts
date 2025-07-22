@@ -100,6 +100,20 @@ export async function POST(request: NextRequest) {
         }
       });
       console.log('[CLIENT_APPOINTMENTS_POST] New client created:', client);
+    } else {
+      // Client exists - check if name needs updating
+      if (client.name !== clientName) {
+        console.log('[CLIENT_APPOINTMENTS_POST] Updating client name from:', client.name, 'to:', clientName);
+        client = await prisma.client.update({
+          where: { id: client.id },
+          data: {
+            name: clientName,
+            phone: clientPhone || client.phone, // Update phone if provided
+            updatedAt: new Date()
+          }
+        });
+        console.log('[CLIENT_APPOINTMENTS_POST] Client updated:', client);
+      }
     }
 
     // Create appointment  
