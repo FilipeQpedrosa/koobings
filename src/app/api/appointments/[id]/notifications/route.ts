@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { prisma } from '@/lib/prisma';
-import { sendSendGridEmail } from '@/lib/services/sendgrid-email';
+import { sendBrevoEmail } from '@/lib/services/brevo-email';
 import { emailTemplates } from '@/lib/email-templates';
 
 // EMAIL TEMPLATES FOR REAL NOTIFICATIONS
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             status: status
           });
 
-          const clientEmailResult = await sendSendGridEmail({
+          const clientEmailResult = await sendBrevoEmail({
             to: appointment.Client.email,
             subject: clientTemplate.subject,
             html: clientTemplate.html,
@@ -266,7 +266,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
             subject: businessTemplate.subject
           });
 
-          const businessEmailResult = await sendSendGridEmail({
+          const businessEmailResult = await sendBrevoEmail({
             to: appointment.Business.email,
             subject: businessTemplate.subject,
             html: businessTemplate.html,
