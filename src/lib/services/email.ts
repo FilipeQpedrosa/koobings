@@ -1,6 +1,6 @@
-import { sendResendEmail } from './resend-email';
+import { sendSendGridEmail } from './sendgrid-email';
 
-interface EmailOptions {
+export interface EmailOptions {
   to: string | string[];
   subject: string;
   html: string;
@@ -8,28 +8,43 @@ interface EmailOptions {
   from?: string;
 }
 
-// Main email function - now using Resend
+/**
+ * Main email sending function - now uses SendGrid
+ * Automatically handles appointment-related notifications
+ */
 export async function sendEmail(options: EmailOptions) {
-  console.log('📧 [EMAIL_SERVICE] Sending email via Resend...');
-  
   try {
-    const result = await sendResendEmail(options);
+    console.log('📧 [EMAIL_SERVICE] Sending email via SendGrid...');
     
+    const result = await sendSendGridEmail({
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+      from: options.from || 'admin@koobings.com'
+    });
+
     if (result.success) {
-      console.log('✅ [EMAIL_SERVICE] Email sent successfully via Resend');
+      console.log('✅ [EMAIL_SERVICE] Email sent successfully via SendGrid');
+      return {
+        success: true,
+        messageId: result.messageId,
+        service: 'SendGrid'
+      };
     } else {
-      console.error('❌ [EMAIL_SERVICE] Email failed via Resend:', result.error);
+      console.error('❌ [EMAIL_SERVICE] SendGrid failed:', result.error);
+      return {
+        success: false,
+        error: result.error,
+        service: 'SendGrid'
+      };
     }
-    
-    return result;
-    
   } catch (error: any) {
     console.error('❌ [EMAIL_SERVICE] Unexpected error:', error);
-    
     return {
       success: false,
-      error: error.message,
-      service: 'Resend'
+      error: error.message || 'Unknown error',
+      service: 'SendGrid'
     };
   }
 }
