@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,9 @@ interface BusinessBrandingCardProps {
 
 export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingCardProps) {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentLogo, setCurrentLogo] = useState<string | null>(null);
+  const [previewLogo, setPreviewLogo] = useState<string | null>(null); // ✅ NEW: Preview state
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,8 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
     const file = event.target.files?.[0];
     if (!file) return;
 
+    console.log('📸 File selected:', file.name, file.size, file.type);
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
@@ -69,6 +73,7 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
 
     setUploading(true);
     try {
+      console.log('📤 Starting upload...');
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', 'logo');
@@ -76,21 +81,24 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include', // ✅ FIX: Ensure cookies are sent
       });
 
       const result = await response.json();
+      console.log('📤 Upload response:', result);
 
       if (response.ok && result.success) {
-        setCurrentLogo(result.data.url);
-        await saveLogo(result.data.url);
+        console.log('✅ Upload successful, setting preview:', result.data.url);
+        setPreviewLogo(result.data.url); // ✅ NEW: Set preview instead of saving immediately
         toast({
           title: "Sucesso",
-          description: "Logo carregado com sucesso!",
+          description: "Imagem carregada! Clique 'Confirmar' para salvar.",
         });
       } else {
         throw new Error(result.error?.message || 'Erro ao carregar logo');
       }
     } catch (error: any) {
+      console.error('❌ Upload error:', error);
       toast({
         title: "Erro",
         description: error.message || "Erro ao carregar logo",
@@ -98,10 +106,38 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
       });
     } finally {
       setUploading(false);
+      // Clear the input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
+  const confirmLogo = async () => {
+    if (!previewLogo) return;
+    
+    console.log('✅ Confirming logo:', previewLogo);
+    await saveLogo(previewLogo);
+    setCurrentLogo(previewLogo);
+    setPreviewLogo(null);
+  };
+
+  const cancelPreview = () => {
+    console.log('❌ Cancelling preview');
+    setPreviewLogo(null);
+    toast({
+      title: "Cancelado",
+      description: "Carregamento cancelado.",
+    });
+  };
+
+  const handleButtonClick = () => {
+    console.log('🖱️ Button clicked, triggering file input');
+    fileInputRef.current?.click();
+  };
+
   const saveLogo = async (logoUrl: string) => {
+    console.log('💾 Saving logo URL to business:', logoUrl);
     setSaving(true);
     try {
       const response = await fetch('/api/business/info', {
@@ -114,10 +150,15 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
         }),
       });
 
+      console.log('💾 Save response status:', response.status);
       if (!response.ok) {
+        const errorData = await response.json();
+        console.error('💾 Save error:', errorData);
         throw new Error('Erro ao salvar logo');
       }
+      console.log('✅ Logo saved successfully');
     } catch (error: any) {
+      console.error('❌ Save error:', error);
       toast({
         title: "Erro",
         description: error.message || "Erro ao salvar logo",
@@ -202,13 +243,13 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
               </div>
               <div className="flex-1 space-y-2">
                 <p className="text-sm text-gray-600">
-                  Logo carregado com sucesso. Será exibido no portal cliente e comunicações.
+                  Logo ativo. Será exibido no portal cliente e comunicações.
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={removeLogo}
-                  disabled={saving}
+                  disabled={saving || previewLogo !== null}
                   className="text-red-600 hover:text-red-700"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
@@ -234,16 +275,20 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
           
           <div className="flex items-center space-x-4">
             <Input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handleFileUpload}
-              disabled={uploading || saving}
+              disabled={uploading || saving || previewLogo !== null}
               className="flex-1"
+              style={{ display: 'none' }}
             />
             <Button
+              type="button"
               variant="outline"
-              disabled={uploading || saving}
-              onClick={() => document.querySelector('input[type="file"]')?.click()}
+              disabled={uploading || saving || previewLogo !== null}
+              onClick={handleButtonClick}
+              className="w-full"
             >
               {uploading ? (
                 <>
@@ -253,7 +298,7 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Selecionar Ficheiro
+                  {previewLogo ? 'Imagem Selecionada' : 'Selecionar Ficheiro'}
                 </>
               )}
             </Button>
@@ -268,6 +313,60 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
             </AlertDescription>
           </Alert>
         </div>
+
+        {/* Preview and Confirmation */}
+        {previewLogo && (
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+            <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+              <ImageIcon className="h-4 w-4 mr-2 text-yellow-600" />
+              Preview do Novo Logo
+            </h4>
+            <div className="flex items-start space-x-4">
+              <div className="relative w-24 h-24 bg-white rounded-lg border-2 border-yellow-300 overflow-hidden shadow-sm">
+                <Image
+                  src={previewLogo}
+                  alt="Preview Logo"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <div className="flex-1 space-y-3">
+                <p className="text-sm text-gray-700">
+                  Esta imagem irá substituir o logo atual. Confirma?
+                </p>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={cancelPreview} 
+                    disabled={saving}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Cancelar
+                  </Button>
+                  <Button 
+                    size="sm"
+                    onClick={confirmLogo} 
+                    disabled={saving}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3 w-3 mr-1" />
+                        Confirmar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Benefits */}
         <div className="bg-gray-50 rounded-lg p-4">

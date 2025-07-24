@@ -1,8 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import crypto from 'crypto';
+import { put } from '@vercel/blob';
 
 // Supported file types
 const SUPPORTED_IMAGE_TYPES = [
@@ -17,7 +15,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📤 [UPLOAD] Starting file upload...');
+    console.log('📤 [UPLOAD] Starting file upload to Vercel Blob...');
     
     // Check authentication
     const user = getRequestAuthUser(request);
@@ -31,9 +29,28 @@ export async function POST(request: NextRequest) {
 
     console.log('👤 [UPLOAD] User:', user.email, 'Role:', user.role);
 
-    const formData = await request.formData();
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+      console.log('📋 [UPLOAD] FormData parsed successfully');
+    } catch (error) {
+      console.error('❌ [UPLOAD] Failed to parse FormData:', error);
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_FORM_DATA', message: 'Failed to parse form data' } },
+        { status: 400 }
+      );
+    }
+
     const file = formData.get('file') as File;
     const uploadType = formData.get('type') as string || 'general'; // 'logo', 'avatar', 'general'
+
+    console.log('📁 [UPLOAD] File from FormData:', {
+      file: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      uploadType
+    });
 
     if (!file) {
       console.log('❌ [UPLOAD] No file provided');
@@ -61,57 +78,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📁 [UPLOAD] File details:', {
+    console.log('📁 [UPLOAD] File details validated:', {
       name: file.name,
       type: file.type,
       size: file.size,
       uploadType
     });
 
-    // Generate unique filename
+    // Generate unique filename with proper structure
     const fileExtension = file.name.split('.').pop() || 'jpg';
-    const fileName = `${crypto.randomUUID()}.${fileExtension}`;
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 8);
+    const fileName = `${uploadType}/${timestamp}-${randomId}.${fileExtension}`;
     
-    // Create directory structure based on upload type and user
-    const uploadDir = uploadType === 'logo' ? 'logos' : 
-                     uploadType === 'avatar' ? 'avatars' : 'general';
-    
-    const relativePath = `uploads/${uploadDir}/${fileName}`;
-    const fullPath = join(process.cwd(), 'public', relativePath);
-    
-    console.log('💾 [UPLOAD] Saving to:', fullPath);
+    console.log('📝 [UPLOAD] Generated filename:', fileName);
 
-    // Ensure directory exists
-    const dir = join(process.cwd(), 'public', 'uploads', uploadDir);
-    await mkdir(dir, { recursive: true });
+    try {
+      // Upload to Vercel Blob
+      console.log('☁️ [UPLOAD] Uploading to Vercel Blob...');
+      
+      const blob = await put(fileName, file, {
+        access: 'public',
+      });
+      
+      console.log('✅ [UPLOAD] File uploaded successfully to Vercel Blob:', blob.url);
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          url: blob.url,
+          fileName: blob.pathname,
+          originalName: file.name,
+          size: file.size,
+          type: file.type,
+          uploadType,
+          downloadUrl: blob.downloadUrl
+        }
+      });
 
-    // Convert file to buffer and save
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    await writeFile(fullPath, buffer);
-    
-    // Return public URL
-    const publicUrl = `/${relativePath}`;
-    
-    console.log('✅ [UPLOAD] File uploaded successfully:', publicUrl);
-    
-    return NextResponse.json({
-      success: true,
-      data: {
-        url: publicUrl,
-        fileName,
-        originalName: file.name,
-        size: file.size,
-        type: file.type,
-        uploadType
-      }
+    } catch (blobError: any) {
+      console.error('❌ [UPLOAD] Failed to upload to Vercel Blob:', {
+        message: blobError.message,
+        stack: blobError.stack,
+        name: blobError.name
+      });
+      return NextResponse.json(
+        { success: false, error: { code: 'BLOB_UPLOAD_ERROR', message: `Failed to upload to cloud storage: ${blobError.message}` } },
+        { status: 500 }
+      );
+    }
+
+  } catch (error: any) {
+    console.error('❌ [UPLOAD] Unexpected error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
     });
-
-  } catch (error) {
-    console.error('❌ [UPLOAD] Error:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'UPLOAD_ERROR', message: 'Failed to upload file' } },
+      { success: false, error: { code: 'UPLOAD_ERROR', message: `Upload failed: ${error.message}` } },
       { status: 500 }
     );
   }

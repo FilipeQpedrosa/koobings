@@ -197,6 +197,9 @@ export default function StaffSettingsPage() {
 
         {/* General Settings Tab */}
         <TabsContent value="general" className="space-y-6">
+          {/* Business Branding - MOVED TO TOP */}
+          <BusinessBrandingCard businessSlug={user?.businessSlug} />
+          
           {/* Quick Actions */}
           <Card>
             <CardHeader>
@@ -271,9 +274,6 @@ export default function StaffSettingsPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Business Branding */}
-          <BusinessBrandingCard businessSlug={user?.businessSlug} />
         </TabsContent>
 
         {/* Staff Permissions Tab */}
