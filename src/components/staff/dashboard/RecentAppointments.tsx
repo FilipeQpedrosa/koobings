@@ -3,9 +3,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format, isToday, isTomorrow, isThisWeek, isThisMonth, startOfDay, endOfDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, X, Search, Filter, CalendarDays, User, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
@@ -20,6 +22,15 @@ interface Appointment {
   duration: number;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
   notes?: string;
+  staff?: {
+    id: string;
+    name: string;
+  };
+}
+
+interface StaffMember {
+  id: string;
+  name: string;
 }
 
 interface BookingModalProps {
@@ -36,7 +47,7 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  
+
   // Form state
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [clientSearch, setClientSearch] = useState("");
@@ -47,188 +58,59 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [notes, setNotes] = useState("");
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [searchDebounce, setSearchDebounce] = useState("");
 
-  // Load data when modal opens
   useEffect(() => {
     if (isOpen && step === 1) {
       fetchData();
     }
   }, [isOpen]);
 
-  // Debounce search input for better performance
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchDebounce(clientSearch);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [clientSearch]);
-
-  // Fetch available time slots when staff and date are selected
-  useEffect(() => {
-    if (selectedStaff && selectedDate) {
-      fetchAvailableSlots();
-    } else {
-      setAvailableSlots([]);
-      setSelectedTime("");
-    }
-  }, [selectedStaff, selectedDate]);
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('🔄 BookingModal: Starting to fetch data...');
-      
-      // Add timestamp to prevent cache
       const timestamp = Date.now();
       
-      // Load clients and staff - these work
       const [clientsRes, staffRes] = await Promise.all([
-        fetch(`/api/business/clients?t=${timestamp}`, {
+        fetch(`/api/staff/clients?t=${timestamp}`, {
           credentials: 'include',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
+          cache: 'no-store'
         }),
         fetch(`/api/business/staff?t=${timestamp}`, {
           credentials: 'include',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
+          cache: 'no-store'
         })
       ]);
       
-      console.log('👥 BookingModal: Clients response status:', clientsRes.status);
-      console.log('👤 BookingModal: Staff response status:', staffRes.status);
-      
       if (clientsRes.ok) {
         const clientsData = await clientsRes.json();
-        console.log('👥 BookingModal: Clients data received:', clientsData);
-        console.log('👥 BookingModal: Number of clients:', clientsData.data?.clients?.length || 0);
-        
-        const clientsList = clientsData.data?.clients || [];
-        setClients(clientsList);
-        
-        if (clientsList.length > 0) {
-          console.log('👥 BookingModal: Sample clients:', clientsList.slice(0, 3).map((c: any) => ({ id: c.id, name: c.name, email: c.email })));
-        } else {
-          console.log('👥 BookingModal: No clients found in response');
-        }
-      } else {
-        console.error('❌ BookingModal: Failed to fetch clients:', clientsRes.status, clientsRes.statusText);
-        const errorText = await clientsRes.text();
-        console.error('❌ BookingModal: Clients error response:', errorText);
+        setClients(clientsData.data || []);
       }
       
       if (staffRes.ok) {
         const staffData = await staffRes.json();
-        console.log('👤 BookingModal: Staff data received:', staffData);
-        console.log('👤 BookingModal: Number of staff:', staffData.data?.length || 0);
-        
-        const staffList = staffData.data || [];
-        setStaffList(staffList);
-        
-        if (staffList.length > 0) {
-          console.log('👤 BookingModal: Sample staff:', staffList.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name })));
-        }
-      } else {
-        console.error('❌ BookingModal: Failed to fetch staff:', staffRes.status, staffRes.statusText);
-        const errorText = await staffRes.text();
-        console.error('❌ BookingModal: Staff error response:', errorText);
+        setStaffList(staffData.data || []);
       }
 
-      // Try to load services, but don't block if it fails
+      // Try to load services
       try {
-        console.log('🛠️ BookingModal: Fetching services...');
         const servicesRes = await fetch(`/api/services?t=${timestamp}`, {
           credentials: 'include',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
+          cache: 'no-store'
         });
-        
-        console.log('🛠️ BookingModal: Services response status:', servicesRes.status);
         
         if (servicesRes.ok) {
           const servicesData = await servicesRes.json();
-          console.log('🛠️ BookingModal: Services data received:', servicesData);
-          console.log('🛠️ BookingModal: Number of services:', servicesData.data?.length || 0);
-          
-          const servicesList = servicesData.data || [];
-          setServices(servicesList);
-          
-          if (servicesList.length > 0) {
-            console.log('🛠️ BookingModal: Sample services:', servicesList.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name })));
-          }
-        } else {
-          console.error('❌ BookingModal: Failed to fetch services:', servicesRes.status, servicesRes.statusText);
-          const errorText = await servicesRes.text();
-          console.error('❌ BookingModal: Services error response:', errorText);
-          // Leave services empty instead of hardcoded fallback
-          setServices([]);
+          setServices(servicesData.data || []);
         }
       } catch (error) {
-        console.error('❌ BookingModal: Services API error:', error);
-        // Leave services empty instead of hardcoded fallback  
         setServices([]);
       }
     } catch (error) {
       console.error('❌ BookingModal: Failed to fetch data:', error);
     } finally {
       setLoading(false);
-      console.log('✅ BookingModal: Data fetch completed');
     }
   }, []);
-
-  const handleAddClient = async () => {
-    if (!newClient.name || !newClient.email) return;
-    
-    // Clear any previous error
-    setErrorMessage("");
-    setSaving(true);
-    
-    try {
-      console.log('🔄 Creating client:', newClient);
-      
-      const response = await fetch('/api/staff/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newClient),
-      });
-      
-      const result = await response.json();
-      console.log('📝 Client creation response:', result);
-      
-      if (response.ok && result.success) {
-        const clientData = result.data;
-        setClients(prev => [...prev, clientData]);
-        setSelectedClient(clientData);
-        setNewClient({ name: "", email: "", phone: "", notes: "" });
-        setShowAddClient(false);
-        setClientSearch("");
-        setErrorMessage("");
-        console.log('✅ Client created successfully:', clientData.name);
-      } else {
-        // Handle error response
-        const errorMsg = result.error?.message || 'Erro ao criar cliente';
-        setErrorMessage(errorMsg);
-        console.error('❌ Failed to add client:', result.error);
-      }
-    } catch (error) {
-      console.error('❌ Network error creating client:', error);
-      setErrorMessage('Erro de conexão. Tente novamente.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!selectedClient || !selectedServices.length || !selectedStaff || !selectedDate || !selectedTime) {
@@ -236,21 +118,13 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     }
 
     setSaving(true);
-    setErrorMessage(""); // Clear any previous errors
+    setErrorMessage("");
     
     try {
-      console.log('🔄 Submitting appointment:', {
-        clientId: selectedClient.id,
-        serviceIds: selectedServices,
-        staffId: selectedStaff,
-        scheduledFor: `${selectedDate}T${selectedTime}:00`,
-        notes: notes,
-      });
-
       const response = await fetch('/api/business/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Important for cookies
+        credentials: 'include',
         body: JSON.stringify({
           clientId: selectedClient.id,
           serviceIds: selectedServices,
@@ -261,20 +135,15 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
       });
 
       const result = await response.json();
-      console.log('📝 Appointment creation response:', result);
 
       if (response.ok && result.success) {
-        console.log('✅ Appointment created successfully:', result.data.id);
         onBookingCreated();
         handleClose();
       } else {
-        // Handle error response
         const errorMsg = result.error?.message || `Erro ${response.status}: ${response.statusText}`;
         setErrorMessage(errorMsg);
-        console.error('❌ Failed to create appointment:', result.error || response.statusText);
       }
     } catch (error) {
-      console.error('❌ Network error creating appointment:', error);
       setErrorMessage('Erro de conexão. Verifique sua internet e tente novamente.');
     } finally {
       setSaving(false);
@@ -292,395 +161,167 @@ function BookingModal({ isOpen, onClose, onBookingCreated }: BookingModalProps) 
     setSelectedDate("");
     setSelectedTime("");
     setNotes("");
-    setAvailableSlots([]);
-    setLoadingSlots(false);
     setErrorMessage("");
     onClose();
-  };
-
-  const filteredClients = useMemo(() => {
-    if (!searchDebounce.trim()) return clients;
-    return clients.filter(
-      (c: any) =>
-        (c.name?.toLowerCase() || '').includes(searchDebounce.toLowerCase()) ||
-        (c.email?.toLowerCase() || '').includes(searchDebounce.toLowerCase())
-    );
-  }, [clients, searchDebounce]);
-
-  const getTimeSlots = () => {
-    const slots = [];
-    for (let h = 8; h <= 20; h++) {
-      for (let m = 0; m < 60; m += 30) {
-        const hour = h.toString().padStart(2, '0');
-        const min = m.toString().padStart(2, '0');
-        slots.push(`${hour}:${min}`);
-      }
-    }
-    if (selectedDate === format(new Date(), 'yyyy-MM-dd')) {
-      const now = new Date();
-      return slots.filter((t) => {
-        const [h, m] = t.split(':').map(Number);
-        return h > now.getHours() || (h === now.getHours() && m > now.getMinutes());
-      });
-    }
-    return slots;
-  };
-
-  const fetchAvailableSlots = useCallback(async () => {
-    if (!selectedStaff || !selectedDate) return;
-    
-    setLoadingSlots(true);
-    try {
-      const response = await fetch(`/api/staff/${selectedStaff}/availability?date=${selectedDate}&duration=${getSelectedServiceDuration()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableSlots(data.availableSlots || []);
-      } else {
-        // Fallback to basic time slots if API fails
-        setAvailableSlots(getBasicTimeSlots());
-      }
-    } catch (error) {
-      console.error('Failed to fetch available slots:', error);
-      // Fallback to basic time slots
-      setAvailableSlots(getBasicTimeSlots());
-    } finally {
-      setLoadingSlots(false);
-    }
-  }, [selectedStaff, selectedDate, selectedServices]);
-
-  const getSelectedServiceDuration = () => {
-    if (selectedServices.length === 0) return 30;
-    const service = services.find(s => s.id === selectedServices[0]);
-    return service?.duration || 30;
-  };
-
-  const getBasicTimeSlots = () => {
-    const slots = [];
-    for (let h = 8; h <= 20; h++) {
-      for (let m = 0; m < 60; m += 30) {
-        const hour = h.toString().padStart(2, '0');
-        const min = m.toString().padStart(2, '0');
-        slots.push(`${hour}:${min}`);
-      }
-    }
-    if (selectedDate === format(new Date(), 'yyyy-MM-dd')) {
-      const now = new Date();
-      return slots.filter((t) => {
-        const [h, m] = t.split(':').map(Number);
-        return h > now.getHours() || (h === now.getHours() && m > now.getMinutes());
-      });
-    }
-    return slots;
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[95vh] min-h-[400px] flex flex-col mx-2">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 sm:p-6 border-b flex-shrink-0">
-          <h2 className="text-xl font-bold text-gray-900">Criar Agendamento</h2>
-          <Button variant="ghost" size="icon" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h2 className="text-lg font-semibold">Novo Agendamento</h2>
+          <Button variant="ghost" size="sm" onClick={handleClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Progress Steps */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b flex-shrink-0">
-          <div className="flex justify-between items-center">
-            {['Cliente', 'Serviço', 'Agendamento'].map((label, idx) => (
-              <div key={idx} className="flex flex-col items-center flex-1">
-                <div className={`w-8 h-8 flex items-center justify-center rounded-full text-white text-sm font-bold ${
-                  step === idx + 1 ? 'bg-blue-600' : idx + 1 < step ? 'bg-blue-400' : 'bg-gray-300'
-                }`}>
-                  {idx + 1}
-                </div>
-                <span className={`mt-2 text-xs font-medium ${
-                  step === idx + 1 ? 'text-blue-600' : 'text-gray-400'
-                }`}>
-                  {label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
-          {loading ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="p-4">
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{errorMessage}</p>
             </div>
-          ) : (
-            <>
-              {/* Step 1: Client Selection */}
-              {step === 1 && (
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    placeholder="Procurar cliente por nome ou email..."
-                    className="border border-gray-300 rounded-lg p-3 w-full bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    value={clientSearch}
-                    onChange={e => setClientSearch(e.target.value)}
-                  />
-                  
-                  <button 
-                    type="button" 
-                    className="flex items-center gap-2 text-blue-600 hover:underline" 
-                    onClick={() => setShowAddClient(true)}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar novo cliente
-                  </button>
-
-                  {showAddClient && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                      <input 
-                        type="text" 
-                        placeholder="Nome" 
-                        className="w-full border border-gray-300 rounded p-2 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
-                        value={newClient.name} 
-                        onChange={e => {
-                          setNewClient(n => ({ ...n, name: e.target.value }));
-                          if (errorMessage) setErrorMessage("");
-                        }} 
-                      />
-                      <input 
-                        type="email" 
-                        placeholder="Email" 
-                        className="w-full border border-gray-300 rounded p-2 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
-                        value={newClient.email} 
-                        onChange={e => {
-                          setNewClient(n => ({ ...n, email: e.target.value }));
-                          if (errorMessage) setErrorMessage("");
-                        }} 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Telefone" 
-                        className="w-full border border-gray-300 rounded p-2 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
-                        value={newClient.phone} 
-                        onChange={e => {
-                          setNewClient(n => ({ ...n, phone: e.target.value }));
-                          if (errorMessage) setErrorMessage("");
-                        }} 
-                      />
-                      <Button onClick={handleAddClient} disabled={saving || !newClient.name || !newClient.email}>
-                        {saving ? 'Guardando...' : 'Guardar Cliente'}
-                      </Button>
-                      {errorMessage && (
-                        <p className="text-red-500 text-xs mt-2">{errorMessage}</p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {filteredClients.map((client: any) => (
-                      <button
-                        key={client.id}
-                        type="button"
-                        className={`flex items-center gap-3 p-3 w-full text-left rounded-lg border transition ${
-                          selectedClient?.id === client.id ? 'bg-blue-50 border-blue-500' : 'bg-white border-gray-200 hover:bg-gray-50'
-                        }`}
-                        onClick={() => setSelectedClient(client)}
-                      >
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold flex-shrink-0">
-                          {client.name?.[0]?.toUpperCase() || '?'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-gray-900 break-words overflow-hidden">{client.name}</div>
-                          <div className="text-sm text-gray-600 break-words overflow-hidden">{client.email}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Step 2: Service Selection */}
-              {step === 2 && (
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-gray-900">Selecionar Serviço</h3>
-                  <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
-                    {services.map((service: any) => (
-                      <button
-                        key={service.id}
-                        type="button"
-                        className={`flex flex-col items-start p-4 rounded-lg border text-left transition ${
-                          selectedServices.includes(service.id) 
-                            ? 'border-blue-500 bg-blue-50' 
-                            : 'border-gray-200 bg-white hover:bg-gray-50'
-                        }`}
-                        onClick={() => setSelectedServices([service.id])}
-                      >
-                        <div className="font-semibold flex items-center gap-2 text-gray-900">
-                          {service.name}
-                          {selectedServices.includes(service.id) && (
-                            <span className="text-blue-600">✓</span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Duração: {service.duration} min
-                          {service.price && ` • €${service.price}`}
-                        </div>
-                        {service.description && (
-                          <div className="text-sm text-gray-500 mt-1">{service.description}</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Schedule */}
-              {step === 3 && (
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-gray-900">Agendar</h3>
-                  
-                  <div className="grid grid-cols-1 gap-4">
-                    {/* Staff Selection - First */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-800 mb-2">
-                        Funcionário *
-                      </label>
-                      <select 
-                        className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
-                        value={selectedStaff} 
-                        onChange={e => {
-                          setSelectedStaff(e.target.value);
-                          setSelectedTime(""); // Reset time when staff changes
-                        }}
-                      >
-                        <option value="">Selecionar funcionário</option>
-                        {staffList.map((staff: any) => (
-                          <option key={staff.id} value={staff.id}>{staff.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Date Selection - Second */}
-                    {selectedStaff && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-800 mb-2">
-                          Data *
-                        </label>
-                        <input 
-                          type="date" 
-                          className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
-                          value={selectedDate} 
-                          min={format(new Date(), 'yyyy-MM-dd')} 
-                          onChange={e => {
-                            setSelectedDate(e.target.value);
-                            setSelectedTime(""); // Reset time when date changes
-                          }} 
-                        />
-                      </div>
-                    )}
-
-                    {/* Time Selection - Third (only after staff and date) */}
-                    {selectedStaff && selectedDate && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-800 mb-2">
-                          Hora disponível *
-                          {loadingSlots && (
-                            <span className="ml-2 text-xs text-blue-600">
-                              <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
-                              Verificando disponibilidade...
-                            </span>
-                          )}
-                        </label>
-                        <select 
-                          className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
-                          value={selectedTime} 
-                          onChange={e => setSelectedTime(e.target.value)}
-                          disabled={loadingSlots}
-                        >
-                          <option value="">
-                            {loadingSlots ? "Verificando..." : availableSlots.length === 0 ? "Nenhuma hora disponível" : "Selecionar hora"}
-                          </option>
-                          {availableSlots.map((time: string) => (
-                            <option key={time} value={time}>{time}</option>
-                          ))}
-                        </select>
-                        {!loadingSlots && availableSlots.length === 0 && selectedStaff && selectedDate && (
-                          <p className="text-sm text-amber-600 mt-1">
-                            ⚠️ Não há horários disponíveis para esta data. Tente outra data.
-                          </p>
-                        )}
-                        {!loadingSlots && availableSlots.length > 0 && (
-                          <p className="text-sm text-green-600 mt-1">
-                            ✅ {availableSlots.length} horário(s) disponível(eis)
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Notes - Always visible */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-800 mb-2">Notas (opcional)</label>
-                      <textarea 
-                        placeholder="Notas sobre o agendamento..." 
-                        className="w-full border border-gray-300 rounded-lg p-2 h-16 resize-none bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
-                        value={notes} 
-                        onChange={e => setNotes(e.target.value)} 
-                      />
-                    </div>
-
-                    {/* Error Message */}
-                    {errorMessage && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="text-red-700 text-sm font-medium">❌ Erro:</p>
-                        <p className="text-red-600 text-sm">{errorMessage}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
           )}
-        </div>
 
-        {/* Footer - Always visible */}
-        <div className="flex flex-col sm:flex-row justify-between items-center p-4 sm:p-6 border-t bg-gray-50 rounded-b-2xl flex-shrink-0 gap-3 sm:gap-0">
-          <div className="flex gap-2 order-2 sm:order-1">
-            {step > 1 && (
-              <Button variant="outline" onClick={() => setStep(step - 1)} className="min-w-[80px]">
-                Voltar
-              </Button>
-            )}
+          <div className="space-y-4">
+            {/* Client Selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Cliente *</label>
+              <div className="relative">
+                <Input
+                  placeholder="Procurar cliente..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                />
+                {clientSearch && (
+                  <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto">
+                    {clients
+                      .filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()))
+                      .map(client => (
+                        <div
+                          key={client.id}
+                          className="p-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => {
+                            setSelectedClient(client);
+                            setClientSearch(client.name);
+                          }}
+                        >
+                          {client.name} - {client.email}
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
+              {selectedClient && (
+                <p className="text-sm text-green-600 mt-1">✓ {selectedClient.name}</p>
+              )}
+            </div>
+
+            {/* Staff Selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Funcionário *</label>
+              <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar funcionário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staffList.map(staff => (
+                    <SelectItem key={staff.id} value={staff.id}>
+                      {staff.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Service Selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Serviço *</label>
+              <Select 
+                value={selectedServices[0] || ""} 
+                onValueChange={(value) => setSelectedServices(value ? [value] : [])}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar serviço" />
+                </SelectTrigger>
+                <SelectContent>
+                  {services.map(service => (
+                    <SelectItem key={service.id} value={service.id}>
+                      {service.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Data *</label>
+              <Input
+                type="date"
+                value={selectedDate}
+                min={format(new Date(), 'yyyy-MM-dd')}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+            </div>
+
+            {/* Time Selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Hora *</label>
+              <Input
+                type="time"
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+              />
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Notas</label>
+              <textarea
+                className="w-full border border-gray-300 rounded-md p-2"
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notas adicionais..."
+              />
+            </div>
           </div>
-          
-          <div className="flex gap-2 order-1 sm:order-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleClose} className="flex-1 sm:flex-none min-w-[80px]">
+
+          <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+            <Button variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
-            
-            {step < 3 ? (
-              <Button 
-                onClick={() => setStep(step + 1)} 
-                disabled={
-                  (step === 1 && !selectedClient) || 
-                  (step === 2 && selectedServices.length === 0)
-                }
-                className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
-              >
-                Continuar
-              </Button>
-            ) : (
-              <Button 
-                onClick={handleSubmit} 
-                disabled={saving || !selectedClient || !selectedServices.length || !selectedStaff || !selectedDate || !selectedTime}
-                className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white min-w-[140px]"
-              >
-                {saving ? 'Criando...' : 'Criar Agendamento'}
-              </Button>
-            )}
+            <Button 
+              onClick={handleSubmit}
+              disabled={saving || !selectedClient || !selectedStaff || !selectedDate || !selectedTime}
+            >
+              {saving ? 'Criando...' : 'Criar Agendamento'}
+            </Button>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function getStatusLabel(status: Appointment['status']) {
+  switch (status) {
+    case 'PENDING':
+      return 'Pendente';
+    case 'ACCEPTED':
+      return 'Aceite';
+    case 'REJECTED':
+      return 'Rejeitado';
+    case 'COMPLETED':
+      return 'Concluído';
+    case 'CANCELLED':
+      return 'Cancelado';
+    default:
+      return status;
+  }
 }
 
 function getStatusColor(status: Appointment['status']) {
@@ -700,18 +341,6 @@ function getStatusColor(status: Appointment['status']) {
   }
 }
 
-function getStatusLabel(status: Appointment['status']) {
-  switch (status) {
-    case 'PENDING': return 'Pendente';
-    case 'ACCEPTED': return 'Aceito';
-    case 'REJECTED': return 'Rejeitado';
-    case 'COMPLETED': return 'Concluído';
-    case 'CANCELLED': return 'Cancelado';
-    default: return status;
-  }
-}
-
-// Memoized appointment card component for better mobile performance
 const AppointmentCard = React.memo(({ apt, onStatusChange, updatingId }: {
   apt: Appointment;
   onStatusChange: (id: string, status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED') => void;
@@ -719,33 +348,17 @@ const AppointmentCard = React.memo(({ apt, onStatusChange, updatingId }: {
 }) => {
   
   // Get available next statuses based on current status
-  const getAvailableStatuses = (currentStatus: string) => {
-    switch (currentStatus) {
-      case 'PENDING':
-        return [
-          { value: 'PENDING', label: 'Pendente' },
-          { value: 'ACCEPTED', label: 'Aceitar' },
-          { value: 'REJECTED', label: 'Rejeitar' }
-        ];
-      case 'ACCEPTED':
-        return [
-          { value: 'ACCEPTED', label: 'Aceito' },
-          { value: 'COMPLETED', label: 'Concluir' },
-          { value: 'CANCELLED', label: 'Cancelar' }
-        ];
-      case 'REJECTED':
-      case 'COMPLETED':
-      case 'CANCELLED':
-        return [
-          { value: currentStatus, label: currentStatus === 'COMPLETED' ? 'Concluído' : 
-                                       currentStatus === 'CANCELLED' ? 'Cancelado' : 'Rejeitado' }
-        ];
-      default:
-        return [{ value: currentStatus, label: currentStatus }];
-    }
-  };
+  const availableStatuses = useMemo(() => {
+    const statusOptions = [
+      { value: 'PENDING', label: 'Pendente' },
+      { value: 'ACCEPTED', label: 'Aceite' },
+      { value: 'REJECTED', label: 'Rejeitado' },
+      { value: 'COMPLETED', label: 'Concluído' },
+      { value: 'CANCELLED', label: 'Cancelado' }
+    ];
 
-  const availableStatuses = getAvailableStatuses(apt.status);
+    return statusOptions;
+  }, [apt.status]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
@@ -760,6 +373,9 @@ const AppointmentCard = React.memo(({ apt, onStatusChange, updatingId }: {
       <div className="text-gray-700 break-words overflow-hidden">{apt.services?.[0]?.name}</div>
       <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
       <div className="text-sm text-gray-500">{apt.duration} min</div>
+      {apt.staff && (
+        <div className="text-sm text-gray-500">Staff: {apt.staff.name}</div>
+      )}
       {apt.notes && apt.notes.trim() !== "" && (
         <div className="mt-2 p-2 bg-blue-50 rounded-md">
           <p className="text-xs font-medium text-blue-800">Notas:</p>
@@ -792,44 +408,49 @@ interface RecentAppointmentsProps {
 export default function RecentAppointments({ businessSlug }: RecentAppointmentsProps = {}) {
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('upcoming');
+  const [staffFilter, setStaffFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('upcoming');
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch appointments from API
+  // Fetch appointments and staff from API
   useEffect(() => {
-    async function fetchAppointmentsAsync() {
+    async function fetchData() {
       setLoading(true);
       try {
-        console.log('📅 RecentAppointments: Fetching appointments...');
+        console.log('📅 RecentAppointments: Fetching appointments and staff...');
         
-        // Add timestamp to prevent cache
-        const timestamp = Date.now();
-        const apiUrl = `/api/business/appointments?t=${timestamp}`;
+        // Fetch both appointments and staff members
+        const [appointmentsResponse, staffResponse] = await Promise.all([
+          fetch(`/api/business/appointments?t=${Date.now()}`, { 
+            credentials: 'include',
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          }),
+          fetch(`/api/business/staff?t=${Date.now()}`, {
+            credentials: 'include',
+            cache: 'no-store'
+          })
+        ]);
         
-        console.log('📅 RecentAppointments: API URL:', apiUrl);
+        console.log('📅 RecentAppointments: Response status:', appointmentsResponse.status, staffResponse.status);
         
-        const response = await fetch(apiUrl, { 
-          credentials: 'include',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        console.log('📅 RecentAppointments: Response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
+        if (appointmentsResponse.ok) {
+          const data = await appointmentsResponse.json();
           const appointmentsArray = data?.data?.appointments || [];
           
           console.log('📅 RecentAppointments: Received appointments:', appointmentsArray.length);
-          console.log('📅 RecentAppointments: Appointments list:', appointmentsArray.map((a: any) => ({ 
-            id: a.id, 
-            clientName: a.client?.name,
-            scheduledFor: a.scheduledFor 
-          })));
           
           const formattedAppointments: Appointment[] = appointmentsArray.map((apt: any) => ({
             id: apt.id,
@@ -845,24 +466,120 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                    apt.status?.toLowerCase() === 'rejected' ? 'REJECTED' :
                    apt.status?.toLowerCase() === 'completed' ? 'COMPLETED' : 
                    apt.status?.toLowerCase() === 'cancelled' ? 'CANCELLED' : 'PENDING',
-            notes: apt.notes
+            notes: apt.notes,
+            staff: apt.staff ? {
+              id: apt.staff.id,
+              name: apt.staff.name
+            } : undefined
           }));
           
           setAppointments(formattedAppointments);
         } else {
-          console.error('❌ RecentAppointments: Failed to fetch appointments:', response.status);
+          console.error('❌ RecentAppointments: Failed to fetch appointments:', appointmentsResponse.status);
           setAppointments([]);
         }
+
+        if (staffResponse.ok) {
+          const staffData = await staffResponse.json();
+          if (staffData.success && staffData.data) {
+            setStaffMembers(staffData.data);
+          }
+        }
       } catch (error) {
-        console.error('❌ RecentAppointments: Error fetching appointments:', error);
+        console.error('❌ RecentAppointments: Error fetching data:', error);
         setAppointments([]);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchAppointmentsAsync();
+    fetchData();
   }, [businessSlug]);
+
+  // Enhanced filtering and sorting logic
+  const filteredAndSortedAppointments = useMemo(() => {
+    let filtered = appointments.filter(appointment => {
+      const appointmentDate = new Date(appointment.scheduledFor);
+      const now = new Date();
+      
+      // Search filter
+      const matchesSearch = 
+        appointment.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        appointment.services.some(service => service.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        appointment.staff?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Status filter
+      const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
+      
+      // Staff filter
+      const matchesStaff = staffFilter === 'all' || appointment.staff?.id === staffFilter;
+      
+      // Date filter
+      let matchesDate = true;
+      switch (dateFilter) {
+        case 'today':
+          matchesDate = isToday(appointmentDate);
+          break;
+        case 'tomorrow':
+          matchesDate = isTomorrow(appointmentDate);
+          break;
+        case 'upcoming':
+          matchesDate = appointmentDate >= startOfDay(now);
+          break;
+        case 'past':
+          matchesDate = appointmentDate < startOfDay(now);
+          break;
+        case 'this-week':
+          matchesDate = isThisWeek(appointmentDate, { locale: ptBR });
+          break;
+        case 'this-month':
+          matchesDate = isThisMonth(appointmentDate);
+          break;
+        case 'next-7-days':
+          const next7Days = addDays(now, 7);
+          matchesDate = appointmentDate >= startOfDay(now) && appointmentDate <= endOfDay(next7Days);
+          break;
+        case 'all':
+        default:
+          matchesDate = true;
+      }
+      
+      return matchesSearch && matchesStatus && matchesStaff && matchesDate;
+    });
+
+    // Sort filtered results
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.scheduledFor);
+      const dateB = new Date(b.scheduledFor);
+      const now = new Date();
+      
+      switch (sortBy) {
+        case 'upcoming':
+          // Show upcoming appointments first, then sort by date
+          const aIsUpcoming = dateA >= now;
+          const bIsUpcoming = dateB >= now;
+          if (aIsUpcoming && !bIsUpcoming) return -1;
+          if (!aIsUpcoming && bIsUpcoming) return 1;
+          return dateA.getTime() - dateB.getTime();
+          
+        case 'date-asc':
+          return dateA.getTime() - dateB.getTime();
+          
+        case 'date-desc':
+          return dateB.getTime() - dateA.getTime();
+          
+        case 'client':
+          const nameA = a.client?.name || '';
+          const nameB = b.client?.name || '';
+          return nameA.localeCompare(nameB);
+          
+        default:
+          return dateA.getTime() - dateB.getTime();
+      }
+    });
+
+    return filtered;
+  }, [appointments, searchTerm, statusFilter, dateFilter, staffFilter, sortBy]);
 
   const handleStatusChange = useCallback(async (id: string, newStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED') => {
     setUpdatingId(id);
@@ -893,11 +610,8 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
       try {
         console.log('📅 RecentAppointments: Refreshing appointments after booking created...');
         
-        // Add timestamp to prevent cache
         const timestamp = Date.now();
         const apiUrl = `/api/business/appointments?t=${timestamp}`;
-        
-        console.log('📅 RecentAppointments: API URL:', apiUrl);
         
         const response = await fetch(apiUrl, { 
           credentials: 'include',
@@ -908,18 +622,9 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
           }
         });
         
-        console.log('📅 RecentAppointments: Response status:', response.status);
-        
         if (response.ok) {
           const data = await response.json();
           const appointmentsArray = data?.data?.appointments || [];
-          
-          console.log('📅 RecentAppointments: Received appointments after refresh:', appointmentsArray.length);
-          console.log('📅 RecentAppointments: Latest appointments:', appointmentsArray.slice(0, 3).map((a: any) => ({ 
-            id: a.id, 
-            clientName: a.client?.name,
-            scheduledFor: a.scheduledFor 
-          })));
           
           const formattedAppointments: Appointment[] = appointmentsArray.map((apt: any) => ({
             id: apt.id,
@@ -935,17 +640,17 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                    apt.status?.toLowerCase() === 'rejected' ? 'REJECTED' :
                    apt.status?.toLowerCase() === 'completed' ? 'COMPLETED' : 
                    apt.status?.toLowerCase() === 'cancelled' ? 'CANCELLED' : 'PENDING',
-            notes: apt.notes
+            notes: apt.notes,
+            staff: apt.staff ? {
+              id: apt.staff.id,
+              name: apt.staff.name
+            } : undefined
           }));
           
           setAppointments(formattedAppointments);
-        } else {
-          console.error('❌ RecentAppointments: Failed to refresh appointments:', response.status);
-          setAppointments([]);
         }
       } catch (error) {
         console.error('❌ RecentAppointments: Error refreshing appointments:', error);
-        setAppointments([]);
       } finally {
         setLoading(false);
       }
@@ -954,22 +659,159 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
     fetchAppointmentsAsync();
   }
 
+  const getStatsForFilter = () => {
+    const now = new Date();
+    const today = appointments.filter(a => isToday(new Date(a.scheduledFor)));
+    const upcoming = appointments.filter(a => new Date(a.scheduledFor) >= startOfDay(now));
+    
+    return {
+      total: appointments.length,
+      today: today.length,
+      upcoming: upcoming.length,
+      pending: appointments.filter(a => a.status === 'PENDING').length,
+      accepted: appointments.filter(a => a.status === 'ACCEPTED').length,
+      completed: appointments.filter(a => a.status === 'COMPLETED').length
+    };
+  };
+
+  const stats = getStatsForFilter();
+
   return (
     <>
       <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 w-full max-w-full border-2 border-gray-200">
-        {/* Header with title and add button */}
+        {/* Header with title and controls */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 sm:gap-0 mb-6">
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Agendamentos Recentes</h2>
           
-          {/* Desktop CTA - Hidden on mobile since we have FAB */}
-          <Button 
-            onClick={handleCreateAppointment} 
-            className="hidden sm:flex bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 border-0"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            <span className="text-sm">Novo Agendamento</span>
-          </Button>
+          <div className="flex gap-2">
+            {/* Toggle Filters Button */}
+            <Button 
+              onClick={() => setShowFilters(!showFilters)}
+              variant="outline"
+              className="hidden sm:flex"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+            </Button>
+            
+            {/* Desktop CTA */}
+            <Button 
+              onClick={handleCreateAppointment} 
+              className="hidden sm:flex bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 border-0"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              <span className="text-sm">Novo Agendamento</span>
+            </Button>
+          </div>
         </div>
+
+        {/* Filters Section */}
+        {showFilters && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+            <div className="space-y-4">
+              {/* Top row - Search and main filters */}
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Procurar por cliente, serviço ou staff..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <CalendarDays className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="upcoming">🔜 Próximos</SelectItem>
+                    <SelectItem value="today">📅 Hoje</SelectItem>
+                    <SelectItem value="tomorrow">➡️ Amanhã</SelectItem>
+                    <SelectItem value="next-7-days">📊 Próximos 7 dias</SelectItem>
+                    <SelectItem value="this-week">📅 Esta semana</SelectItem>
+                    <SelectItem value="this-month">📅 Este mês</SelectItem>
+                    <SelectItem value="past">⬅️ Passados</SelectItem>
+                    <SelectItem value="all">🔍 Todos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="PENDING">Pendente</SelectItem>
+                    <SelectItem value="ACCEPTED">Aceite</SelectItem>
+                    <SelectItem value="COMPLETED">Concluído</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelado</SelectItem>
+                    <SelectItem value="REJECTED">Rejeitado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Bottom row - Staff and sorting */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Select value={staffFilter} onValueChange={setStaffFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <User className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os staff</SelectItem>
+                    {staffMembers.map(staff => (
+                      <SelectItem key={staff.id} value={staff.id}>
+                        {staff.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[200px]">
+                    <ArrowUpDown className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Ordenar por" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="upcoming">🔜 Próximos primeiro</SelectItem>
+                    <SelectItem value="date-asc">📅 Data (mais cedo)</SelectItem>
+                    <SelectItem value="date-desc">📅 Data (mais tarde)</SelectItem>
+                    <SelectItem value="client">👤 Nome do cliente</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <div className="flex-1" />
+                
+                <div className="text-sm text-gray-600 flex items-center">
+                  <Filter className="h-4 w-4 mr-1" />
+                  {filteredAndSortedAppointments.length} de {appointments.length} agendamentos
+                </div>
+              </div>
+
+              {/* Quick Stats - Simplified to 3 most important */}
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                <div className="text-center p-3 bg-white rounded-lg border shadow-sm">
+                  <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+                  <div className="text-sm text-gray-500">Total</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border shadow-sm">
+                  <div className="text-2xl font-bold text-blue-600">{stats.upcoming}</div>
+                  <div className="text-sm text-gray-500">Próximos</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg border shadow-sm">
+                  <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                  <div className="text-sm text-gray-500">Pendentes</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {loading ? (
           <div className="flex justify-center items-center h-40">
@@ -979,10 +821,15 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
           <>
             {/* Mobile Card View */}
             <div className="sm:hidden space-y-4">
-              {appointments.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">Nenhum agendamento encontrado com os filtros atuais.</div>
+              {filteredAndSortedAppointments.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {searchTerm || statusFilter !== 'all' || dateFilter !== 'all' || staffFilter !== 'all' 
+                    ? 'Nenhum agendamento encontrado com os filtros atuais.' 
+                    : 'Nenhum agendamento encontrado.'
+                  }
+                </div>
               ) : (
-                appointments.map((apt) => (
+                filteredAndSortedAppointments.map((apt) => (
                   <AppointmentCard 
                     key={apt.id} 
                     apt={apt} 
@@ -992,6 +839,7 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                 ))
               )}
             </div>
+            
             {/* Desktop Table View */}
             <div className="hidden sm:block w-full">
               <div className="w-full">
@@ -1007,78 +855,81 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                     </tr>
                   </thead>
                   <tbody>
-                    {appointments.length === 0 ? (
+                    {filteredAndSortedAppointments.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-500">Nenhum agendamento encontrado.</td>
+                        <td colSpan={6} className="text-center py-8 text-gray-500">
+                          {searchTerm || statusFilter !== 'all' || dateFilter !== 'all' || staffFilter !== 'all' 
+                            ? 'Nenhum agendamento encontrado com os filtros atuais.' 
+                            : 'Nenhum agendamento encontrado.'
+                          }
+                        </td>
                       </tr>
                     ) : (
-                      appointments.map((apt) => (
-                        <tr key={apt.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                          <td className="px-2 py-4 text-sm max-w-[180px]">
-                            <div className="font-medium break-words overflow-hidden">{apt.client.name}</div>
-                          </td>
-                          <td className="px-2 py-4 text-sm max-w-[120px]">
-                            <div className="break-words overflow-hidden">{apt.services?.[0]?.name}</div>
-                          </td>
-                          <td className="px-2 py-4 text-sm whitespace-nowrap">
-                            <div className="text-xs">{format(new Date(apt.scheduledFor), 'dd/MM', { locale: ptBR })}</div>
-                            <div className="text-xs text-gray-500">{format(new Date(apt.scheduledFor), 'HH:mm', { locale: ptBR })}</div>
-                          </td>
-                          <td className="px-2 py-4 text-xs text-gray-600">{apt.duration}m</td>
-                          <td className="px-2 py-4">
-                            <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap")}>
-                              {getStatusLabel(apt.status)}
-                            </Badge>
-                          </td>
-                          <td className="px-2 py-4">
-                            {(() => {
-                              // Get available next statuses based on current status
-                              const getAvailableStatuses = (currentStatus: string) => {
-                                switch (currentStatus) {
-                                  case 'PENDING':
-                                    return [
-                                      { value: 'PENDING', label: 'Pendente' },
-                                      { value: 'ACCEPTED', label: 'Aceitar' },
-                                      { value: 'REJECTED', label: 'Rejeitar' }
-                                    ];
-                                  case 'ACCEPTED':
-                                    return [
-                                      { value: 'ACCEPTED', label: 'Aceito' },
-                                      { value: 'COMPLETED', label: 'Concluir' },
-                                      { value: 'CANCELLED', label: 'Cancelar' }
-                                    ];
-                                  case 'REJECTED':
-                                  case 'COMPLETED':
-                                  case 'CANCELLED':
-                                    return [
-                                      { value: currentStatus, label: currentStatus === 'COMPLETED' ? 'Concluído' : 
-                                       currentStatus === 'CANCELLED' ? 'Cancelado' : 'Rejeitado' }
-                                    ];
-                                  default:
-                                    return [{ value: currentStatus, label: currentStatus }];
-                                }
-                              };
+                      filteredAndSortedAppointments.map((apt) => {
+                        const appointmentDate = new Date(apt.scheduledFor);
+                        const isUpcoming = appointmentDate >= new Date();
+                        
+                        return (
+                          <tr key={apt.id} className={`border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
+                            isUpcoming ? 'bg-blue-50/30' : ''
+                          }`}>
+                            <td className="px-2 py-4 text-sm max-w-[180px]">
+                              <div className="font-medium break-words overflow-hidden">{apt.client.name}</div>
+                              {apt.staff && (
+                                <div className="text-xs text-gray-500">Staff: {apt.staff.name}</div>
+                              )}
+                            </td>
+                            <td className="px-2 py-4 text-sm max-w-[120px]">
+                              <div className="break-words overflow-hidden">{apt.services?.[0]?.name}</div>
+                            </td>
+                            <td className="px-2 py-4 text-sm whitespace-nowrap">
+                              {isToday(appointmentDate) ? (
+                                <div className="text-xs font-medium text-blue-600">Hoje</div>
+                              ) : isTomorrow(appointmentDate) ? (
+                                <div className="text-xs font-medium text-blue-600">Amanhã</div>
+                              ) : (
+                                <div className="text-xs">{format(appointmentDate, 'dd/MM', { locale: ptBR })}</div>
+                              )}
+                              <div className="text-xs text-gray-500">{format(appointmentDate, 'HH:mm', { locale: ptBR })}</div>
+                            </td>
+                            <td className="px-2 py-4 text-xs text-gray-600">{apt.duration}m</td>
+                            <td className="px-2 py-4">
+                              <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap")}>
+                                {getStatusLabel(apt.status)}
+                              </Badge>
+                            </td>
+                            <td className="px-2 py-4">
+                              {(() => {
+                                // Get available next statuses based on current status
+                                const statusOptions = [
+                                  { value: 'PENDING', label: 'Pendente' },
+                                  { value: 'ACCEPTED', label: 'Aceite' },
+                                  { value: 'REJECTED', label: 'Rejeitado' },
+                                  { value: 'COMPLETED', label: 'Concluído' },
+                                  { value: 'CANCELLED', label: 'Cancelado' }
+                                ];
 
-                              const availableStatuses = getAvailableStatuses(apt.status);
+                                const availableStatuses = statusOptions;
 
-                              return (
-                                <select
-                                  className="border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs w-full"
-                                  value={apt.status}
-                                  disabled={availableStatuses.length === 1}
-                                  onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
-                                >
-                                  {availableStatuses.map(status => (
-                                    <option key={status.value} value={status.value}>
-                                      {status.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              );
-                            })()}
-                          </td>
-                        </tr>
-                      ))
+                                return (
+                                  <select
+                                    className="border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs w-full"
+                                    value={apt.status}
+                                    disabled={availableStatuses.length === 1}
+                                    onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
+                                  >
+                                    {availableStatuses.map(status => (
+                                      <option key={status.value} value={status.value}>
+                                        {status.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1109,4 +960,4 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
       )}
     </>
   );
-} /* Cache buster 1751397006 */
+}

@@ -8,9 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Package, Plus, Edit, Trash2, ArrowLeft, Clock, Euro, Search } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, ArrowLeft, Clock, Euro, Search, Upload, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
 
 interface Service {
   id: string;
@@ -18,6 +20,7 @@ interface Service {
   description?: string;
   duration: number;
   price: number;
+  image?: string;
   createdAt: string;
   category?: {
     id: string;
@@ -30,11 +33,13 @@ interface ServiceFormData {
   description: string;
   duration: number;
   price: number;
+  image: string;
 }
 
 export default function StaffSettingsServicesPage() {
   // 🔥 ALL HOOKS AT THE TOP - NEVER CONDITIONAL
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +47,13 @@ export default function StaffSettingsServicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<ServiceFormData>({
     name: '',
     description: '',
     duration: 30,
-    price: 0
+    price: 0,
+    image: ''
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -115,13 +122,81 @@ export default function StaffSettingsServicesPage() {
     }));
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione apenas ficheiros de imagem.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Erro",
+        description: "O ficheiro deve ter menos de 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      formDataUpload.append('type', 'general');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setFormData(prev => ({
+          ...prev,
+          image: result.data.url
+        }));
+        toast({
+          title: "Sucesso",
+          description: "Imagem carregada com sucesso!",
+        });
+      } else {
+        throw new Error(result.error?.message || 'Erro ao carregar imagem');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao carregar imagem",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setFormData(prev => ({
+      ...prev,
+      image: ''
+    }));
+  };
+
   const openAddModal = () => {
     setEditingService(null);
     setFormData({
       name: '',
       description: '',
       duration: 30,
-      price: 0
+      price: 0,
+      image: ''
     });
     setShowAddModal(true);
   };
@@ -132,7 +207,8 @@ export default function StaffSettingsServicesPage() {
       name: service.name,
       description: service.description || '',
       duration: service.duration,
-      price: service.price
+      price: service.price,
+      image: service.image || ''
     });
     setShowAddModal(true);
   };
@@ -184,6 +260,7 @@ export default function StaffSettingsServicesPage() {
           description: formData.description.trim() || undefined,
           duration: formData.duration,
           price: formData.price,
+          image: formData.image || undefined,
         }),
       });
 
@@ -391,9 +468,20 @@ export default function StaffSettingsServicesPage() {
                 >
                   <div className="flex items-center space-x-4">
                     <div className="flex-shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Package className="h-5 w-5 text-blue-600" />
-                      </div>
+                      {service.image ? (
+                        <div className="relative h-12 w-12 rounded-lg overflow-hidden border">
+                          <Image
+                            src={service.image}
+                            alt={service.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <Package className="h-6 w-6 text-blue-600" />
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center space-x-2">
@@ -490,6 +578,79 @@ export default function StaffSettingsServicesPage() {
                 rows={3}
                 disabled={submitting}
               />
+            </div>
+
+            {/* Image Upload Section */}
+            <div className="space-y-4">
+              <Label className="text-sm font-medium text-gray-700">Imagem do Serviço</Label>
+              
+              {formData.image ? (
+                <div className="flex items-start space-x-4">
+                  <div className="relative w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 overflow-hidden">
+                    <Image
+                      src={formData.image}
+                      alt="Service Image"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-sm text-gray-600">
+                      Imagem carregada com sucesso.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={removeImage}
+                      disabled={uploading || submitting}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remover
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+                  <div className="text-center">
+                    <ImageIcon className="h-6 w-6 text-gray-400 mx-auto mb-1" />
+                    <p className="text-xs text-gray-500">Sem imagem</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-4">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploading || submitting}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploading || submitting}
+                  onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
+                >
+                  {uploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Selecionar
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Formatos suportados: JPG, PNG, WebP. Máximo: 5MB.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

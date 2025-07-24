@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     const appointments = await prisma.appointments.findMany({
       where,
       include: {
-        client: {
+        Client: {
           select: {
             id: true,
             name: true,
@@ -257,8 +257,9 @@ export async function POST(request: NextRequest) {
       notes: data.notes
     });
 
-    const appointment = await prisma.appointments.create({
+    const appointment = await (prisma as any).appointments.create({
       data: {
+        id: `apt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         clientId: data.clientId,
         serviceId: data.serviceId,
         staffId: staffId,
@@ -267,6 +268,7 @@ export async function POST(request: NextRequest) {
         duration: service.duration,
         status: 'PENDING',
         notes: data.notes,
+        updatedAt: new Date()
       },
       include: {
         Client: true,
@@ -276,6 +278,34 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('✅ [APPOINTMENTS_POST] Appointment created successfully:', appointment.id);
+
+    // 🔔 SEND AUTOMATIC NOTIFICATIONS FOR NEW APPOINTMENT
+    try {
+      console.log('[APPOINTMENTS_POST] Sending automatic notifications...');
+      
+      const notificationResponse = await fetch(`https://koobings.com/api/appointments/${appointment.id}/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Request': 'true'
+        },
+        body: JSON.stringify({
+          status: 'PENDING',
+          sendEmail: true
+        })
+      });
+      
+      if (notificationResponse.ok) {
+        const notificationResult = await notificationResponse.json();
+        console.log('[APPOINTMENTS_POST] ✅ Notifications sent successfully:', notificationResult.data);
+      } else {
+        console.log('[APPOINTMENTS_POST] ⚠️ Notification sending failed:', notificationResponse.status);
+      }
+    } catch (error) {
+      console.log('[APPOINTMENTS_POST] ⚠️ Notification error (non-blocking):', error);
+      // Non-blocking error - don't fail the appointment creation
+    }
+
     return NextResponse.json({ success: true, data: appointment });
   } catch (error) {
     console.error('💥 [APPOINTMENTS_POST] Error creating appointment:', error);

@@ -10,6 +10,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft } from 'lucide-react';
 
+interface TimeSlot {
+  time: string;
+  available: boolean;
+}
+
 export default function BookingDateTime() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,7 +26,9 @@ export default function BookingDateTime() {
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
     // Validate all required parameters
@@ -36,19 +43,53 @@ export default function BookingDateTime() {
     }
   }, [serviceId, staffId, businessSlug, router, toast]);
 
-  // Generate available time slots (basic implementation)
-  const getTimeSlots = () => {
-    const slots = [];
-    for (let hour = 9; hour <= 18; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        slots.push(timeString);
-      }
+  useEffect(() => {
+    if (selectedDate && serviceId && staffId) {
+      fetchAvailableSlots();
     }
-    return slots;
-  };
+  }, [selectedDate, serviceId, staffId]);
 
-  const timeSlots = getTimeSlots();
+  const fetchAvailableSlots = async () => {
+    if (!selectedDate || !serviceId || !staffId) return;
+    
+    setLoadingSlots(true);
+    try {
+      console.log('🔍 [BOOKING] Fetching available slots for:', {
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        serviceId,
+        staffId
+      });
+
+      const response = await fetch(
+        `/api/client/availability?serviceId=${serviceId}&staffId=${staffId}&date=${format(selectedDate, 'yyyy-MM-dd')}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch time slots: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('📅 [BOOKING] Available slots response:', result);
+      
+      if (result.success && result.data) {
+        setTimeSlots(result.data);
+        console.log('✅ [BOOKING] Loaded slots:', result.data.length);
+      } else {
+        throw new Error(result.error?.message || 'Failed to load time slots');
+      }
+    } catch (error) {
+      console.error('❌ [BOOKING] Error fetching slots:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao carregar horários disponíveis. Tente novamente.',
+        variant: 'destructive'
+      });
+      // Fallback to empty array
+      setTimeSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
 
   const handleBack = () => {
     if (!businessSlug || !serviceId) {
@@ -97,6 +138,9 @@ export default function BookingDateTime() {
     return format(date, "d 'de' MMMM, yyyy", { locale: ptBR });
   };
 
+  // Filter only available time slots
+  const availableTimeSlots = timeSlots.filter(slot => slot.available);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -137,23 +181,37 @@ export default function BookingDateTime() {
         {selectedDate && (
           <Card className="p-4">
             <h3 className="text-lg font-semibold mb-4">🕒 Selecionar Hora</h3>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-              {timeSlots.map((time) => (
-                <Button
-                  key={time}
-                  variant={selectedTime === time ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedTime(time)}
-                  className={`text-xs ${
-                    selectedTime === time 
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                      : 'hover:bg-blue-50'
-                  }`}
-                >
-                  {time}
-                </Button>
-              ))}
-            </div>
+            
+            {loadingSlots ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-2 text-sm text-gray-600">Carregando horários disponíveis...</p>
+              </div>
+            ) : availableTimeSlots.length > 0 ? (
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                {availableTimeSlots.map((slot) => (
+                  <Button
+                    key={slot.time}
+                    variant={selectedTime === slot.time ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedTime(slot.time)}
+                    className={`text-xs ${
+                      selectedTime === slot.time 
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                        : 'hover:bg-blue-50'
+                    }`}
+                  >
+                    {slot.time}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Nenhum horário disponível para esta data.</p>
+                <p className="text-sm text-gray-400 mt-1">Tente selecionar outra data.</p>
+              </div>
+            )}
+            
             {selectedTime && (
               <p className="text-center text-sm text-blue-600 mt-3 font-medium">
                 Hora selecionada: {selectedTime}

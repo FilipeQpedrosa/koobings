@@ -121,6 +121,7 @@ model Service {
   description        String?
   duration           Int
   price              Float
+  image              String?
   businessId         String
   categoryId         String?
   Business           Business            @relation(fields: [businessId], references: [id])

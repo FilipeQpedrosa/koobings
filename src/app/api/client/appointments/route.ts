@@ -38,12 +38,11 @@ export async function POST(request: NextRequest) {
 
     console.log('[CLIENT_APPOINTMENTS_POST] Finding service...');
 
-    // Check if service exists and belongs to this business
-    const service = await prisma.service.findFirst({
-      where: {
-        id: serviceId,
-        businessId: business.id
-      }
+    // EMERGENCY WORKAROUND: Skip business filter for service lookup
+    console.log('[CLIENT_APPOINTMENTS_POST] Service lookup - serviceId:', serviceId);
+    
+    let service = await prisma.service.findUnique({
+      where: { id: serviceId }
     });
 
     console.log('[CLIENT_APPOINTMENTS_POST] Service found:', service);

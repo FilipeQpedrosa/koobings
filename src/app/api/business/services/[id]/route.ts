@@ -48,6 +48,7 @@ const updateServiceSchema = z.object({
   price: z.number().nonnegative().optional(),
   duration: z.number().int().positive().optional(),
   categoryId: z.string().optional(),
+  image: z.string().optional(),
   staffIds: z.array(z.string()).optional()
 })
 

@@ -11,6 +11,7 @@ import { Settings, Users, Package, Tag, ArrowRight, Shield, Eye, Database, Lock,
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import BusinessBrandingCard from '@/components/BusinessBrandingCard';
 
 interface BusinessPermissions {
   allowStaffToViewAllBookings: boolean;
@@ -270,6 +271,9 @@ export default function StaffSettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Business Branding */}
+          <BusinessBrandingCard businessSlug={user?.businessSlug} />
         </TabsContent>
 
         {/* Staff Permissions Tab */}
