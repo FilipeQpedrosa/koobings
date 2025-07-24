@@ -265,14 +265,23 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    console.log('🔧 [PATCH /api/business/info] Starting update...');
+    
     const user = getRequestAuthUser(request);
     
-    if (!user?.businessId || (user.staffRole !== 'ADMIN' && user.role !== 'BUSINESS_OWNER')) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    if (!user?.businessId) {
+      console.log('❌ [PATCH] No businessId found for user');
+      return NextResponse.json({ success: false, error: 'Unauthorized - no business ID' }, { status: 401 });
+    }
+
+    if (user.staffRole !== 'ADMIN' && user.role !== 'BUSINESS_OWNER' && !user.isAdmin) {
+      console.log('❌ [PATCH] User not authorized:', user.role, user.staffRole);
+      return NextResponse.json({ success: false, error: 'Unauthorized - insufficient permissions' }, { status: 401 });
     }
 
     const schema = z.object({
       name: z.string().optional(),
+      logo: z.string().nullable().optional(), // ✅ ADD LOGO FIELD
       allowStaffToViewAllBookings: z.boolean().optional(),
       restrictStaffToViewAllClients: z.boolean().optional(),
       restrictStaffToViewAllNotes: z.boolean().optional(),
@@ -280,17 +289,24 @@ export async function PATCH(request: NextRequest) {
     });
 
     const body = await request.json();
+    console.log('🔧 [PATCH] Request body:', body);
+    
     const validatedData = schema.parse(body);
+    console.log('🔧 [PATCH] Validated data:', validatedData);
 
     const updatedBusiness = await prisma.business.update({
       where: { id: user.businessId },
       data: validatedData,
     });
 
+    console.log('✅ [PATCH] Business updated successfully:', updatedBusiness.id);
+    console.log('✅ [PATCH] New logo value:', updatedBusiness.logo);
+
     return NextResponse.json({ success: true, data: updatedBusiness });
   } catch (error) {
-    console.error('[PATCH /api/business/info] error:', error);
+    console.error('❌ [PATCH /api/business/info] error:', error);
     if (error instanceof z.ZodError) {
+      console.error('❌ [PATCH] Validation error:', error.errors);
       return NextResponse.json({ success: false, error: 'Invalid input', details: error.errors }, { status: 400 });
     }
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
