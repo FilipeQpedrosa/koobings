@@ -156,10 +156,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     
     // Trigger automatic notifications for status changes
     try {
-      const notificationResponse = await fetch(`https://koobings.com/api/appointments/${params.id}/notifications`, {
+      console.log('🔔 PATCH /api/appointments/[id] triggering notifications...');
+      console.log('🔔 Notification URL:', `${process.env.NEXT_PUBLIC_APP_URL || 'https://koobings.com'}/api/appointments/${params.id}/notifications`);
+      console.log('🔔 Payload:', { status: status, sendEmail: true });
+      
+      const notificationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://koobings.com'}/api/appointments/${params.id}/notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Internal-Request': 'true',
           'Authorization': request.headers.get('Authorization') || '',
           'Cookie': request.headers.get('Cookie') || ''
         },
@@ -169,11 +174,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         })
       });
       
+      console.log('🔔 Notification response status:', notificationResponse.status);
+      console.log('🔔 Notification response headers:', Object.fromEntries(notificationResponse.headers.entries()));
+      
       if (notificationResponse.ok) {
         const notificationResult = await notificationResponse.json();
         console.log('✅ Notifications triggered successfully:', notificationResult.data);
       } else {
-        console.log('⚠️ Notification trigger failed:', notificationResponse.status);
+        const errorText = await notificationResponse.text();
+        console.log('⚠️ Notification trigger failed:', notificationResponse.status, errorText);
       }
     } catch (error) {
       console.log('⚠️ Notification trigger error (non-blocking):', error);

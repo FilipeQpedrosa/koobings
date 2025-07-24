@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       duration: z.number().int().positive(),
       price: z.number().nonnegative(),
       categoryId: z.string().optional(),
+      image: z.string().optional(),
     });
 
     let body;
