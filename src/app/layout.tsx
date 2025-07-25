@@ -11,8 +11,8 @@ import { ReactNode } from 'react';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Koobings - Parceiro Digital de Microempresas',
-  description: 'O parceiro digital de confiança das microempresas de serviços. Gestão simples e eficiente para o seu negócio.',
+  title: 'Koobings – Marca. Segue. Está feito.',
+  description: 'Marca. Segue. Está feito. A plataforma que simplifica a gestão do seu negócio.',
 };
 
 export default async function RootLayout({

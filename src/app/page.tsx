@@ -219,7 +219,7 @@ export default function HomePage() {
           <div className="flex items-center justify-between py-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Koobings</h1>
-              <p className="text-gray-600 text-sm">Encontre e agende serviços</p>
+              <p className="text-gray-600 text-sm">Marca. Segue. Está feito.</p>
             </div>
             
             <div className="flex items-center space-x-4">

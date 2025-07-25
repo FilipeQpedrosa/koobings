@@ -59,7 +59,7 @@ export default function TermsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-gray-600">
-                A Koobings é uma plataforma digital que oferece soluções de gestão para microempresas 
+                A Koobings é uma plataforma digital que oferece soluções de gestão para negócios
                 de serviços, incluindo gestão de marcações, clientes, equipa e relatórios.
               </p>
               <div className="bg-blue-50 p-4 rounded-lg">
