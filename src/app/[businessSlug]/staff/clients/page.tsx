@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, User, Phone, Mail, Calendar, Edit, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Client {
@@ -194,37 +195,48 @@ export default function StaffClientsPage() {
           ) : (
             <div className="space-y-4">
               {filteredClients.map((client) => (
-                <div key={client.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{client.name}</h3>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        {client.email && (
-                          <div className="flex items-center">
-                            <Mail className="h-4 w-4 mr-1" />
-                            {client.email}
+                <div key={client.id} className="border rounded-lg hover:bg-gray-50 transition-colors">
+                  <Link href={`/${user?.businessSlug || 'business'}/staff/clients/${client.id}`}>
+                    <div className="flex items-center justify-between p-4 cursor-pointer">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900">{client.name}</h3>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            {client.email && (
+                              <div className="flex items-center">
+                                <Mail className="h-4 w-4 mr-1" />
+                                {client.email}
+                              </div>
+                            )}
+                            {client.phone && (
+                              <div className="flex items-center">
+                                <Phone className="h-4 w-4 mr-1" />
+                                {client.phone}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {client.phone && (
-                          <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-1" />
-                            {client.phone}
-                          </div>
-                        )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Badge variant="secondary">
+                          {client._count?.appointments || 0} appointments
+                        </Badge>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                   
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary">
-                      {client._count?.appointments || 0} appointments
-                    </Badge>
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                  {/* Edit button outside the main link to prevent conflicts */}
+                  <div className="px-4 pb-4 flex justify-end">
+                    <Link href={`/${user?.businessSlug || 'business'}/staff/clients/${client.id}/edit`}>
+                      <Button size="sm" variant="outline" className="flex items-center">
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ))}
