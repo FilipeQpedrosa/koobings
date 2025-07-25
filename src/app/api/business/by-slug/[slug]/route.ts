@@ -69,11 +69,32 @@ export async function GET(
         logo: true,
         phone: true,
         address: true,
+        website: true,
         email: true,
         type: true,
         settings: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        // Include staff information
+        Staff: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true
+          }
+        },
+        // Include services information
+        Service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            duration: true
+          }
+        }
       }
     });
 
@@ -90,7 +111,13 @@ export async function GET(
     // Return business data with slug
     return NextResponse.json({
       success: true,
-      data: business
+      data: {
+        ...business,
+        staff: business.Staff, // Map Staff to staff
+        services: business.Service, // Map Service to services
+        Staff: undefined, // Remove the capitalized properties
+        Service: undefined
+      }
     });
   } catch (error) {
     console.error('❌ Error fetching business by slug:', error);

@@ -1,5 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+// GET /api/client/appointments - Get client appointments
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || !session.user) {
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    }
+
+    // Find client by email
+    const client = await prisma.client.findUnique({
+      where: { email: session.user.email },
+      include: {
+        appointments: {
+          include: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                duration: true
+              }
+            },
+            staff: {
+              select: {
+                id: true,
+                name: true,
+                role: true
+              }
+            },
+            business: {
+              select: {
+                id: true,
+                name: true,
+                slug: true
+              }
+            }
+          },
+          orderBy: { scheduledFor: 'desc' }
+        }
+      }
+    });
+
+    if (!client) {
+      return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      data: {
+        appointments: client.appointments
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching client appointments:', error);
+    return NextResponse.json(
+      { success: false, error: { code: 'APPOINTMENTS_FETCH_ERROR', message: 'Internal server error' } },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {

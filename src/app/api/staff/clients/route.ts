@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { createId } from '@paralleldrive/cuid2';
 
 // GET /api/staff/clients - List clients for the business
 // POST /api/staff/clients - Add a new client
 
 export async function GET(req: NextRequest) {
-  const user = getRequestAuthUser(req);
-  if (!user) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user?.businessId) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
-  const businessId = user.businessId;
-  if (!businessId) {
-    return NextResponse.json({ success: false, error: 'Business ID missing' }, { status: 400 });
-  }
-  const staffId = user.id;
-  const staffRole = user.staffRole;
+
+  const { businessId } = session.user;
   
   try {
     // Fetch business and setting
@@ -25,11 +22,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
     }
     
-    const restrict = business.restrictStaffToViewAllClients;
-    let clients;
-    
     // For now, show all clients regardless of restrictions to fix the new client visibility issue
-    clients = await prisma.client.findMany({
+    const clients = await prisma.client.findMany({
       where: {
         businessId,
         isDeleted: { not: true }, // Only show non-deleted clients
@@ -59,12 +53,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = getRequestAuthUser(req);
-  if (!user) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || (session.user.role !== 'STAFF' && session.user.role !== 'BUSINESS_OWNER')) {
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
   }
   
-  const businessId = user.businessId;
+  const businessId = session.user.businessId;
   if (!businessId) {
     return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Business ID missing' } }, { status: 400 });
   }

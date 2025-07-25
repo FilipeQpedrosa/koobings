@@ -14,25 +14,64 @@ export default function SignInForm() {
     setError('');
 
     try {
+      console.log('🔐 Staff login attempt for:', email);
+      
+      // Clear any existing auth data before attempting login
+      localStorage.removeItem('auth-refresh');
+      localStorage.removeItem('user-session');
+      sessionStorage.clear();
+      
       const response = await fetch('/api/auth/custom-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({ email, password }),
+        cache: 'no-store',
+        credentials: 'include'
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Redirect to the URL provided by the API
-        router.push(data.redirectUrl || '/staff/dashboard');
+        console.log('✅ Staff login successful, forcing complete refresh');
+        
+        // Trigger auth refresh in other components/tabs with timestamp
+        const refreshToken = Date.now().toString();
+        localStorage.setItem('auth-refresh', refreshToken);
+        
+        // Dispatch storage event for immediate cross-tab sync
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'auth-refresh',
+          newValue: refreshToken
+        }));
+
+        // Force complete page refresh to ensure no old data remains
+        // This is more reliable than router navigation for session changes
+        console.log('🔄 Forcing complete page refresh to clear any cached state');
+        
+        // Small delay to ensure backend state is synchronized
+        setTimeout(() => {
+          // Use window.location.href for complete refresh instead of router.push
+          window.location.href = data.redirectUrl || '/staff/dashboard';
+        }, 200);
+        
       } else {
+        console.error('❌ Staff login failed:', data.error);
         setError(data.error || 'Invalid email or password');
+        
+        // Clear any partial auth data on failed login
+        localStorage.removeItem('auth-refresh');
+        sessionStorage.clear();
       }
     } catch (err) {
+      console.error('❌ Staff login network error:', err);
       setError('An error occurred. Please try again.');
-      console.error('Login error:', err);
+      
+      // Clear any partial auth data on error
+      localStorage.removeItem('auth-refresh');
+      sessionStorage.clear();
     } finally {
       setIsLoading(false);
     }

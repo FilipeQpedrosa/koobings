@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       prisma.staff.findUnique({
         where: { id: staffId },
         include: {
-          availability: true,
+          StaffAvailability: true,
           appointments: {
             where: {
               scheduledFor: {
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
     // Type the schedule JSON for safe access
     type DaySchedule = { start: string; end: string; [key: string]: any };
     type ScheduleJson = Record<string, DaySchedule>;
-    const schedule = staff.availability?.schedule as ScheduleJson | undefined;
+    const schedule = staff.StaffAvailability?.schedule as ScheduleJson | undefined;
     const dayOfWeek = bookingDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const daySchedule = schedule?.[dayOfWeek];
     if (!daySchedule || !daySchedule.start || !daySchedule.end) {

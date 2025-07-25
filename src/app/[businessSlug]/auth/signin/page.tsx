@@ -112,88 +112,113 @@ export default function BusinessSignIn() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        <Card>
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-4">
-              {business.logo ? (
-                <img 
-                  src={business.logo} 
-                  alt={`${business.name} logo`}
-                  className="h-12 w-12 rounded-full object-cover"
-                />
-              ) : (
-                <Building2 className="h-12 w-12 text-blue-600" />
-              )}
+        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+          <CardHeader className="space-y-6 text-center pt-8 pb-6">
+            {/* Enhanced Logo Section */}
+            <div className="flex justify-center mb-2">
+              <div className="relative">
+                {business.logo ? (
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur-lg opacity-30"></div>
+                    <img 
+                      src={business.logo} 
+                      alt={`${business.name} logo`}
+                      className="relative h-24 w-24 rounded-full object-cover shadow-xl border-4 border-white"
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur-lg opacity-30"></div>
+                    <div className="relative h-24 w-24 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center shadow-xl border-4 border-white">
+                      <Building2 className="h-12 w-12 text-white" />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <CardTitle className="text-2xl font-bold">
-              {business.name}
-            </CardTitle>
-            <CardDescription>
-              Sign in to your staff portal
-            </CardDescription>
+            
+            {/* Business Name with Brand Styling */}
+            <div className="space-y-2">
+              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                {business.name}
+              </CardTitle>
+              <CardDescription className="text-lg text-gray-600 font-medium">
+                Portal Staff
+              </CardDescription>
+              <div className="w-16 h-1 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full mx-auto"></div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="px-8 pb-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
+                <label htmlFor="email" className="text-sm font-semibold text-gray-700">
                   Email
                 </label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Digite o seu email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
+                  className="h-12 border-2 border-gray-200 focus:border-pink-400 focus:ring-pink-400 rounded-lg text-base"
                 />
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">
+                <label htmlFor="password" className="text-sm font-semibold text-gray-700">
                   Password
                 </label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Digite a sua password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isLoading}
+                    className="h-12 border-2 border-gray-200 focus:border-pink-400 focus:ring-pink-400 rounded-lg text-base pr-12"
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
                     disabled={isLoading}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-5 w-5" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-5 w-5" />
                     )}
                   </button>
                 </div>
               </div>
 
               {error && (
-                <Alert>
+                <Alert className="bg-red-50 border-red-200">
                   <AlertDescription>
-                    <span className="text-red-600">{error}</span>
+                    <span className="text-red-700 font-medium">{error}</span>
                   </AlertDescription>
                 </Alert>
               )}
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full h-12 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] text-base"
                 disabled={isLoading}
               >
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                {isLoading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <span>A entrar...</span>
+                  </div>
+                ) : (
+                  'Entrar no Portal'
+                )}
               </Button>
             </form>
           </CardContent>

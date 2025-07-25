@@ -135,7 +135,7 @@ export default function StaffDashboard() {
         <div className="block sm:hidden">
           <div className="flex items-center justify-center gap-3 mb-3">
             {logo && (
-              <img src={logo} alt="Logo" className="w-8 h-8 rounded-full object-cover border-2 border-blue-200 flex-shrink-0" />
+              <img src={logo} alt="Logo" className="w-16 h-16 rounded-full object-cover border-2 border-blue-200 flex-shrink-0 shadow-md" />
             )}
             <h1 className="text-lg font-bold text-gray-900 text-center break-words">
               {companyName}
@@ -151,9 +151,9 @@ export default function StaffDashboard() {
 
         {/* Desktop Layout: Horizontal with flexible sizing */}
         <div className="hidden sm:block">
-          <div className="flex items-center justify-center gap-3 mb-2 flex-wrap">
+          <div className="flex items-center justify-center gap-4 mb-2 flex-wrap">
             {logo && (
-              <img src={logo} alt="Logo" className="w-10 h-10 rounded-full object-cover border-2 border-blue-200 flex-shrink-0" />
+              <img src={logo} alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-blue-200 flex-shrink-0 shadow-md" />
             )}
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center break-words max-w-none">

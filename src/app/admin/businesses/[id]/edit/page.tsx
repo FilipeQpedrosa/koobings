@@ -24,7 +24,7 @@ type EditBusinessData = {
   description: string;
   type: 'basic' | 'standard' | 'premium';  // Use specific types instead of generic string
   status: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'INACTIVE';
-  password: string;
+  password?: string; // Make password optional
   settings: {  // Use 'settings' instead of 'features'
     multipleStaff: boolean;
     advancedReports: boolean;
@@ -170,6 +170,16 @@ export default function EditBusinessPage() {
       // Remove 'name' from the data being sent since it's read-only
       const { name, ...updateData } = formData;
       
+      // Only include password if it's not empty
+      if (!updateData.password || updateData.password.trim() === '') {
+        delete updateData.password;
+      }
+      
+      console.log('🔄 Updating business with data:', {
+        ...updateData,
+        password: updateData.password ? '[REDACTED]' : 'not included'
+      });
+      
       const response = await fetch(`/api/admin/businesses/${id}`, {
         method: 'PUT',
         headers: {
@@ -180,12 +190,18 @@ export default function EditBusinessPage() {
       });
 
       const data = await response.json();
+      console.log('📡 API Response:', data);
 
       if (response.ok) {
         toast({
           title: "Sucesso",
           description: `Negócio "${business?.name}" atualizado com sucesso!`,
         });
+        
+        // Clear password field after successful update
+        if (formData.password) {
+          setFormData(prev => ({ ...prev, password: '' }));
+        }
         
         // Refresh data
         await fetchBusiness();
@@ -503,9 +519,7 @@ export default function EditBusinessPage() {
               <div className="space-y-4">
                 <Label className="text-lg font-medium text-gray-900">Funcionalidades Específicas</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(formData.settings).filter(([key, value]) => 
-                    typeof value === 'boolean' && !['clientPortalEnabled', 'allowOnlineBooking', 'allowSelfRegistration', 'autoConfirmBookings', 'paymentsEnabled'].includes(key)
-                  ).map(([key, value]) => {
+                  {Object.entries(formData.settings).filter(([key, value]) => typeof value === 'boolean').map(([key, value]) => {
                     const featureLabels = {
                       multipleStaff: { name: 'Múltiplos Funcionários', desc: 'Permite adicionar vários membros da equipa' },
                       advancedReports: { name: 'Relatórios Avançados', desc: 'Relatórios detalhados e analytics' },
@@ -526,7 +540,7 @@ export default function EditBusinessPage() {
                         </div>
                         <Switch
                           id={key}
-                          checked={value}
+                          checked={value as boolean}
                           onCheckedChange={(checked) => handleFeatureChange(key as keyof EditBusinessData['settings'], checked)}
                         />
                       </div>
