@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Settings, Users, Package, Tag, ArrowRight, Shield, Eye, Database, Lock, Save, AlertCircle } from 'lucide-react';
+import { Settings, Users, Package, Tag, ArrowRight, Shield, Eye, Database, Lock, Save, AlertCircle, Grid, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -197,9 +197,6 @@ export default function StaffSettingsPage() {
 
         {/* General Settings Tab */}
         <TabsContent value="general" className="space-y-6">
-          {/* Business Branding - MOVED TO TOP */}
-          <BusinessBrandingCard businessSlug={user?.businessSlug} />
-          
           {/* Quick Actions */}
           <Card>
             <CardHeader>
@@ -209,32 +206,35 @@ export default function StaffSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {settingsOptions.map((option) => {
-                  const IconComponent = option.icon;
-                  return (
-                    <Link key={option.title} href={option.href} className="block">
-                      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-                        <CardContent className="p-6">
-                          <div className="flex items-start space-x-4">
-                            <div className={`p-2 rounded-lg bg-gray-50`}>
-                              <IconComponent className={`h-6 w-6 ${option.color}`} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-gray-900 flex items-center">
-                                {option.title}
-                                <ArrowRight className="h-4 w-4 ml-2 text-gray-400" />
-                              </h3>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {option.description}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Link 
+                  href={`/${user?.businessSlug}/staff/settings/services`}
+                  className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Package className="h-8 w-8 text-blue-600 mb-2" />
+                  <span className="text-sm font-medium">Services</span>
+                </Link>
+                <Link 
+                  href={`/${user?.businessSlug}/staff/settings/staff`}
+                  className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Users className="h-8 w-8 text-green-600 mb-2" />
+                  <span className="text-sm font-medium">Staff</span>
+                </Link>
+                <Link 
+                  href={`/${user?.businessSlug}/staff/settings/categories`}
+                  className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Grid className="h-8 w-8 text-purple-600 mb-2" />
+                  <span className="text-sm font-medium">Categories</span>
+                </Link>
+                <Link 
+                  href={`/${user?.businessSlug}/staff/schedule`}
+                  className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Calendar className="h-8 w-8 text-orange-600 mb-2" />
+                  <span className="text-sm font-medium">Schedule</span>
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -261,19 +261,21 @@ export default function StaffSettingsPage() {
                     <Label className="text-sm font-medium text-gray-700">Business Slug</Label>
                     <p className="text-sm text-gray-900">{user?.businessSlug || 'Not set'}</p>
                   </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Your Role</Label>
+                    <p className="text-sm text-gray-900">{user?.staffRole || user?.role || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Account Email</Label>
+                    <p className="text-sm text-gray-900">{user?.email || 'Not set'}</p>
+                  </div>
                 </div>
-                
-                <Alert className="bg-blue-50 border-blue-200">
-                  <AlertCircle className="h-4 w-4 text-blue-600" />
-                  <AlertDescription>
-                    <span className="text-blue-800">
-                      To modify business information, please contact support or use the admin panel.
-                    </span>
-                  </AlertDescription>
-                </Alert>
               </div>
             </CardContent>
           </Card>
+
+          {/* Business Branding - MOVED TO BOTTOM */}
+          <BusinessBrandingCard businessSlug={user?.businessSlug} />
         </TabsContent>
 
         {/* Staff Permissions Tab */}

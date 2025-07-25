@@ -186,11 +186,11 @@ export default function BusinessProfilePage() {
                   <img
                     src={business.logo}
                     alt={business.name}
-                    className="w-20 h-20 rounded-2xl object-cover border-2 border-white/20"
+                    className="w-24 h-24 rounded-2xl object-cover border-2 border-white/20 shadow-lg"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-                    <span className="text-white font-bold text-2xl">
+                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg">
+                    <span className="text-white font-bold text-3xl">
                       {business.name.charAt(0)}
                     </span>
                   </div>

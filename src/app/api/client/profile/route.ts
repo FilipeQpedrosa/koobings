@@ -1,115 +1,140 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getRequestAuthUser } from '@/lib/jwt';
+import { z } from 'zod';
 
-// GET /api/client/profile - Get client profile
-export async function GET() {
+// Profile update schema validation
+const updateProfileSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo').optional(),
+  phone: z.string().nullable().optional()
+});
+
+// GET /api/client/profile - Get client profile and appointments
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    console.log('[CLIENT_PROFILE_GET] Starting...');
     
-    if (!session || !session.user) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Acesso negado' } },
+        { status: 401 }
+      );
     }
 
-    const client = await prisma.client.findUnique({
-      where: { email: session.user.email },
-      include: {
-        clientRelationships: true, // replaces relationship
-        appointments: {
-          take: 5,
-          orderBy: { scheduledFor: 'desc' },
-          include: {
-            service: true,
-            staff: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true
-              }
-            }
-          }
-        }
+    console.log('[CLIENT_PROFILE_GET] User authenticated:', user.email);
+
+    // Find client by email
+    const client = await prisma.independentClient.findFirst({
+      where: { email: user.email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true
       }
     });
 
     if (!client) {
+      console.log('[CLIENT_PROFILE_GET] Client not found for email:', user.email);
       return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
     }
 
-    // Optionally, parse preferences JSON for FE convenience
-    let preferences = {};
-    if (client.preferences) {
-      try {
-        preferences = typeof client.preferences === 'string' ? JSON.parse(client.preferences) : client.preferences;
-      } catch (e) {
-        preferences = {};
-      }
-    }
+    console.log('[CLIENT_PROFILE_GET] ✅ Profile loaded for client:', client.id);
 
-    return NextResponse.json({ success: true, data: { ...client, preferences } });
+    return NextResponse.json({ 
+      success: true, 
+      data: {
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        phone: client.phone,
+        appointments: client.appointments
+      }
+    });
   } catch (error) {
-    console.error('Error fetching client profile:', error);
-    return NextResponse.json({ success: false, error: { code: 'PROFILE_FETCH_ERROR', message: 'Internal Server Error' } }, { status: 500 });
+    console.error('[CLIENT_PROFILE_GET] Error:', error);
+    return NextResponse.json(
+      { success: false, error: { code: 'PROFILE_FETCH_ERROR', message: 'Internal server error' } },
+      { status: 500 }
+    );
   }
 }
 
 // PATCH /api/client/profile - Update client profile
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    console.log('[CLIENT_PROFILE_PATCH] Starting...');
     
-    if (!session || !session.user) {
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      console.log('[CLIENT_PROFILE_PATCH] No authenticated user');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
-    const client = await prisma.client.findUnique({
-      where: { email: session.user.email }
+    console.log('[CLIENT_PROFILE_PATCH] Authenticated user:', user.email);
+
+    const body = await request.json();
+    console.log('[CLIENT_PROFILE_PATCH] Update data:', body);
+
+    // Validate input
+    const validationResult = updateProfileSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      console.log('[CLIENT_PROFILE_PATCH] Validation failed:', validationResult.error);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: { 
+            code: 'VALIDATION_ERROR', 
+            message: validationResult.error.errors[0].message 
+          } 
+        },
+        { status: 400 }
+      );
+    }
+
+    const updateData = validationResult.data;
+
+    // Update client profile
+    const updatedClient = await prisma.independentClient.updateMany({
+      where: { email: user.email },
+      data: {
+        ...(updateData.name && { name: updateData.name.trim() }),
+        ...(updateData.phone !== undefined && { phone: updateData.phone }),
+        updatedAt: new Date()
+      }
     });
 
-    if (!client) {
+    if (updatedClient.count === 0) {
+      console.log('[CLIENT_PROFILE_PATCH] Client not found for email:', user.email);
       return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
     }
 
-    const body = await request.json();
-    const {
-      name,
-      phone,
-      preferredContactMethod,
-      notificationPreferences,
-      medicalInfo
-    } = body;
-
-    // Merge new preferences into existing preferences JSON
-    let newPreferences: Record<string, any> = {};
-    if (client.preferences) {
-      try {
-        newPreferences = typeof client.preferences === 'string' ? JSON.parse(client.preferences) : client.preferences;
-      } catch (e) {
-        newPreferences = {};
-      }
-    }
-    if (preferredContactMethod !== undefined) newPreferences["preferredContactMethod"] = preferredContactMethod;
-    if (notificationPreferences !== undefined) newPreferences["notificationPreferences"] = notificationPreferences;
-    if (medicalInfo !== undefined) newPreferences["medicalInfo"] = medicalInfo;
-
-    // Update client profile
-    const updatedClient = await prisma.client.update({
-      where: { id: client.id },
-      data: {
-        name,
-        phone,
-        preferences: newPreferences
-      },
-      include: {
-        clientRelationships: true
+    // Fetch updated client data
+    const client = await prisma.independentClient.findFirst({
+      where: { email: user.email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true
       }
     });
 
-    return NextResponse.json({ success: true, data: updatedClient });
+    console.log('[CLIENT_PROFILE_PATCH] ✅ Profile updated for client:', client?.id);
+
+    return NextResponse.json({ 
+      success: true, 
+      data: client
+    });
   } catch (error) {
-    console.error('Error updating client profile:', error);
-    return NextResponse.json({ success: false, error: { code: 'PROFILE_UPDATE_ERROR', message: 'Internal Server Error' } }, { status: 500 });
+    console.error('[CLIENT_PROFILE_PATCH] Error:', error);
+    return NextResponse.json(
+      { success: false, error: { code: 'PROFILE_UPDATE_ERROR', message: 'Internal server error' } },
+      { status: 500 }
+    );
   }
 } 

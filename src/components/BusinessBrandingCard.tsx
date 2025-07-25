@@ -169,7 +169,7 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
     }
   };
 
-  const removeLogo = async () => {
+  const handleRemoveLogo = async () => {
     setSaving(true);
     try {
       const response = await fetch('/api/business/info', {
@@ -232,25 +232,31 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
           <Label className="text-sm font-medium text-gray-700">Logo Atual</Label>
           
           {currentLogo ? (
-            <div className="flex items-start space-x-4">
-              <div className="relative w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 overflow-hidden">
+            <div className="flex items-start space-x-6">
+              <div className="relative w-48 h-48 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 overflow-hidden shadow-lg">
                 <Image
                   src={currentLogo}
                   alt="Business Logo"
                   fill
-                  className="object-contain"
+                  className="object-contain p-6"
                 />
               </div>
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-3">
                 <p className="text-sm text-gray-600">
-                  Logo ativo. Será exibido no portal cliente e comunicações.
+                  <strong>Logo ativo.</strong> Será exibido no portal cliente e comunicações.
                 </p>
+                <div className="text-xs text-gray-500 space-y-1">
+                  <p><strong>URL:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">{currentLogo}</code></p>
+                  <p><strong>Resolução recomendada:</strong> 400×400px ou superior</p>
+                  <p><strong>Formato ideal:</strong> PNG com fundo transparente</p>
+                </div>
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
-                  onClick={removeLogo}
-                  disabled={saving || previewLogo !== null}
-                  className="text-red-600 hover:text-red-700"
+                  onClick={handleRemoveLogo}
+                  disabled={saving}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Remover Logo
@@ -258,10 +264,11 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-center w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300">
-              <div className="text-center">
-                <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">Sem logo</p>
+            <div className="flex items-center justify-center w-48 h-48 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="text-center space-y-2">
+                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto" />
+                <p className="text-sm text-gray-500 font-medium">Sem logo</p>
+                <p className="text-xs text-gray-400">Carregue o logo da sua empresa</p>
               </div>
             </div>
           )}
