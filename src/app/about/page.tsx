@@ -33,7 +33,7 @@ export default function AboutPage() {
             Sobre a <span className="text-blue-600">Koobings</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Somos uma empresa portuguesa dedicada a simplificar a gestão de microempresas de serviços. 
+            Marca. Segue. Está feito. Somos uma empresa portuguesa dedicada a simplificar a gestão do seu negócio. 
             A nossa missão é tornar a tecnologia acessível e útil para todos os empreendedores.
           </p>
         </div>
