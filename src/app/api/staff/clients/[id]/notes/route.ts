@@ -1,69 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { createId } from '@paralleldrive/cuid2';
 
 // POST /api/staff/clients/[id]/notes - Add a note to a client
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(req: NextRequest, { params }: any) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user.role !== 'STAFF' && session.user.role !== 'BUSINESS_OWNER')) {
-    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+  const user = getRequestAuthUser(req);
+  if (!user) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  const staffId = session.user.id;
+  const businessId = user.businessId;
+  if (!businessId) {
+    return NextResponse.json({ success: false, error: 'Business ID missing' }, { status: 400 });
+  }
+
+  const staffId = user.id;
   const clientId = params.id;
-  const data = await req.json();
-  const { content, noteType = 'GENERAL', appointmentId } = data;
-
-  if (!content) {
-    return NextResponse.json({ success: false, error: { code: 'CONTENT_REQUIRED', message: 'Content is required' } }, { status: 400 });
-  }
-  // Get staff's business
-  const staff = await prisma.staff.findUnique({
-    where: { id: staffId },
-    select: { businessId: true },
-  });
-  if (!staff) {
-    return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff not found' } }, { status: 404 });
-  }
-
-  // Ensure client belongs to the same business
-  const client = await prisma.client.findUnique({
-    where: { id: clientId },
-    select: { businessId: true },
-  });
-  if (!client || client.businessId !== staff.businessId) {
-    return NextResponse.json({ success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } }, { status: 404 });
-  }
-
-  // Only require appointmentId validation if provided
-  const appointmentData: any = {};
-  if (appointmentId) {
-    // Ensure appointment belongs to the client and business
-    const appointment = await prisma.appointments.findUnique({
-      where: { id: appointmentId },
-      select: { clientId: true, businessId: true },
-    });
-    if (!appointment || appointment.clientId !== clientId || appointment.businessId !== staff.businessId) {
-      return NextResponse.json({ success: false, error: { code: 'INVALID_APPOINTMENT', message: 'Invalid appointment' } }, { status: 400 });
-    }
-    appointmentData.appointmentId = appointmentId;
-  }
-
+  
   try {
-    const note = await prisma.relationshipNote.create({
-      data: {
-        noteType,
-        content,
-        createdById: staffId,
-        businessId: staff.businessId,
-        clientId,
-        ...appointmentData,
-      },
+    const data = await req.json();
+    const { content, noteType = 'GENERAL', appointmentId } = data;
+
+    if (!content || !content.trim()) {
+      return NextResponse.json({ success: false, error: 'Content is required' }, { status: 400 });
+    }
+
+    // Ensure client belongs to the same business
+    const client = await prisma.client.findUnique({
+      where: { 
+        id: clientId,
+        businessId: businessId
+      }
     });
+
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+    }
+
+    // Validate appointment if provided
+    if (appointmentId) {
+      const appointment = await prisma.appointments.findUnique({
+        where: { 
+          id: appointmentId,
+          clientId: clientId,
+          businessId: businessId
+        }
+      });
+      
+      if (!appointment) {
+        return NextResponse.json({ success: false, error: 'Invalid appointment' }, { status: 400 });
+      }
+    }
+
+    // Create the note
+    const note = await prisma.relationship_notes.create({
+      data: {
+        id: createId(),
+        noteType: noteType,
+        content: content.trim(),
+        createdById: staffId,
+        businessId: businessId,
+        clientId: clientId,
+        appointmentId: appointmentId || null,
+        updatedAt: new Date()
+      },
+      include: {
+        Staff: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
     return NextResponse.json({ success: true, data: note }, { status: 201 });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: { code: 'NOTE_CREATE_ERROR', message: err.message } }, { status: 500 });
+    
+  } catch (error) {
+    console.error('Error creating note:', error);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 } 
