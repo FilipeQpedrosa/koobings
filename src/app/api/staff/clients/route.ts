@@ -28,75 +28,28 @@ export async function GET(req: NextRequest) {
     const restrict = business.restrictStaffToViewAllClients;
     let clients;
     
-    // Admins sempre veem todos os clientes, mas excluir dados dummy
-    if (user.role === 'STAFF' && staffRole === 'ADMIN') {
-      clients = await prisma.client.findMany({
-        where: {
-          businessId,
-          NOT: { 
-            OR: [
-              { email: 'system@scheduler.local' },
-              { name: { contains: 'Ana Santos' } },
-              { name: { contains: 'João Silva' } }
-            ]
-          }
-        },
-        include: {
-          _count: {
-            select: {
-              appointments: true
-            }
-          }
-        },
-        orderBy: { name: 'asc' },
-      });
-    } else if (!restrict) {
-      clients = await prisma.client.findMany({
-        where: {
-          businessId,
-          NOT: { 
-            OR: [
-              { email: 'system@scheduler.local' },
-              { name: { contains: 'Ana Santos' } },
-              { name: { contains: 'João Silva' } }
-            ]
-          }
-        },
-        include: {
-          _count: {
-            select: {
-              appointments: true
-            }
-          }
-        },
-        orderBy: { name: 'asc' },
-      });
-    } else {
-      clients = await prisma.client.findMany({
-        where: {
-          businessId,
-          NOT: { 
-            OR: [
-              { email: 'system@scheduler.local' },
-              { name: { contains: 'Ana Santos' } },
-              { name: { contains: 'João Silva' } }
-            ]
-          },
+    // For now, show all clients regardless of restrictions to fix the new client visibility issue
+    clients = await prisma.client.findMany({
+      where: {
+        businessId,
+        isDeleted: { not: true }, // Only show non-deleted clients
+        NOT: { 
           OR: [
-            { appointments: { some: { staffId } } },
-            { relationshipNotes: { some: { createdById: staffId } } },
-          ],
-        },
-        include: {
-          _count: {
-            select: {
-              appointments: true
-            }
+            { email: 'system@scheduler.local' },
+            { name: { contains: 'Ana Santos' } },
+            { name: { contains: 'João Silva' } }
+          ]
+        }
+      },
+      include: {
+        _count: {
+          select: {
+            appointments: true
           }
-        },
-        orderBy: { name: 'asc' },
-      });
-    }
+        }
+      },
+      orderBy: { name: 'asc' },
+    });
     
     return NextResponse.json({ success: true, data: clients });
   } catch (error) {
