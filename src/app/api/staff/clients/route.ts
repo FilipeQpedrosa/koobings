@@ -1,39 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { createId } from '@paralleldrive/cuid2';
 
-// GET /api/staff/clients - List clients for the business
-// POST /api/staff/clients - Add a new client
-
+// GET: List all clients for a business
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.businessId) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { businessId } = session.user;
-  
   try {
-    // Fetch business and setting
-    const business = await prisma.business.findUnique({ where: { id: businessId } });
-    if (!business) {
-      return NextResponse.json({ success: false, error: 'Business not found' }, { status: 404 });
-    }
+    const user = getRequestAuthUser(req);
     
-    // For now, show all clients regardless of restrictions to fix the new client visibility issue
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    }
+
+    const businessId = user.businessId;
+    
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
+    }
+
+    console.log('🔧 DEBUG: Fetching clients for businessId:', businessId);
+
     const clients = await prisma.client.findMany({
-      where: {
+      where: { 
         businessId,
-        isDeleted: { not: true }, // Only show non-deleted clients
-        NOT: { 
-          OR: [
-            { email: 'system@scheduler.local' },
-            { name: { contains: 'Ana Santos' } },
-            { name: { contains: 'João Silva' } }
-          ]
-        }
+        isDeleted: { not: true }
       },
       include: {
         _count: {
@@ -42,53 +33,65 @@ export async function GET(req: NextRequest) {
           }
         }
       },
-      orderBy: { name: 'asc' },
+      orderBy: { createdAt: 'desc' }
     });
+
+    console.log('🔧 DEBUG: Found', clients.length, 'clients for business');
+    console.log('🔧 DEBUG: Latest client:', clients[0] ? {
+      id: clients[0].id,
+      name: clients[0].name,
+      createdAt: clients[0].createdAt
+    } : 'No clients found');
+
+    const response = NextResponse.json({ success: true, data: clients });
     
-    return NextResponse.json({ success: true, data: clients });
+    // Add anti-cache headers to ensure fresh data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    response.headers.set('Surrogate-Control', 'no-store');
+    
+    return response;
   } catch (error) {
-    console.error('Error fetching clients:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch clients' }, { status: 500 });
+    console.error('GET /staff/clients error:', error);
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 });
   }
 }
 
+// POST: Create a new client
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user.role !== 'STAFF' && session.user.role !== 'BUSINESS_OWNER')) {
-    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
-  }
-  
-  const businessId = session.user.businessId;
-  if (!businessId) {
-    return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Business ID missing' } }, { status: 400 });
-  }
-
-  const business = await prisma.business.findUnique({ where: { id: businessId } });
-  if (!business) {
-    return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
-  }
-
-  const data = await req.json();
-  const { name, email, phone } = data;
-  if (!name) {
-    return NextResponse.json({ success: false, error: { code: 'NAME_REQUIRED', message: 'Name is required' } }, { status: 400 });
-  }
-  
   try {
+    const user = getRequestAuthUser(req);
+    
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    }
+
+    const businessId = user.businessId;
+    
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
+    }
+
+    const data = await req.json();
+    const { name, email, phone, notes } = data;
+    
+    if (!name) {
+      return NextResponse.json({ success: false, error: { code: 'NAME_REQUIRED', message: 'Name is required' } }, { status: 400 });
+    }
+    
     // Check for existing email if provided
     if (email) {
-      console.log(`🔍 Checking for existing client with email: ${email} in business: ${businessId}`);
-      
       const existingClient = await prisma.client.findFirst({
         where: { 
           email: email,
           businessId: businessId,
-          isDeleted: false // Only check non-deleted clients
+          isDeleted: false
         }
       });
       
       if (existingClient) {
-        console.log(`❌ Client with email ${email} already exists:`, existingClient.id);
         return NextResponse.json({ 
           success: false, 
           error: { 
@@ -97,11 +100,9 @@ export async function POST(req: NextRequest) {
           } 
         }, { status: 400 });
       }
-      
-      console.log(`✅ Email ${email} is available for new client`);
     }
 
-    console.log(`🆕 Creating new client: ${name} (${email}) for business: ${businessId}`);
+    console.log('🔧 DEBUG: Creating new client:', name, 'for businessId:', businessId);
 
     const client = await prisma.client.create({
       data: {
@@ -109,20 +110,36 @@ export async function POST(req: NextRequest) {
         name,
         email,
         phone,
-        businessId: business.id,
+        notes,
+        businessId: businessId,
         status: 'ACTIVE',
         isDeleted: false,
         updatedAt: new Date(),
       },
+      include: {
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      }
     });
     
-    console.log(`✅ Client created successfully:`, client.id);
-    return NextResponse.json({ success: true, data: client }, { status: 201 });
+    console.log('🔧 DEBUG: Client created successfully:', client.id);
+    
+    const response = NextResponse.json({ success: true, data: client }, { status: 201 });
+    
+    // Add anti-cache headers
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    response.headers.set('Surrogate-Control', 'no-store');
+    
+    return response;
   } catch (err: any) {
-    console.error('❌ Error creating client:', err);
+    console.error('POST /staff/clients error:', err);
     
     if (err.code === 'P2002') {
-      // This is a Prisma unique constraint violation
       return NextResponse.json({ 
         success: false, 
         error: { 
