@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { createId } from '@paralleldrive/cuid2';
 
-// POST /api/staff/clients/[id]/notes - Add a note to a client
+// POST /api/appointments/[id]/notes - Add a note to an appointment (saved to client notes)
 export async function POST(req: NextRequest, { params }: any) {
   try {
     const user = getRequestAuthUser(req);
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: any) {
       return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID or staff ID' } }, { status: 400 });
     }
 
-    const clientId = params.id;
+    const appointmentId = params.id;
     
     const data = await req.json();
     const { content } = data;
@@ -29,14 +29,36 @@ export async function POST(req: NextRequest, { params }: any) {
       return NextResponse.json({ success: false, error: { code: 'CONTENT_REQUIRED', message: 'Note content is required' } }, { status: 400 });
     }
 
-    console.log('🔧 DEBUG: Creating note for client:', clientId, 'by staff:', staffId);
+    // First, get the appointment to find the client
+    const appointment = await prisma.appointments.findUnique({
+      where: { 
+        id: appointmentId,
+        businessId: businessId // Ensure appointment belongs to this business
+      },
+      select: {
+        clientId: true,
+        Service: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
 
+    if (!appointment) {
+      return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' } }, { status: 404 });
+    }
+
+    console.log('🔧 DEBUG: Creating appointment note for client:', appointment.clientId, 'by staff:', staffId);
+
+    // Create a note linked to both the appointment and client
     const note = await prisma.relationship_notes.create({
       data: {
         id: createId(),
         noteType: 'GENERAL',
-        content: content.trim(),
-        clientId: clientId,
+        content: `[${appointment.Service.name}] ${content.trim()}`,
+        clientId: appointment.clientId,
+        appointmentId: appointmentId,
         createdById: staffId,
         businessId: businessId,
         createdAt: new Date(),
@@ -52,7 +74,7 @@ export async function POST(req: NextRequest, { params }: any) {
       }
     });
     
-    console.log('🔧 DEBUG: Note created successfully:', note.id);
+    console.log('🔧 DEBUG: Appointment note created successfully:', note.id);
     
     const response = NextResponse.json({ success: true, data: note }, { status: 201 });
     
@@ -64,7 +86,7 @@ export async function POST(req: NextRequest, { params }: any) {
     
     return response;
   } catch (error) {
-    console.error('POST /staff/clients/[id]/notes error:', error);
-    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create note' } }, { status: 500 });
+    console.error('POST /appointments/[id]/notes error:', error);
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create appointment note' } }, { status: 500 });
   }
 } 

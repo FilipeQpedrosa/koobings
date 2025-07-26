@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { format, isToday, isTomorrow, isThisWeek, isThisMonth, startOfDay, endOfDay, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import AppointmentDetailsModal from '@/components/AppointmentDetailsModal';
 
 interface Booking {
   id: string;
@@ -55,7 +56,13 @@ export default function StaffBookingsPage() {
   const [sortBy, setSortBy] = useState('upcoming'); // upcoming, date-asc, date-desc, client
   
   // View states
-  const [viewMode, setViewMode] = useState('list'); // list, cards
+  const [viewMode, setViewMode] = useState('list');
+  
+  // Modal states for appointment details
+  const [selectedAppointment, setSelectedAppointment] = useState<Booking | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -120,6 +127,23 @@ export default function StaffBookingsPage() {
 
     fetchData();
   }, [authLoading, businessSlug]);
+
+  // Functions to handle appointment details modal
+  const handleAppointmentClick = (booking: Booking) => {
+    setSelectedAppointment(booking);
+    setShowDetailsModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedAppointment(null);
+  };
+
+  const handleNoteAdded = () => {
+    closeDetailsModal();
+    // Optionally reload appointments to reflect any changes
+    // fetchAppointments();
+  };
 
   // Enhanced filtering and sorting logic
   const filteredAndSortedBookings = useMemo(() => {
@@ -511,9 +535,13 @@ export default function StaffBookingsPage() {
                 const isUpcoming = bookingDate >= new Date();
                 
                 return (
-                  <div key={booking.id} className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
-                    isUpcoming ? 'bg-blue-50/30 border-blue-200' : 'bg-gray-50'
-                  }`}>
+                  <div 
+                    key={booking.id} 
+                    className={`flex items-center justify-between p-4 border rounded-lg transition-colors cursor-pointer hover:shadow-md ${
+                      isUpcoming ? 'bg-blue-50/30 border-blue-200 hover:bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
+                    onClick={() => handleAppointmentClick(booking)}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                         isUpcoming ? 'bg-blue-100' : 'bg-gray-100'
@@ -566,6 +594,27 @@ export default function StaffBookingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Appointment Details Modal */}
+      {selectedAppointment && (
+        <AppointmentDetailsModal
+          isOpen={showDetailsModal}
+          onClose={closeDetailsModal}
+          appointment={{
+            id: selectedAppointment.id,
+            clientName: selectedAppointment.client?.name || 'Cliente Desconhecido',
+            clientEmail: selectedAppointment.client?.email || '',
+            clientId: selectedAppointment.client?.id || '',
+            serviceName: selectedAppointment.services?.[0]?.name || 'Serviço Desconhecido',
+            staffName: selectedAppointment.staff?.name || 'Staff',
+            scheduledFor: selectedAppointment.scheduledFor,
+            duration: selectedAppointment.duration,
+            status: selectedAppointment.status,
+            notes: selectedAppointment.notes
+          }}
+          onNoteAdded={handleNoteAdded}
+        />
+      )}
     </div>
   );
 } 

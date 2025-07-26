@@ -135,7 +135,11 @@ export default function AppointmentModal({
               rows={3}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Adicione notas sobre este agendamento..."
             />
+            <p className="mt-1 text-xs text-gray-500">
+              As notas serão guardadas no histórico do cliente
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3">
