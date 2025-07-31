@@ -4,30 +4,29 @@ import { useToast } from '@/components/ui/use-toast';
 
 export interface Appointment {
   id: string;
-  customerId: string;
-  serviceId: string;
-  staffId: string;
-  businessId: string;
-  date: string;
-  time: string;
-  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+  client: {
+    id: string;
+    name: string;
+    email?: string;
+  } | null;
+  scheduledFor: string; // Date and time combined
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'ACCEPTED' | 'REJECTED';
+  duration: number;
   notes?: string;
-  customer: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-  };
-  service: {
-    id: string;
-    name: string;
-    duration: number;
-    price: number;
-  };
   staff: {
     id: string;
     name: string;
-    role: string;
+  } | null;
+  services: {
+    id: string;
+    name: string;
+    price?: number;
+  }[];
+  slotInfo?: {
+    startTime: string;
+    endTime: string;
+    slotIndex: number;
+    capacity?: number;
   };
 }
 
@@ -55,14 +54,27 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         if (options.status) queryParams.set('status', options.status);
         if (options.search) queryParams.set('search', options.search);
 
-        const response = await fetch(`/api/appointments?${queryParams}`);
+        const response = await fetch(`/api/business/appointments?${queryParams}`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch appointments');
         }
 
         const data = await response.json();
-        setAppointments(data);
+        
+        // Handle the response structure that matches the working API
+        if (data.success && data.data?.appointments) {
+          setAppointments(data.data.appointments);
+        } else {
+          throw new Error(data.error || 'Failed to load appointments');
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
         toast({

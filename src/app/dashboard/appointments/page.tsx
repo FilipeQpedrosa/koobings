@@ -33,7 +33,7 @@ import { UserRole } from '@/types/dashboard';
 
 export default function AppointmentsPage() {
   const { data: session } = useSession();
-  const isBusinessOwner = session?.user?.role === ('BUSINESS_OWNER' satisfies UserRole);
+  const isBusinessOwner = (session?.user as any)?.role === 'BUSINESS_OWNER';
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -136,28 +136,28 @@ export default function AppointmentsPage() {
             <TableBody>
               {appointments.map((appointment) => (
                 <TableRow key={appointment.id}>
-                  <TableCell>{appointment.customer.name}</TableCell>
-                  <TableCell>{appointment.service.name}</TableCell>
-                  <TableCell>{appointment.staff.name}</TableCell>
+                  <TableCell>{appointment.client?.name || 'N/A'}</TableCell>
                   <TableCell>
-                    {format(new Date(appointment.date), 'PP')}
-                    <br />
-                    <span className="text-gray-500">
-                      {format(new Date(`2000-01-01T${appointment.time}`), 'p')}
-                    </span>
+                    {appointment.services.length > 0 ? appointment.services[0].name : 'N/A'}
                   </TableCell>
-                  <TableCell>{appointment.service.duration} min</TableCell>
+                  <TableCell>{appointment.staff?.name || 'N/A'}</TableCell>
+                  <TableCell>
+                    {format(new Date(appointment.scheduledFor), 'PPp')}
+                  </TableCell>
+                  <TableCell>{appointment.duration} min</TableCell>
                   {isBusinessOwner && (
-                    <TableCell>${appointment.service.price}</TableCell>
+                    <TableCell>
+                      ${appointment.services.length > 0 ? appointment.services[0].price || 0 : 0}
+                    </TableCell>
                   )}
                   <TableCell>
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        appointment.status === 'SCHEDULED'
-                          ? 'bg-blue-100 text-blue-800'
-                          : appointment.status === 'COMPLETED'
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        appointment.status === 'COMPLETED'
                           ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                          : appointment.status === 'CANCELLED'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
                       }`}
                     >
                       {appointment.status}
@@ -165,7 +165,7 @@ export default function AppointmentsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm">
-                      View Details
+                      View
                     </Button>
                   </TableCell>
                 </TableRow>
