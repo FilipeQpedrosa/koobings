@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Package, Plus, Edit, Trash2, ArrowLeft, Clock, Euro, Search, Upload, Image as ImageIcon } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, ArrowLeft, Clock, Euro, Search, Upload, Image as ImageIcon, MapPin, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useAddressValidation } from '@/lib/googleMaps';
 import Image from 'next/image';
 
 interface Service {
@@ -69,6 +70,7 @@ export default function StaffSettingsServicesPage() {
   // 🔥 ALL HOOKS AT THE TOP - NEVER CONDITIONAL
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { validateAddress } = useAddressValidation();
   const [mounted, setMounted] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,19 @@ export default function StaffSettingsServicesPage() {
     image: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  
+  // Address validation state
+  const [addressValidation, setAddressValidation] = useState<{
+    isValidating: boolean;
+    isValid: boolean | null;
+    error: string | null;
+    formattedAddress: string | null;
+  }>({
+    isValidating: false,
+    isValid: null,
+    error: null,
+    formattedAddress: null
+  });
 
   // 🔥 HYDRATION SAFETY - Wait for client mount
   useEffect(() => {
@@ -145,10 +160,29 @@ export default function StaffSettingsServicesPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'duration' || name === 'price' || name === 'maxCapacity' || name === 'minAdvanceHours' || name === 'maxAdvanceDays' ? Number(value) : value
+      [name]: name === 'duration' || name === 'price' || name === 'maxCapacity' || name === 'minAdvanceHours' || name === 'maxAdvanceDays'
+        ? Number(value) || 0
+        : value
     }));
+
+    // Special handling for address field
+    if (name === 'address') {
+      // Reset validation state when user types
+      setAddressValidation({
+        isValidating: false,
+        isValid: null,
+        error: null,
+        formattedAddress: null
+      });
+
+      // Validate address with debouncing
+      if (value.trim()) {
+        setTimeout(() => validateAddressField(value), 1000);
+      }
+    }
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,6 +294,50 @@ export default function StaffSettingsServicesPage() {
     setShowAddModal(false);
     setEditingService(null);
     setError('');
+    // Reset address validation
+    setAddressValidation({
+      isValidating: false,
+      isValid: null,
+      error: null,
+      formattedAddress: null
+    });
+  };
+
+  // Validate address using Google Maps
+  const validateAddressField = async (address: string) => {
+    if (!address.trim()) return;
+
+    setAddressValidation(prev => ({
+      ...prev,
+      isValidating: true,
+      error: null
+    }));
+
+    try {
+      const result = await validateAddress(address);
+      
+      setAddressValidation({
+        isValidating: false,
+        isValid: result.isValid,
+        error: result.error || null,
+        formattedAddress: result.formattedAddress || null
+      });
+
+      // If address was validated and formatted, update form data
+      if (result.isValid && result.formattedAddress && result.formattedAddress !== address) {
+        setFormData(prev => ({
+          ...prev,
+          address: result.formattedAddress!
+        }));
+      }
+    } catch (error) {
+      setAddressValidation({
+        isValidating: false,
+        isValid: false,
+        error: 'Erro ao validar morada',
+        formattedAddress: null
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -271,6 +349,21 @@ export default function StaffSettingsServicesPage() {
     if (!formData.name.trim()) {
       setError('Service name is required');
       return;
+    }
+
+    // Validate address if provided
+    if (formData.address && formData.address.trim()) {
+      if (addressValidation.isValid === false) {
+        setError('Por favor corrija a morada antes de continuar');
+        return;
+      }
+      
+      // If address is provided but not yet validated, validate it now
+      if (addressValidation.isValid === null) {
+        setError('A aguardar validação da morada...');
+        await validateAddressField(formData.address);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -783,16 +876,52 @@ export default function StaffSettingsServicesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="address">Morada Completa</Label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={formData.address || ''}
-                  onChange={handleInputChange}
-                  placeholder="Rua/Avenida, Número, Código Postal, Cidade"
-                  disabled={submitting}
-                />
-                <p className="text-xs text-gray-500">Será validada com Google Maps</p>
+                <Label htmlFor="address" className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Morada Completa
+                  {addressValidation.isValidating && (
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  )}
+                  {addressValidation.isValid === true && (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  )}
+                  {addressValidation.isValid === false && addressValidation.error && (
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                  )}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="address"
+                    name="address"
+                    value={formData.address || ''}
+                    onChange={handleInputChange}
+                    placeholder="Rua/Avenida, Número, Código Postal, Cidade"
+                    disabled={submitting}
+                    className={
+                      addressValidation.isValid === true 
+                        ? 'border-green-500 focus:border-green-600' 
+                        : addressValidation.isValid === false && addressValidation.error
+                        ? 'border-red-500 focus:border-red-600'
+                        : ''
+                    }
+                  />
+                </div>
+                {addressValidation.isValidating && (
+                  <p className="text-xs text-blue-600">🔍 A validar morada com Google Maps...</p>
+                )}
+                {addressValidation.isValid === true && addressValidation.formattedAddress && (
+                  <p className="text-xs text-green-600">
+                    ✅ Morada válida: {addressValidation.formattedAddress}
+                  </p>
+                )}
+                {addressValidation.isValid === false && addressValidation.error && (
+                  <p className="text-xs text-red-600">
+                    ❌ {addressValidation.error}
+                  </p>
+                )}
+                {!addressValidation.isValidating && !addressValidation.isValid && !addressValidation.error && (
+                  <p className="text-xs text-gray-500">Será validada com Google Maps</p>
+                )}
               </div>
 
               <div className="space-y-2">
