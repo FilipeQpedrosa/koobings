@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     const where: any = { 
       businessId,
-      Client: {
+      client: {
         isDeleted: false // Only include appointments from non-deleted clients
       }
     };
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
       take: limit ? parseInt(limit, 10) : undefined,
       orderBy: { scheduledFor: 'desc' },
       include: {
-        Service: { select: { name: true } },
-        Client: { 
+        service: { select: { name: true } },
+        client: { 
           select: { 
             name: true,
             isDeleted: true
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     console.log('🔧 DEBUG: Found', appointments.length, 'appointments for business');
     console.log('🔧 DEBUG: Latest appointment:', appointments[0] ? {
       id: appointments[0].id,
-      clientName: appointments[0].Client?.name,
+      clientName: appointments[0].client?.name,
       scheduledFor: appointments[0].scheduledFor
     } : 'No appointments found');
 
