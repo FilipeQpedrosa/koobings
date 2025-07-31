@@ -48,15 +48,15 @@ export async function GET(request: NextRequest) {
     }
     
     // Query with includes to get related data for the authenticated user's business
-    const appointments = await (prisma as any).appointments.findMany({
+    const appointments = await prisma.appointment.findMany({
       where: { 
         businessId,
-        Client: {
+        client: {
           isDeleted: false // Only include appointments from non-deleted clients
         }
       },
       include: {
-        Client: {
+        client: {
           select: {
             id: true,
             name: true,
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
             isDeleted: true
           }
         },
-        Service: {
+        service: {
           select: {
             id: true,
             name: true,
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
             price: true
           }
         },
-        Staff: {
+        staff: {
           select: {
             id: true,
             name: true
@@ -90,26 +90,26 @@ export async function GET(request: NextRequest) {
     const formattedAppointments = appointments.map((apt: any) => ({
       id: apt.id,
       client: {
-        id: apt.Client?.id || null,
-        name: apt.Client?.name || 'Cliente Desconhecido',
-        email: apt.Client?.email || null,
-        phone: apt.Client?.phone || null
+        id: apt.client?.id || null,
+        name: apt.client?.name || 'Cliente Desconhecido',
+        email: apt.client?.email || null,
+        phone: apt.client?.phone || null
       },
       scheduledFor: apt.scheduledFor,
       status: apt.status,
       notes: apt.notes,
       slotInfo: apt.slotInfo, // Include slot information
-      services: apt.Service ? [{
-        id: apt.Service.id,
-        name: apt.Service.name,
-        duration: apt.Service.duration,
-        price: apt.Service.price
+      services: apt.service ? [{
+        id: apt.service.id,
+        name: apt.service.name,
+        duration: apt.service.duration,
+        price: apt.service.price
       }] : [{ name: 'Serviço Desconhecido' }],
       staff: {
-        id: apt.Staff?.id || null,
-        name: apt.Staff?.name || 'Staff Desconhecido'
+        id: apt.staff?.id || null,
+        name: apt.staff?.name || 'Staff Desconhecido'
       },
-      duration: apt.duration || apt.Service?.duration || 60,
+      duration: apt.duration || apt.service?.duration || 60,
     }));
     
     return NextResponse.json({
@@ -240,23 +240,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Create appointment with correct schema capitalization
-    const appointment = await (prisma as any).appointments.create({
+    const appointment = await prisma.appointment.create({
       data: appointmentData,
       include: {
-        Client: {
+        client: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        Staff: {
+        staff: {
           select: {
             id: true,
             name: true,
           },
         },
-        Service: {
+        service: {
           select: {
             id: true,
             name: true,
@@ -345,7 +345,7 @@ export async function PUT(request: NextRequest) {
     const start = new Date(startTime);
     const end = new Date(start.getTime() + duration * 60000);
     // Find overlapping appointments for this staff
-    const overlapping = await (prisma as any).appointments.findFirst({
+    const overlapping = await prisma.appointment.findFirst({
       where: {
         staffId,
         scheduledFor: {
