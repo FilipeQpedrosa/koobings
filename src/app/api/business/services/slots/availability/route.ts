@@ -93,18 +93,24 @@ export async function POST(request: NextRequest) {
     const startOfDay = new Date(date + 'T00:00:00.000Z');
     const endOfDay = new Date(date + 'T23:59:59.999Z');
 
-    const existingAppointments = await (prisma as any).appointments.findMany({
+    const existingAppointments = await prisma.appointment.findMany({
       where: {
         serviceId,
         scheduledFor: { gte: startOfDay, lte: endOfDay },
         ...(staffId && { staffId }),
         status: { not: 'CANCELLED' }
       },
-      include: { Client: { select: { isDeleted: true } } }
+      include: {
+        client: {
+          select: {
+            isDeleted: true
+          }
+        }
+      }
     });
 
     // Filter out appointments for deleted clients
-    const validAppointments = existingAppointments.filter((apt: any) => !apt.Client?.isDeleted);
+    const validAppointments = existingAppointments.filter((apt: any) => !apt.client?.isDeleted);
 
     // Check availability for each slot
     const slotsWithAvailability = ((service as any).slots as any[]).map((slot: any, index: number) => {

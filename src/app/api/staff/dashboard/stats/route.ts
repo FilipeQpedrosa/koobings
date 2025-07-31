@@ -40,86 +40,62 @@ export async function GET(request: NextRequest) {
     const startThisWeek = startOfWeek(today);
     const endThisWeek = endOfWeek(today);
 
-    const [
-      totalAppointments,
-      todayAppointments,
-      upcomingAppointments,
-      completedAppointments,
-      totalClients
-    ] = await Promise.all([
-      // Total appointments for this business (exclude deleted clients)
-      (prisma as any).appointments.count({
-        where: { 
-          businessId,
-          Client: {
-            isDeleted: false
-          }
-        }
-      }),
-      
-      // Today's appointments (exclude deleted clients)
-      (prisma as any).appointments.count({
-        where: {
-          businessId,
-          scheduledFor: {
-            gte: startToday,
-            lte: endToday
-          },
-          Client: {
-            isDeleted: false
-          }
-        }
-      }),
-      
-      // Upcoming appointments (from tomorrow onwards, exclude deleted clients)
-      (prisma as any).appointments.count({
-        where: {
-          businessId,
-          scheduledFor: {
-            gt: endToday
-          },
-          status: {
-            in: ['PENDING', 'CONFIRMED']
-          },
-          Client: {
-            isDeleted: false
-          }
-        }
-      }),
-      
-      // Completed appointments this week (exclude deleted clients)
-      (prisma as any).appointments.count({
-        where: {
-          businessId,
-          scheduledFor: {
-            gte: startThisWeek,
-            lte: endThisWeek
-          },
-          status: 'COMPLETED',
-          Client: {
-            isDeleted: false
-          }
-        }
-      }),
-      
-      // Total unique clients (exclude deleted clients)
-      prisma.client.count({
-        where: { 
-          businessId,
+    // Total appointments (excluding deleted clients)
+    const totalAppointments = await prisma.appointment.count({
+      where: {
+        businessId,
+        client: {
           isDeleted: false
         }
-      })
-    ]);
+      }
+    });
 
-    // Calculate completion rate (completed vs total this week, exclude deleted clients)
-    const thisWeekTotal = await (prisma as any).appointments.count({
+    // Completed appointments (excluding deleted clients)
+    const completedAppointments = await prisma.appointment.count({
+      where: {
+        businessId,
+        status: 'COMPLETED',
+        client: {
+          isDeleted: false
+        }
+      }
+    });
+
+    // Upcoming appointments (excluding deleted clients)
+    const upcomingAppointments = await prisma.appointment.count({
+      where: {
+        businessId,
+        status: 'PENDING',
+        scheduledFor: {
+          gte: new Date()
+        },
+        client: {
+          isDeleted: false
+        }
+      }
+    });
+
+    // Total clients created (not unique clients served) - only non-deleted
+    const totalClients = await prisma.client.count({
+      where: {
+        businessId,
+        isDeleted: false
+      }
+    });
+
+    // New appointments this week (excluding deleted clients)
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const thisWeekTotal = await prisma.appointment.count({
       where: {
         businessId,
         scheduledFor: {
-          gte: startThisWeek,
+          gte: startOfWeek,
           lte: endThisWeek
         },
-        Client: {
+        client: {
           isDeleted: false
         }
       }

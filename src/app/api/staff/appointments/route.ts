@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    const appointments = await (prisma as any).appointments.findMany({
+    const appointments = await prisma.appointment.findMany({
       where,
       take: limit ? parseInt(limit, 10) : undefined,
       orderBy: { scheduledFor: 'desc' },
