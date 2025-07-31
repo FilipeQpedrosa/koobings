@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
-import { put } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
 
 // Supported file types
 const SUPPORTED_IMAGE_TYPES = [
@@ -136,6 +136,73 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(
       { success: false, error: { code: 'UPLOAD_ERROR', message: `Upload failed: ${error.message}` } },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log('🗑️ [UPLOAD] Starting file deletion from Vercel Blob...');
+    
+    // Check authentication
+    const user = getRequestAuthUser(request);
+    if (!user) {
+      console.log('❌ [UPLOAD] Unauthorized - no user');
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
+        { status: 401 }
+      );
+    }
+
+    console.log('👤 [UPLOAD] User:', user.email, 'Role:', user.role);
+
+    const { searchParams } = new URL(request.url);
+    const imageUrl = searchParams.get('url');
+
+    if (!imageUrl) {
+      console.log('❌ [UPLOAD] No image URL provided');
+      return NextResponse.json(
+        { success: false, error: { code: 'NO_URL', message: 'Image URL is required' } },
+        { status: 400 }
+      );
+    }
+
+    console.log('🔗 [UPLOAD] Image URL to delete:', imageUrl);
+
+    try {
+      // Delete from Vercel Blob
+      console.log('☁️ [UPLOAD] Deleting from Vercel Blob...');
+      
+      await del(imageUrl);
+      
+      console.log('✅ [UPLOAD] File deleted successfully from Vercel Blob');
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Image deleted successfully'
+      });
+
+    } catch (blobError: any) {
+      console.error('❌ [UPLOAD] Failed to delete from Vercel Blob:', {
+        message: blobError.message,
+        stack: blobError.stack,
+        name: blobError.name
+      });
+      return NextResponse.json(
+        { success: false, error: { code: 'BLOB_DELETE_ERROR', message: `Failed to delete from cloud storage: ${blobError.message}` } },
+        { status: 500 }
+      );
+    }
+
+  } catch (error: any) {
+    console.error('❌ [UPLOAD] Unexpected delete error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    return NextResponse.json(
+      { success: false, error: { code: 'DELETE_ERROR', message: `Delete failed: ${error.message}` } },
       { status: 500 }
     );
   }

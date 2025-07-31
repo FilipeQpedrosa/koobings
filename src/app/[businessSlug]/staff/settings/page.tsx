@@ -189,12 +189,6 @@ export default function StaffSettingsPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Debug Info */}
-        <div className="bg-yellow-100 p-4 rounded-lg">
-          <p>🔍 Debug: mounted={mounted ? 'true' : 'false'}, loading={loading ? 'true' : 'false'}, saving={saving ? 'true' : 'false'}</p>
-          <p>🔍 Permissions: {JSON.stringify(permissions)}</p>
-        </div>
-
         {/* General Settings Tab */}
         <TabsContent value="general" className="space-y-6">
           {/* Quick Actions */}

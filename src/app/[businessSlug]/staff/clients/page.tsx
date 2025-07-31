@@ -28,6 +28,7 @@ export default function StaffClientsPage() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
+  const [deletingClient, setDeletingClient] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchClients() {
@@ -76,6 +77,43 @@ export default function StaffClientsPage() {
       setFilteredClients(filtered);
     }
   }, [clients, searchTerm]);
+
+  const handleDeleteClient = async (clientId: string, clientName: string) => {
+    const confirmed = window.confirm(
+      `Tem a certeza que quer apagar o cliente "${clientName}"?\n\nEsta ação não pode ser desfeita.`
+    );
+    
+    if (!confirmed) return;
+
+    setDeletingClient(clientId);
+    
+    try {
+      const response = await fetch(`/api/staff/clients/${clientId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        // Remove client from local state
+        const updatedClients = clients.filter(client => client.id !== clientId);
+        setClients(updatedClients);
+        setFilteredClients(updatedClients.filter(client =>
+          !searchTerm || 
+          client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (client.phone && client.phone.includes(searchTerm))
+        ));
+      } else {
+        const errorData = await response.json();
+        alert(`Erro ao apagar cliente: ${errorData.error || 'Erro desconhecido'}`);
+      }
+    } catch (err) {
+      console.error('Error deleting client:', err);
+      alert('Erro ao apagar cliente. Tente novamente.');
+    } finally {
+      setDeletingClient(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -237,6 +275,20 @@ export default function StaffClientsPage() {
                         Edit
                       </Button>
                     </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center ml-2"
+                      onClick={() => handleDeleteClient(client.id, client.name)}
+                      disabled={deletingClient === client.id}
+                    >
+                      {deletingClient === client.id ? (
+                        <div className="animate-spin h-4 w-4 border-b-2 border-red-600"></div>
+                      ) : (
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      )}
+                      Delete
+                    </Button>
                   </div>
                 </div>
               ))}

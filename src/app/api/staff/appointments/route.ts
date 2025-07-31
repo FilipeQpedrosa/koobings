@@ -21,7 +21,12 @@ export async function GET(req: NextRequest) {
 
     console.log('🔧 DEBUG: Fetching appointments for businessId:', businessId);
 
-    const where: any = { businessId };
+    const where: any = { 
+      businessId,
+      Client: {
+        isDeleted: false // Only include appointments from non-deleted clients
+      }
+    };
 
     if (startDateStr) {
       const startDate = startOfDay(new Date(startDateStr));
@@ -33,13 +38,18 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    const appointments = await prisma.appointments.findMany({
+    const appointments = await (prisma as any).appointments.findMany({
       where,
       take: limit ? parseInt(limit, 10) : undefined,
       orderBy: { scheduledFor: 'desc' },
       include: {
         Service: { select: { name: true } },
-        Client: { select: { name: true } }
+        Client: { 
+          select: { 
+            name: true,
+            isDeleted: true
+          } 
+        }
       },
     });
 

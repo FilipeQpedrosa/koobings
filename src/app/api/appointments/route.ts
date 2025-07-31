@@ -22,6 +22,9 @@ export async function GET(request: NextRequest) {
     // Base query
     const where: any = {
       isDeleted: false,
+      Client: {
+        isDeleted: false // Only include appointments from non-deleted clients
+      }
     };
 
     // Add filters based on role

@@ -20,6 +20,12 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
   const [newClient, setNewClient] = useState({ name: "", email: "", phone: "", notes: "" });
   const [localClients, setLocalClients] = useState<any[]>([]);
   const [selectedServices, setServicesState] = useState<string[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    startTime: string;
+    endTime: string;
+    capacity?: number;
+    slotIndex?: number;
+  } | null>(null);
   const [staff, setStaff] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -33,9 +39,12 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
   const [services, setServices] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [slotAvailability, setSlotAvailability] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
-    if (isOpen && step === 1) {
+    if (isOpen) {
+      console.log('📋 BookingModal: Modal opened, fetching data...');
       fetchData();
     }
   }, [isOpen]);
@@ -69,20 +78,94 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
   }, [selectedServices, services]);
 
   useEffect(() => { 
+    console.log('📋 BookingModal: Updating localClients, count:', clients.length);
     setLocalClients(clients); 
   }, [clients]);
+
+  // Fetch slot availability when service, date, or staff changes
+  useEffect(() => {
+    const fetchSlotAvailability = async () => {
+      console.log('🔄 fetchSlotAvailability called:', {
+        selectedServicesLength: selectedServices.length,
+        date,
+        staff,
+        services: services.length
+      });
+      
+      if (!selectedServices.length || !date) {
+        console.log('⚠️ Missing requirements for slot availability check');
+        return;
+      }
+      
+      const selectedService = services.find((s: any) => selectedServices.includes(s.id));
+      console.log('📋 Selected service:', {
+        found: !!selectedService,
+        name: selectedService?.name,
+        id: selectedService?.id,
+        hasSlots: selectedService?.slots ? true : false,
+        slotsArray: Array.isArray(selectedService?.slots),
+        slotsLength: selectedService?.slots?.length
+      });
+      
+      if (!selectedService?.slots || !Array.isArray(selectedService.slots) || selectedService.slots.length === 0) {
+        console.log('⚠️ Service has no slots, clearing availability');
+        setSlotAvailability([]);
+        return;
+      }
+
+      console.log('🚀 Fetching slot availability...');
+      setLoadingSlots(true);
+      try {
+        const response = await fetch('/api/business/services/slots/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            serviceId: selectedService.id,
+            date,
+            ...(staff && { staffId: staff }) // Only include staffId if staff is selected
+          })
+        });
+
+        const result = await response.json();
+        console.log('🎯 Slot availability response:', result);
+        
+        if (result.success && result.data.serviceType === 'slots') {
+          setSlotAvailability(result.data.allSlots || []);
+        } else {
+          setSlotAvailability([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching slot availability:', error);
+        setSlotAvailability([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    fetchSlotAvailability();
+  }, [selectedServices, date, staff, services]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [clientsRes, staffRes] = await Promise.all([
-        fetch('/api/business/clients'),
+        fetch('/api/staff/clients', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        }),
         fetch('/api/business/staff')
       ]);
       
       if (clientsRes.ok) {
         const clientsData = await clientsRes.json();
-        setClients(clientsData.data?.clients || []);
+        console.log('📋 BookingModal: Clients fetched:', clientsData);
+        // Use the direct data array from staff/clients API
+        const fetchedClients = clientsData.data || [];
+        console.log('📋 BookingModal: Setting clients state with', fetchedClients.length, 'clients');
+        setClients(fetchedClients);
       } else {
         console.error('Failed to fetch clients:', clientsRes.status, clientsRes.statusText);
       }
@@ -120,6 +203,8 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
       (c.email?.toLowerCase() || '').includes(clientSearch.toLowerCase())
   );
 
+  console.log('📋 BookingModal: Filtered clients:', filteredClients.length, 'out of', localClients.length, 'total clients');
+
   function handleSelectClient(c: any) {
     setClient(c);
     setShowAddClient(false);
@@ -147,10 +232,23 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
       if (!res.ok) throw new Error('Erro ao criar cliente');
       const created = await res.json();
       const newClientData = created.data;
-      setLocalClients((prev: any) => [...prev, newClientData]);
+      
+      console.log('✅ BookingModal: New client created:', newClientData);
+      
+      // Immediately update both clients and localClients state with the new client
+      const updatedClients = [...clients, newClientData];
+      setClients(updatedClients);
+      setLocalClients(updatedClients);
+      
+      // Select the newly created client
       setClient({ id: newClientData.id, name: newClientData.name, email: newClientData.email });
+      // Clear the search to show all clients, not filter to just the new one
+      setClientSearch("");
       setShowAddClient(false);
       setNewClient({ name: '', email: '', phone: '', notes: '' });
+      
+      console.log('✅ BookingModal: Client state updated, new client should appear in list');
+      
     } catch (err: any) {
       setSaveError(err.message || 'Erro ao criar cliente');
     } finally {
@@ -160,7 +258,7 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log('Submitting booking...', { client, staff, date, time, selectedServices });
+    console.log('Submitting booking...', { client, staff, date, time, selectedServices, selectedSlot });
     if (!client || !staff || !date || !time || selectedServices.length === 0) return;
     setSaving(true);
     setSaveError('');
@@ -168,9 +266,18 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
       const payload = {
         clientId: client.id,
         serviceIds: selectedServices, // Changed from serviceId to serviceIds array
-        scheduledFor: `${date}T${time}:00`, // Changed from startTime to scheduledFor with proper format
+        scheduledFor: `${date}T${time.split('-')[0] || time}:00`, // Use start time for slot-based services
         notes,
         staffId: staff,
+        // Add slot information if this is a slot-based booking
+        ...(selectedSlot && {
+          slotInfo: {
+            startTime: selectedSlot.startTime,
+            endTime: selectedSlot.endTime,
+            slotIndex: selectedSlot.slotIndex,
+            capacity: selectedSlot.capacity
+          }
+        })
       };
       const res = await fetch('/api/business/appointments', { // Using the correct API endpoint
         method: 'POST',
@@ -200,21 +307,87 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
   }
 
   function getTimeSlots() {
+    // Check if selected service has specific slots
+    const selectedService = services.find((s: any) => selectedServices.includes(s.id));
+    
+    console.log('🕐 getTimeSlots DEBUG:', {
+      selectedServices,
+      selectedService: selectedService ? { id: selectedService.id, name: selectedService.name, slots: selectedService.slots } : null,
+      hasSlots: selectedService?.slots && Array.isArray(selectedService.slots) && selectedService.slots.length > 0,
+      slotAvailability: slotAvailability.length,
+      loadingSlots
+    });
+    
+    if (selectedService?.slots && Array.isArray(selectedService.slots) && selectedService.slots.length > 0) {
+      // Return specific slots for this service with real availability
+      console.log('🎯 Using specific slots for service:', selectedService.name);
+      
+      // If we're done loading and have no available slots, the service is not available on this day
+      if (!loadingSlots && slotAvailability.length === 0) {
+        console.log('⚠️ Service not available on selected date');
+        return [{
+          value: '',
+          label: 'Serviço não disponível neste dia',
+          slot: null,
+          disabled: true
+        }];
+      }
+      
+      return selectedService.slots.map((slot: any, index: number) => {
+        // Find availability data for this slot
+        const availabilityData = slotAvailability.find(avail => avail.slotIndex === index);
+        
+        let availabilityText = '';
+        if (loadingSlots) {
+          availabilityText = ' (...)';
+        } else if (availabilityData) {
+          const { capacity, available, booked } = availabilityData;
+          if (capacity > 1) {
+            // Multi-pax event: show "X de Y vagas"
+            availabilityText = ` (${available} de ${capacity} vagas)`;
+          } else {
+            // Single person: show "Disponível" or "Ocupado"
+            availabilityText = available > 0 ? ' (Disponível)' : ' (Ocupado)';
+          }
+        } else if (slot.capacity && slot.capacity > 1) {
+          // Fallback for multi-pax when no availability data
+          availabilityText = ` (${slot.capacity} vagas)`;
+        }
+
+        return {
+          value: `${slot.startTime}-${slot.endTime}`,
+          label: `${slot.startTime} - ${slot.endTime}${availabilityText}`,
+          slot: { ...slot, slotIndex: index },
+          disabled: loadingSlots ? false : (availabilityData ? availabilityData.available === 0 : true)
+        };
+      });
+    }
+    
+    // Traditional time slots (30min intervals from 8AM to 8PM)
+    console.log('⏰ Using traditional time slots');
     const slots = [];
     for (let h = 8; h <= 20; h++) {
       for (let m = 0; m < 60; m += 30) {
         const hour = h.toString().padStart(2, '0');
         const min = m.toString().padStart(2, '0');
-        slots.push(`${hour}:${min}`);
+        const timeValue = `${hour}:${min}`;
+        slots.push({
+          value: timeValue,
+          label: timeValue,
+          slot: null
+        });
       }
     }
+    
+    // Filter out past times if today
     if (date === new Date().toISOString().split('T')[0]) {
       const now = new Date();
       return slots.filter((t) => {
-        const [h, m] = t.split(':').map(Number);
+        const [h, m] = t.value.split(':').map(Number);
         return h > now.getHours() || (h === now.getHours() && m > now.getMinutes());
       });
     }
+    
     return slots;
   }
 
@@ -222,14 +395,16 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
     setStep(1);
     setClient(null);
     setClientSearch("");
-    setShowAddClient(false);
-    setNewClient({ name: "", email: "", phone: "", notes: "" });
+    setSelectedSlot(null);
+    setSlotAvailability([]); // Reset slot availability
     setServicesState([]);
     setStaff("");
     setDate("");
     setTime("");
     setNotes("");
-    setSaveError("");
+    setSaveError('');
+    setNewClient({ name: '', email: '', phone: '', notes: '' });
+    setShowAddClient(false);
     onClose();
   };
 
@@ -302,10 +477,15 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
                         value={clientSearch}
                         onChange={e => setClientSearch(e.target.value)}
                       />
-                      <button type="button" className="flex items-center gap-2 text-blue-600 hover:underline mt-2" onClick={() => setShowAddClient(true)}>
-                        <Plus className="w-4 h-4" />
-                        Adicionar novo cliente
-                      </button>
+                      <div className="flex justify-between items-center mt-2">
+                        <button type="button" className="flex items-center gap-2 text-blue-600 hover:underline" onClick={() => setShowAddClient(true)}>
+                          <Plus className="w-4 h-4" />
+                          Adicionar novo cliente
+                        </button>
+                        <span className="text-xs text-gray-500">
+                          {filteredClients.length} de {localClients.length} clientes
+                        </span>
+                      </div>
                     </div>
                     <div className="divide-y divide-gray-200">
                       {filteredClients.map((c: any, idx: number) => (
@@ -354,7 +534,12 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
                             key={svc.id || idx}
                             type="button"
                             className={`flex flex-col items-start p-4 rounded-lg border transition shadow-sm relative text-left w-full ${selectedServices.includes(svc.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
-                            onClick={() => setServicesState([svc.id])}
+                            onClick={() => {
+                              setServicesState([svc.id]);
+                              setTime(""); // Reset time when service changes
+                              setSelectedSlot(null);
+                              setSlotAvailability([]); // Reset slot availability when service changes
+                            }}
                           >
                             <div className="font-semibold text-base mb-1 flex items-center gap-2">
                               {svc.name}
@@ -388,10 +573,24 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Hora *</label>
-                        <select className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" value={time} onChange={e => setTime(e.target.value)}>
+                        <select 
+                          className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
+                          value={time} 
+                          onChange={(e) => {
+                            setTime(e.target.value);
+                            // If this is a slot-based service, save the slot info
+                            const timeSlots = getTimeSlots();
+                            const selectedTimeSlot = timeSlots.find((t: any) => t.value === e.target.value);
+                            if (selectedTimeSlot?.slot) {
+                              setSelectedSlot(selectedTimeSlot.slot);
+                            } else {
+                              setSelectedSlot(null);
+                            }
+                          }}
+                        >
                           <option value="">Selecionar hora</option>
-                          {getTimeSlots().map((t: string) => (
-                            <option key={t} value={t}>{t}</option>
+                          {getTimeSlots().map((t: any) => (
+                            <option key={t.value} value={t.value} disabled={t.disabled}>{t.label}</option>
                           ))}
                         </select>
                       </div>

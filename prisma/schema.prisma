@@ -145,6 +145,17 @@ model Service {
   image              String?
   businessId         String
   categoryId         String?
+  // New fields for multi-location support
+  location           String?             // Location name (e.g., "Porto", "Lisboa")
+  address            String?             // Complete address for Google Maps validation
+  maxCapacity        Int?                @default(1) // Maximum capacity (1 = individual, >1 = multi-pax event)
+  availableDays      Int[]               @default([]) // Array of available days (0=Sunday, 1=Monday, etc.)
+  startTime          String?             // Start time in HH:MM format
+  endTime            String?             // End time in HH:MM format
+  minAdvanceHours    Int                 @default(24) // Minimum hours in advance
+  maxAdvanceDays     Int                 @default(30) // Maximum days in advance
+  anyTimeAvailable   Boolean?            @default(false) // Available any time of day
+  slots              Json?               // Time slots with startTime, endTime, capacity
   Business           Business            @relation(fields: [businessId], references: [id])
   service_categories service_categories? @relation(fields: [categoryId], references: [id])
   appointments       appointments[]
@@ -152,6 +163,7 @@ model Service {
 
   @@index([businessId])
   @@index([categoryId])
+  @@index([location])
 }
 
 model Staff {
@@ -240,6 +252,7 @@ model appointments {
   serviceId              String
   businessId             String
   recurringAppointmentId String?
+  slotInfo               Json?                   // Store slot booking information (startTime, endTime, slotIndex, capacity)
   Business               Business                @relation(fields: [businessId], references: [id])
   Client                 Client                  @relation(fields: [clientId], references: [id])
   recurring_appointments recurring_appointments? @relation(fields: [recurringAppointmentId], references: [id])

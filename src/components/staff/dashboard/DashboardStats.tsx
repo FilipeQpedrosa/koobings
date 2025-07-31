@@ -80,7 +80,7 @@ export default function DashboardStats({
       <StatsCard
         title="Total de Clientes"
         value={totalClients}
-        description="Clientes únicos atendidos"
+        description="Clientes únicos criados"
         icon={<Users className="h-5 w-5" />}
       />
       <StatsCard
