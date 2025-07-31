@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
     
-    // Test database connection
-    const appointmentCount = await prisma.appointment.count();
-    const clientCount = await prisma.client.count();
-    const serviceCount = await prisma.service.count();
-    const businessCount = await prisma.business.count();
+    // Test database connection with raw queries first
+    const appointmentCount = await prisma.$queryRaw`SELECT COUNT(*) as count FROM "appointments"`;
+    const clientCount = await prisma.$queryRaw`SELECT COUNT(*) as count FROM "Client"`;
+    const serviceCount = await prisma.$queryRaw`SELECT COUNT(*) as count FROM "Service"`;
+    const businessCount = await prisma.$queryRaw`SELECT COUNT(*) as count FROM "Business"`;
     
     console.log('📊 Database stats:', {
       appointments: appointmentCount,
@@ -34,43 +34,30 @@ export async function GET(request: NextRequest) {
     });
     
     // Test a simple appointment query
-    const recentAppointments = await prisma.appointment.findMany({
-      take: 3,
-      include: {
-        client: {
-          select: {
-            name: true,
-            isDeleted: true
-          }
-        },
-        service: {
-          select: {
-            name: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const recentAppointments = await prisma.$queryRaw`
+      SELECT 
+        a.id,
+        c.name as client_name,
+        s.name as service_name,
+        a."scheduledFor",
+        a.status
+      FROM "appointments" a
+      LEFT JOIN "Client" c ON a."clientId" = c.id
+      LEFT JOIN "Service" s ON a."serviceId" = s.id
+      ORDER BY a."createdAt" DESC
+      LIMIT 3
+    `;
     
     return NextResponse.json({
       success: true,
       message: 'Database connection working',
       stats: {
-        appointments: appointmentCount,
-        clients: clientCount,
-        services: serviceCount,
-        businesses: businessCount
+        appointments: Number((appointmentCount as any)[0]?.count || 0),
+        clients: Number((clientCount as any)[0]?.count || 0),
+        services: Number((serviceCount as any)[0]?.count || 0),
+        businesses: Number((businessCount as any)[0]?.count || 0)
       },
-      recentAppointments: recentAppointments.map(apt => ({
-        id: apt.id,
-        clientName: apt.client?.name,
-        serviceName: apt.service?.name,
-        scheduledFor: apt.scheduledFor,
-        status: apt.status,
-        clientDeleted: apt.client?.isDeleted
-      }))
+      recentAppointments: recentAppointments || []
     });
     
   } catch (error) {
