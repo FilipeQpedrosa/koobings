@@ -6,6 +6,20 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔧 Testing database connection...');
     
+    // Check if prisma is defined
+    if (!prisma) {
+      console.error('🚨 Prisma client is undefined!');
+      return NextResponse.json({
+        success: false,
+        error: 'Prisma client not initialized',
+        debug: {
+          prismaExists: !!prisma,
+          nodeEnv: process.env.NODE_ENV,
+          databaseUrl: process.env.DATABASE_URL ? 'present' : 'missing'
+        }
+      }, { status: 500 });
+    }
+    
     // Test database connection
     const appointmentCount = await prisma.appointment.count();
     const clientCount = await prisma.client.count();
