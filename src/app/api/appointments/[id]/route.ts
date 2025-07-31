@@ -4,31 +4,32 @@ import { prisma } from '@/lib/prisma';
 import { AppointmentStatus } from '@prisma/client';
 
 // GET /api/appointments/[id]
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = getRequestAuthUser(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const appointment = await prisma.appointments.findUnique({
-      where: { id: params.id },
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
       include: {
-        Client: {
+        client: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        Staff: {
+        staff: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        Service: true,
+        service: true,
       },
     });
 
@@ -55,8 +56,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PATCH /api/appointments/[id]
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = getRequestAuthUser(request);
     if (!user) {
       console.error('PATCH /api/appointments/[id]: No session');
@@ -72,24 +74,24 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }
 
-    const appointment = await prisma.appointments.findUnique({
-      where: { id: params.id },
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
       include: {
-        Client: {
+        client: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        Staff: {
+        staff: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        Service: true,
+        service: true,
       },
     });
     console.log('📋 PATCH /api/appointments/[id] found appointment:', appointment?.id, 'status:', appointment?.status);
@@ -126,29 +128,29 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     // Update appointment with new status
-    const updatedAppointment = await prisma.appointments.update({
-      where: { id: params.id },
+    const updatedAppointment = await prisma.appointment.update({
+      where: { id },
       data: {
         status: status as AppointmentStatus,
         notes,
         updatedAt: new Date(),
       },
       include: {
-        Client: {
+        client: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        Staff: {
+        staff: {
           select: {
             id: true,
             name: true,
             email: true,
           },
         },
-        Service: true,
+        service: true,
       },
     });
 
@@ -157,10 +159,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Trigger automatic notifications for status changes
     try {
       console.log('🔔 PATCH /api/appointments/[id] triggering notifications...');
-      console.log('🔔 Notification URL:', `${process.env.NEXT_PUBLIC_APP_URL || 'https://koobings.com'}/api/appointments/${params.id}/notifications`);
+      console.log('🔔 Notification URL:', `${process.env.NEXT_PUBLIC_APP_URL || 'https://koobings.com'}/api/appointments/${id}/notifications`);
       console.log('🔔 Payload:', { status: status, sendEmail: true });
       
-      const notificationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://koobings.com'}/api/appointments/${params.id}/notifications`, {
+      const notificationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'https://koobings.com'}/api/appointments/${id}/notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,15 +208,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 // DELETE /api/appointments/[id]
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = getRequestAuthUser(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const appointment = await prisma.appointments.findUnique({
-      where: { id: params.id },
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
     });
 
     if (!appointment) {
@@ -229,8 +232,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await prisma.appointments.delete({
-      where: { id: params.id },
+    await prisma.appointment.delete({
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Appointment deleted successfully' });
