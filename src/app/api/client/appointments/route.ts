@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     
     console.log('[CLIENT_APPOINTMENTS_POST] Creating appointment with ID:', appointmentId);
     
-    const appointment = await (prisma as any).appointments.create({
+    const appointment = await prisma.appointment.create({
       data: {
         id: appointmentId,
         clientId: client.id,
