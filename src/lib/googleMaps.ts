@@ -113,6 +113,93 @@ function validateAddressManually(address: string): GoogleMapsValidationResult {
 }
 
 /**
+ * Get address suggestions for autocomplete
+ */
+export function getAddressSuggestions(input: string): string[] {
+  const trimmed = input.toLowerCase().trim();
+  
+  if (trimmed.length < 2) return [];
+  
+  // Common Portuguese street types and names
+  const streetSuggestions = [
+    // Common street types with popular names
+    'Rua da Liberdade',
+    'Rua do Comércio', 
+    'Rua da Igreja',
+    'Rua da Escola',
+    'Rua Principal',
+    'Rua Central',
+    'Rua da Ponte',
+    'Rua do Sol',
+    'Rua da Paz',
+    'Rua das Flores',
+    'Avenida da República',
+    'Avenida da Liberdade',
+    'Avenida Central',
+    'Avenida do Mar',
+    'Avenida Principal',
+    'Praça da República',
+    'Praça do Município',
+    'Praça Central',
+    'Largo da Igreja',
+    'Largo do Pelourinho',
+    'Travessa da Igreja',
+    'Travessa do Porto',
+    'Estrada Nacional',
+    'Estrada Municipal',
+    'Alameda das Árvores',
+    
+    // Major cities completion
+    'Rua da Saudade, Lisboa',
+    'Avenida da Boavista, Porto',
+    'Rua de Santa Catarina, Porto',
+    'Rua Augusta, Lisboa',
+    'Avenida Almirante Reis, Lisboa',
+    'Rua do Ouro, Lisboa',
+    'Avenida dos Aliados, Porto',
+    'Rua Direita, Braga',
+    'Avenida da Liberdade, Braga',
+    'Rua do Souto, Braga',
+    'Avenida Central, Aveiro',
+    'Rua Direita, Coimbra',
+    'Rua Ferreira Borges, Coimbra',
+    'Avenida Sá da Bandeira, Coimbra',
+    'Rua 25 de Abril, Faro',
+    'Avenida 5 de Outubro, Faro',
+  ];
+  
+  // Filter suggestions based on input
+  const filtered = streetSuggestions.filter(suggestion => 
+    suggestion.toLowerCase().includes(trimmed)
+  );
+  
+  // If input looks like a street type, suggest completions
+  const streetTypes = ['rua', 'avenida', 'av', 'praça', 'largo', 'travessa', 'estrada', 'alameda'];
+  const matchingType = streetTypes.find(type => type.startsWith(trimmed));
+  
+  if (matchingType) {
+    const typeCompletions = streetSuggestions.filter(s => 
+      s.toLowerCase().startsWith(matchingType)
+    ).slice(0, 8);
+    return [...new Set([...typeCompletions, ...filtered])].slice(0, 10);
+  }
+  
+  // Add number suggestions if the input looks like a street name
+  if (filtered.length > 0 && !trimmed.includes(',') && !/\d/.test(trimmed)) {
+    const withNumbers = filtered.slice(0, 3).flatMap(street => [
+      `${street}, 1`,
+      `${street}, 10`,
+      `${street}, 25`,
+      `${street}, 50`,
+      `${street}, 100`
+    ]);
+    return [...filtered.slice(0, 5), ...withNumbers].slice(0, 10);
+  }
+  
+  return filtered.slice(0, 10);
+}
+
+/**
  * Client-side address validation hook
  */
 export function useAddressValidation() {

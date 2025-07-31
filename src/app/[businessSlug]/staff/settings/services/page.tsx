@@ -12,7 +12,7 @@ import { Package, Plus, Edit, Trash2, ArrowLeft, Clock, Euro, Search, Upload, Im
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useAddressValidation } from '@/lib/googleMaps';
+import { useAddressValidation, getAddressSuggestions } from '@/lib/googleMaps';
 import Image from 'next/image';
 
 interface Service {
@@ -101,6 +101,11 @@ export default function StaffSettingsServicesPage() {
     formattedAddress: null
   });
 
+  // Address suggestions state
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+
   // 🔥 HYDRATION SAFETY - Wait for client mount
   useEffect(() => {
     setMounted(true);
@@ -158,6 +163,7 @@ export default function StaffSettingsServicesPage() {
     }
   };
 
+  // Handle input changes with address validation
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
@@ -177,6 +183,12 @@ export default function StaffSettingsServicesPage() {
         error: null,
         formattedAddress: null
       });
+
+      // Get address suggestions
+      const suggestions = getAddressSuggestions(value);
+      setAddressSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0 && value.trim().length >= 2);
+      setSelectedSuggestionIndex(-1);
 
       // Validate address with debouncing
       if (value.trim()) {
@@ -301,6 +313,10 @@ export default function StaffSettingsServicesPage() {
       error: null,
       formattedAddress: null
     });
+    // Reset address suggestions
+    setAddressSuggestions([]);
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
   };
 
   // Validate address using Google Maps
@@ -337,6 +353,49 @@ export default function StaffSettingsServicesPage() {
         error: 'Erro ao validar morada',
         formattedAddress: null
       });
+    }
+  };
+
+  // Handle address suggestion selection
+  const handleSuggestionSelect = (suggestion: string) => {
+    setFormData(prev => ({
+      ...prev,
+      address: suggestion
+    }));
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    
+    // Validate the selected address
+    validateAddressField(suggestion);
+  };
+
+  // Handle keyboard navigation in suggestions
+  const handleAddressKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || addressSuggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < addressSuggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : addressSuggestions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          handleSuggestionSelect(addressSuggestions[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
     }
   };
 
@@ -904,7 +963,25 @@ export default function StaffSettingsServicesPage() {
                         ? 'border-red-500 focus:border-red-600'
                         : ''
                     }
+                    onKeyDown={handleAddressKeyDown}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
                   />
+                  {showSuggestions && (
+                    <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {addressSuggestions.map((suggestion, index) => (
+                        <div
+                          key={suggestion}
+                          className={`p-2 cursor-pointer hover:bg-gray-100 ${
+                            index === selectedSuggestionIndex ? 'bg-blue-100' : ''
+                          }`}
+                          onClick={() => handleSuggestionSelect(suggestion)}
+                        >
+                          {suggestion}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {addressValidation.isValidating && (
                   <p className="text-xs text-blue-600">🔍 A validar morada com Google Maps...</p>
