@@ -26,6 +26,21 @@ interface Service {
     id: string;
     name: string;
   };
+  // New fields for multi-location support
+  location?: string;
+  maxCapacity?: number;
+  address?: string;
+  availableDays?: number[];
+  startTime?: string;
+  endTime?: string;
+  minAdvanceHours?: number;
+  maxAdvanceDays?: number;
+  anyTimeAvailable?: boolean;
+  slots?: Array<{
+    startTime: string;
+    endTime: string;
+    capacity?: number;
+  }>;
 }
 
 interface ServiceFormData {
@@ -34,6 +49,20 @@ interface ServiceFormData {
   duration: number;
   price: number;
   image: string;
+  location?: string;
+  maxCapacity?: number;
+  address?: string;
+  availableDays?: number[];
+  startTime?: string;
+  endTime?: string;
+  minAdvanceHours?: number;
+  maxAdvanceDays?: number;
+  anyTimeAvailable?: boolean;
+  slots?: Array<{
+    startTime: string;
+    endTime: string;
+    capacity?: number;
+  }>;
 }
 
 export default function StaffSettingsServicesPage() {
@@ -118,7 +147,7 @@ export default function StaffSettingsServicesPage() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'duration' || name === 'price' ? Number(value) : value
+      [name]: name === 'duration' || name === 'price' || name === 'maxCapacity' || name === 'minAdvanceHours' || name === 'maxAdvanceDays' ? Number(value) : value
     }));
   };
 
@@ -196,7 +225,11 @@ export default function StaffSettingsServicesPage() {
       description: '',
       duration: 30,
       price: 0,
-      image: ''
+      image: '',
+      anyTimeAvailable: false,
+      startTime: '09:00',
+      endTime: '18:00',
+      slots: undefined
     });
     setShowAddModal(true);
   };
@@ -208,7 +241,17 @@ export default function StaffSettingsServicesPage() {
       description: service.description || '',
       duration: service.duration,
       price: service.price,
-      image: service.image || ''
+      image: service.image || '',
+      location: service.location || '',
+      maxCapacity: service.maxCapacity || 1,
+      address: service.address || '',
+      availableDays: service.availableDays || [1, 2, 3, 4, 5],
+      startTime: service.startTime || '09:00',
+      endTime: service.endTime || '18:00',
+      minAdvanceHours: service.minAdvanceHours || 24,
+      maxAdvanceDays: service.maxAdvanceDays || 30,
+      anyTimeAvailable: service.anyTimeAvailable || false,
+      slots: service.slots || undefined,
     });
     setShowAddModal(true);
   };
@@ -247,6 +290,17 @@ export default function StaffSettingsServicesPage() {
         description: formData.description.trim() || undefined,
         duration: formData.duration,
         price: formData.price,
+        image: formData.image || undefined,
+        location: formData.location || undefined,
+        maxCapacity: formData.maxCapacity || undefined,
+        address: formData.address || undefined,
+        availableDays: formData.availableDays?.length ? formData.availableDays : undefined,
+        startTime: formData.startTime || undefined,
+        endTime: formData.endTime || undefined,
+        minAdvanceHours: formData.minAdvanceHours || undefined,
+        maxAdvanceDays: formData.maxAdvanceDays || undefined,
+        anyTimeAvailable: formData.anyTimeAvailable || undefined,
+        slots: formData.slots || undefined,
       });
       
       const response = await fetch(url, {
@@ -261,6 +315,16 @@ export default function StaffSettingsServicesPage() {
           duration: formData.duration,
           price: formData.price,
           image: formData.image || undefined,
+          location: formData.location || undefined,
+          maxCapacity: formData.maxCapacity || undefined,
+          address: formData.address || undefined,
+          availableDays: formData.availableDays?.length ? formData.availableDays : undefined,
+          startTime: formData.startTime || undefined,
+          endTime: formData.endTime || undefined,
+          minAdvanceHours: formData.minAdvanceHours || undefined,
+          maxAdvanceDays: formData.maxAdvanceDays || undefined,
+          anyTimeAvailable: formData.anyTimeAvailable || undefined,
+          slots: formData.slots || undefined,
         }),
       });
 
@@ -534,7 +598,7 @@ export default function StaffSettingsServicesPage() {
 
       {/* Add/Edit Service Modal */}
       <Dialog open={showAddModal} onOpenChange={closeModal}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingService ? 'Edit Service' : 'Add New Service'}
@@ -547,7 +611,7 @@ export default function StaffSettingsServicesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 pb-4">
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
                 {error}
@@ -681,6 +745,293 @@ export default function StaffSettingsServicesPage() {
                   required
                   disabled={submitting}
                 />
+              </div>
+            </div>
+
+            {/* NEW LOCATION & MULTI-PAX FIELDS */}
+            <div className="border-t pt-4 mt-4 space-y-4">
+              <h4 className="text-md font-medium text-gray-800 mb-3">📍 Localização & Disponibilidade</h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="location">Localização</Label>
+                  <Input
+                    id="location"
+                    name="location"
+                    value={formData.location || ''}
+                    onChange={handleInputChange}
+                    placeholder="Ex: Porto, Lisboa, Online..."
+                    disabled={submitting}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="maxCapacity">👥 Capacidade Máxima</Label>
+                  <Input
+                    id="maxCapacity"
+                    name="maxCapacity"
+                    type="number"
+                    value={formData.maxCapacity || 1}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="100"
+                    placeholder="1 = Individual, >1 = Evento"
+                    disabled={submitting}
+                  />
+                  <p className="text-xs text-gray-500">1 pessoa = Serviço individual, &gt;1 = Evento multi-pax</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Morada Completa</Label>
+                <Input
+                  id="address"
+                  name="address"
+                  value={formData.address || ''}
+                  onChange={handleInputChange}
+                  placeholder="Rua/Avenida, Número, Código Postal, Cidade"
+                  disabled={submitting}
+                />
+                <p className="text-xs text-gray-500">Será validada com Google Maps</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Dias Disponíveis</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { value: 1, label: 'Seg' },
+                    { value: 2, label: 'Ter' },
+                    { value: 3, label: 'Qua' },
+                    { value: 4, label: 'Qui' },
+                    { value: 5, label: 'Sex' },
+                    { value: 6, label: 'Sáb' },
+                    { value: 0, label: 'Dom' }
+                  ].map((day) => (
+                    <label key={day.value} className="flex items-center space-x-1 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formData.availableDays?.includes(day.value) || false}
+                        onChange={(e) => {
+                          const currentDays = formData.availableDays || [];
+                          const newDays = e.target.checked
+                            ? [...currentDays, day.value]
+                            : currentDays.filter(d => d !== day.value);
+                          setFormData({ ...formData, availableDays: newDays });
+                        }}
+                        disabled={submitting}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>{day.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="anyTimeAvailable"
+                    checked={formData.anyTimeAvailable || false}
+                    onChange={(e) => {
+                      setFormData({ 
+                        ...formData, 
+                        anyTimeAvailable: e.target.checked,
+                        // If any time is selected, clear scheduled times and slots
+                        startTime: e.target.checked ? undefined : formData.startTime,
+                        endTime: e.target.checked ? undefined : formData.endTime,
+                        slots: e.target.checked ? undefined : formData.slots
+                      });
+                    }}
+                    disabled={submitting}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="anyTimeAvailable" className="text-sm font-medium text-gray-700">
+                    🕐 Disponível em qualquer horário
+                  </Label>
+                </div>
+                <p className="text-xs text-gray-500 ml-6">
+                  Marque esta opção se o serviço pode ser agendado a qualquer hora do dia
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="useSlots"
+                    checked={(formData.slots && formData.slots.length > 0) || false}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({ 
+                          ...formData, 
+                          slots: [{ startTime: '09:00', endTime: '09:45', capacity: formData.maxCapacity || 1 }],
+                          startTime: undefined,
+                          endTime: undefined,
+                          anyTimeAvailable: false
+                        });
+                      } else {
+                        setFormData({ 
+                          ...formData, 
+                          slots: undefined,
+                          startTime: '09:00',
+                          endTime: '18:00'
+                        });
+                      }
+                    }}
+                    disabled={submitting || formData.anyTimeAvailable}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor="useSlots" className="text-sm font-medium text-gray-700">
+                    🎯 Definir slots específicos
+                  </Label>
+                </div>
+                <p className="text-xs text-gray-500 ml-6">
+                  Para aulas/sessões com horários fixos (ex: 09:00-09:45, 10:15-11:00)
+                </p>
+              </div>
+
+              {formData.slots && formData.slots.length > 0 ? (
+                <div className="space-y-4">
+                  <Label className="text-sm font-medium text-gray-700">⏰ Slots Disponíveis</Label>
+                  {formData.slots.map((slot, index) => (
+                    <div key={index} className="flex items-center space-x-2 p-3 border rounded-lg bg-gray-50">
+                      <div className="flex-1 grid grid-cols-3 gap-2">
+                        <div>
+                          <Label htmlFor={`slot-start-${index}`} className="text-xs text-gray-600">Início</Label>
+                          <Input
+                            id={`slot-start-${index}`}
+                            type="time"
+                            value={slot.startTime}
+                            onChange={(e) => {
+                              const newSlots = [...(formData.slots || [])];
+                              newSlots[index] = { ...newSlots[index], startTime: e.target.value };
+                              setFormData({ ...formData, slots: newSlots });
+                            }}
+                            disabled={submitting}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`slot-end-${index}`} className="text-xs text-gray-600">Fim</Label>
+                          <Input
+                            id={`slot-end-${index}`}
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) => {
+                              const newSlots = [...(formData.slots || [])];
+                              newSlots[index] = { ...newSlots[index], endTime: e.target.value };
+                              setFormData({ ...formData, slots: newSlots });
+                            }}
+                            disabled={submitting}
+                            className="text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`slot-capacity-${index}`} className="text-xs text-gray-600">Vagas</Label>
+                          <Input
+                            id={`slot-capacity-${index}`}
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={slot.capacity || formData.maxCapacity || 1}
+                            onChange={(e) => {
+                              const newSlots = [...(formData.slots || [])];
+                              newSlots[index] = { ...newSlots[index], capacity: parseInt(e.target.value) };
+                              setFormData({ ...formData, slots: newSlots });
+                            }}
+                            disabled={submitting}
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newSlots = formData.slots?.filter((_, i) => i !== index) || [];
+                          setFormData({ ...formData, slots: newSlots.length > 0 ? newSlots : undefined });
+                        }}
+                        disabled={submitting}
+                        className="text-red-600 hover:text-red-700 px-2"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const newSlots = [...(formData.slots || [])];
+                      newSlots.push({ 
+                        startTime: '09:00', 
+                        endTime: '09:45', 
+                        capacity: formData.maxCapacity || 1 
+                      });
+                      setFormData({ ...formData, slots: newSlots });
+                    }}
+                    disabled={submitting}
+                    className="w-full"
+                  >
+                    + Adicionar Slot
+                  </Button>
+                </div>
+              ) : !formData.anyTimeAvailable && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startTime">Horário Início</Label>
+                    <Input
+                      id="startTime"
+                      name="startTime"
+                      type="time"
+                      value={formData.startTime || '09:00'}
+                      onChange={handleInputChange}
+                      disabled={submitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endTime">Horário Fim</Label>
+                    <Input
+                      id="endTime"
+                      name="endTime"
+                      type="time"
+                      value={formData.endTime || '18:00'}
+                      onChange={handleInputChange}
+                      disabled={submitting}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="minAdvanceHours">Antecedência Mínima (horas)</Label>
+                  <Input
+                    id="minAdvanceHours"
+                    name="minAdvanceHours"
+                    type="number"
+                    value={formData.minAdvanceHours || 24}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="168"
+                    disabled={submitting}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxAdvanceDays">Antecedência Máxima (dias)</Label>
+                  <Input
+                    id="maxAdvanceDays"
+                    name="maxAdvanceDays"
+                    type="number"
+                    value={formData.maxAdvanceDays || 30}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="365"
+                    disabled={submitting}
+                  />
+                </div>
               </div>
             </div>
 

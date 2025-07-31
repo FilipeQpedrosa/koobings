@@ -47,23 +47,31 @@ export async function GET(request: NextRequest) {
       completedAppointments,
       totalClients
     ] = await Promise.all([
-      // Total appointments for this business
+      // Total appointments for this business (exclude deleted clients)
       (prisma as any).appointments.count({
-        where: { businessId }
+        where: { 
+          businessId,
+          Client: {
+            isDeleted: false
+          }
+        }
       }),
       
-      // Today's appointments
+      // Today's appointments (exclude deleted clients)
       (prisma as any).appointments.count({
         where: {
           businessId,
           scheduledFor: {
             gte: startToday,
             lte: endToday
+          },
+          Client: {
+            isDeleted: false
           }
         }
       }),
       
-      // Upcoming appointments (from tomorrow onwards)
+      // Upcoming appointments (from tomorrow onwards, exclude deleted clients)
       (prisma as any).appointments.count({
         where: {
           businessId,
@@ -72,11 +80,14 @@ export async function GET(request: NextRequest) {
           },
           status: {
             in: ['PENDING', 'CONFIRMED']
+          },
+          Client: {
+            isDeleted: false
           }
         }
       }),
       
-      // Completed appointments this week
+      // Completed appointments this week (exclude deleted clients)
       (prisma as any).appointments.count({
         where: {
           businessId,
@@ -84,11 +95,14 @@ export async function GET(request: NextRequest) {
             gte: startThisWeek,
             lte: endThisWeek
           },
-          status: 'COMPLETED'
+          status: 'COMPLETED',
+          Client: {
+            isDeleted: false
+          }
         }
       }),
       
-      // Total unique clients
+      // Total unique clients (exclude deleted clients)
       prisma.client.count({
         where: { 
           businessId,
@@ -97,13 +111,16 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    // Calculate completion rate (completed vs total this week)
+    // Calculate completion rate (completed vs total this week, exclude deleted clients)
     const thisWeekTotal = await (prisma as any).appointments.count({
       where: {
         businessId,
         scheduledFor: {
           gte: startThisWeek,
           lte: endThisWeek
+        },
+        Client: {
+          isDeleted: false
         }
       }
     });

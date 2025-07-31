@@ -23,6 +23,23 @@ interface AppointmentEvent {
   status: 'confirmed' | 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
   phone?: string;
   notes?: string;
+  slotInfo?: {
+    startTime: string;
+    endTime: string;
+    slotIndex: number;
+    capacity?: number;
+  };
+}
+
+interface EventGroup {
+  id: string; // service_date_slot
+  serviceName: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  isSlotBased: boolean;
+  capacity?: number;
+  participants: AppointmentEvent[];
 }
 
 interface BookingModalProps {
@@ -36,12 +53,47 @@ export default function StaffSchedule() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [appointments, setAppointments] = useState<AppointmentEvent[]>([]);
+  const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<'day' | 'week'>('day');
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+
+  // Group appointments into events (for slot-based services)
+  const groupAppointmentsIntoEvents = useCallback((appointments: AppointmentEvent[]): EventGroup[] => {
+    const groups: { [key: string]: EventGroup } = {};
+    
+    appointments.forEach(apt => {
+      let groupKey: string;
+      
+      if (apt.slotInfo) {
+        // Slot-based service: group by service + slot
+        groupKey = `${apt.service}_${apt.slotInfo.startTime}_${apt.slotInfo.endTime}_${apt.slotInfo.slotIndex}`;
+      } else {
+        // Traditional service: each appointment is its own event
+        groupKey = apt.id;
+      }
+      
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          id: groupKey,
+          serviceName: apt.service,
+          startTime: apt.slotInfo ? apt.slotInfo.startTime : apt.startTime,
+          endTime: apt.slotInfo ? apt.slotInfo.endTime : apt.endTime,
+          duration: apt.duration,
+          isSlotBased: !!apt.slotInfo,
+          capacity: apt.slotInfo?.capacity,
+          participants: []
+        };
+      }
+      
+      groups[groupKey].participants.push(apt);
+    });
+    
+    return Object.values(groups);
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -99,7 +151,8 @@ export default function StaffSchedule() {
                    apt.status?.toLowerCase() === 'completed' ? 'completed' : 
                    apt.status?.toLowerCase() === 'cancelled' ? 'cancelled' : 'confirmed',
             phone: apt.client?.phone,
-            notes: apt.notes
+            notes: apt.notes,
+            slotInfo: apt.slotInfo || undefined
           };
         });
         
@@ -112,6 +165,11 @@ export default function StaffSchedule() {
         
         console.log('📅 Schedule: Appointments for', dateStr, ':', filteredAppointments.length);
         setAppointments(filteredAppointments);
+        
+        // Group appointments into events
+        const groups = groupAppointmentsIntoEvents(filteredAppointments);
+        console.log('📅 Schedule: Event groups:', groups.length);
+        setEventGroups(groups);
       } else {
         console.error('❌ Schedule: Failed to fetch appointments:', response.status);
         setAppointments([]);
@@ -201,13 +259,19 @@ export default function StaffSchedule() {
     setSelectedAppointment(null);
   };
 
-  const getAppointmentForTimeSlot = (timeSlot: string) => {
-    return appointments.find(apt => {
-      const startTime = new Date(apt.startTime).toLocaleTimeString('pt-PT', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-      return startTime === timeSlot;
+  const getEventForTimeSlot = (timeSlot: string) => {
+    return eventGroups.find(event => {
+      // For slot-based events, use the slot time
+      if (event.isSlotBased) {
+        return event.startTime === timeSlot;
+      } else {
+        // For traditional events, use the appointment time
+        const startTime = new Date(event.startTime).toLocaleTimeString('pt-PT', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        return startTime === timeSlot;
+      }
     });
   };
 
@@ -266,7 +330,7 @@ export default function StaffSchedule() {
       {/* Schedule Grid */}
       <div className="space-y-2">
         {timeSlots.map((timeSlot) => {
-          const appointment = getAppointmentForTimeSlot(timeSlot);
+          const event = getEventForTimeSlot(timeSlot);
           
           return (
             <div
@@ -278,32 +342,59 @@ export default function StaffSchedule() {
               </div>
               
               <div className="flex-1 ml-4">
-                {appointment ? (
+                {event ? (
                   <div
-                    className={`p-3 rounded-lg border-l-4 cursor-pointer ${getStatusColor(appointment.status)}`}
-                    onClick={() => handleViewAppointment(appointment)}
+                    className={`p-3 rounded-lg border-l-4 cursor-pointer ${getStatusColor(event.participants[0]?.status || 'confirmed')}`}
+                    onClick={() => handleViewAppointment(event.participants[0])}
                   >
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-medium text-gray-900">
-                          {appointment.clientName}
+                          {event.isSlotBased ? (
+                            <>
+                              {event.serviceName} ({event.startTime} - {event.endTime})
+                              <span className="ml-2 text-sm text-blue-600">
+                                {event.participants.length}{event.capacity ? `/${event.capacity}` : ''} participantes
+                              </span>
+                            </>
+                          ) : (
+                            event.participants[0]?.clientName || 'Cliente Desconhecido'
+                          )}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {appointment.service} ({appointment.duration}min)
+                          {event.isSlotBased ? (
+                            <div className="space-y-1">
+                              {event.participants.map((participant, idx) => (
+                                <div key={participant.id} className="flex items-center">
+                                  <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                  {participant.clientName}
+                                </div>
+                              ))}
+                              {event.capacity && event.participants.length < event.capacity && (
+                                <div className="text-gray-400 italic">
+                                  {event.capacity - event.participants.length} vagas disponíveis
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            `${event.serviceName} (${event.duration}min)`
+                          )}
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {getStatusText(appointment.status)}
-                        </div>
+                        {!event.isSlotBased && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {getStatusText(event.participants[0]?.status || 'confirmed')}
+                          </div>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleEditAppointment(appointment);
+                          handleEditAppointment(event.participants[0]);
                         }}
                       >
-                        Edit
+                        {event.isSlotBased ? 'Gerir' : 'Edit'}
                       </Button>
                     </div>
                   </div>

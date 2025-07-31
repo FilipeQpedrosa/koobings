@@ -49,14 +49,20 @@ export async function GET(request: NextRequest) {
     
     // Query with includes to get related data for the authenticated user's business
     const appointments = await (prisma as any).appointments.findMany({
-      where: { businessId },
+      where: { 
+        businessId,
+        Client: {
+          isDeleted: false // Only include appointments from non-deleted clients
+        }
+      },
       include: {
         Client: {
           select: {
             id: true,
             name: true,
             email: true,
-            phone: true
+            phone: true,
+            isDeleted: true
           }
         },
         Service: {
@@ -92,6 +98,7 @@ export async function GET(request: NextRequest) {
       scheduledFor: apt.scheduledFor,
       status: apt.status,
       notes: apt.notes,
+      slotInfo: apt.slotInfo, // Include slot information
       services: apt.Service ? [{
         id: apt.Service.id,
         name: apt.Service.name,
@@ -161,7 +168,14 @@ export async function POST(request: NextRequest) {
       serviceIds: z.array(z.string()).min(1), // Changed from serviceId to serviceIds array
       scheduledFor: z.string().min(1), // Changed from startTime to scheduledFor
       notes: z.string().optional(),
-      staffId: z.string().min(1) // Made required since modal always sends it
+      staffId: z.string().min(1), // Made required since modal always sends it
+      // Add slot information for slot-based services
+      slotInfo: z.object({
+        startTime: z.string(),
+        endTime: z.string(),
+        slotIndex: z.number().int().nonnegative(),
+        capacity: z.number().int().positive().optional()
+      }).optional()
     });
     
     let body;
@@ -181,8 +195,9 @@ export async function POST(request: NextRequest) {
       throw error;
     }
     
-    const { clientId, serviceIds, scheduledFor, notes, staffId } = parsed;
+    const { clientId, serviceIds, scheduledFor, notes, staffId, slotInfo } = parsed;
     console.log('[POST /api/business/appointments] body:', parsed);
+    console.log('[POST /api/business/appointments] slotInfo:', slotInfo);
 
     // For now, we'll just use the first service ID (can be enhanced later for multiple services)
     const serviceId = serviceIds[0];
@@ -204,20 +219,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: { code: 'INVALID_DATETIME', message: 'Invalid scheduledFor format' } }, { status: 400 });
     }
 
+    // Prepare appointment data
+    const appointmentData: any = {
+      id: randomUUID(), // Add explicit ID generation
+      businessId: businessId,
+      clientId: clientId,
+      serviceId,
+      staffId: staffId,
+      scheduledFor: scheduledDateTime,
+      duration: service.duration,
+      notes: notes || '',
+      status: 'PENDING',
+      updatedAt: new Date(), // Add explicit updatedAt
+    };
+
+    // If this is a slot-based booking, store slot information
+    if (slotInfo) {
+      appointmentData.slotInfo = slotInfo;
+      console.log('[POST /api/business/appointments] Added slot info:', slotInfo);
+    }
+
     // Create appointment with correct schema capitalization
     const appointment = await (prisma as any).appointments.create({
-      data: {
-        id: randomUUID(), // Add explicit ID generation
-        businessId: businessId,
-        clientId: clientId,
-        serviceId,
-        staffId: staffId,
-        scheduledFor: scheduledDateTime,
-        duration: service.duration,
-        notes,
-        status: 'PENDING',
-        updatedAt: new Date(), // Add explicit updatedAt
-      },
+      data: appointmentData,
       include: {
         Client: {
           select: {

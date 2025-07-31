@@ -56,6 +56,7 @@ async function main() {
       data: {
         id: randomUUID(),
         name: 'Onport',
+        slug: 'onport',
         ownerName: 'Sandra',
         email: 'sandra@gmail.com',
         phone: '914603522',
@@ -93,6 +94,7 @@ async function main() {
       data: {
         id: randomUUID(),
         name: 'Test Salon & Spa',
+        slug: 'test-salon',
         email: 'test@business.com',
         phone: '123-456-7890',
         address: '123 Test Street, Test City',

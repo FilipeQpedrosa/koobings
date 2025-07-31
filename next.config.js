@@ -5,8 +5,29 @@ const nextConfig = {
     unoptimized: process.env.NODE_ENV === 'development',
     domains: [
       'localhost',
-      'your-production-domain.com'
+      'your-production-domain.com',
+      // Vercel Blob Storage domains
+      'koobings.com',
+      'service-scheduler-hpma2owhj-filipe-pedrosas-projects.vercel.app',
+      'service-scheduler-7bjju0thl-filipe-pedrosas-projects.vercel.app',
+      // Vercel Blob domains
+      'blob.vercel-storage.com',
+      'b2sssahhzvdtb8u7.public.blob.vercel-storage.com'
     ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.blob.vercel-storage.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'blob.vercel-storage.com',
+        port: '',
+        pathname: '/**',
+      }
+    ]
   },
 
   // Enable strict mode for better development experience

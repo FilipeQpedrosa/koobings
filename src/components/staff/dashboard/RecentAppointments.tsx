@@ -28,6 +28,24 @@ interface Appointment {
     id: string;
     name: string;
   };
+  slotInfo?: {
+    startTime: string;
+    endTime: string;
+    slotIndex: number;
+    capacity?: number;
+  };
+}
+
+interface EventGroup {
+  id: string; // service_date_slot
+  serviceName: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  isSlotBased: boolean;
+  capacity?: number;
+  participants: Appointment[];
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
 }
 
 interface StaffMember {
@@ -75,70 +93,105 @@ function getStatusColor(status: Appointment['status']) {
   }
 }
 
-const AppointmentCard = React.memo(({ apt, onStatusChange, updatingId, onClick }: {
-  apt: Appointment;
+const EventCard = React.memo(({ event, onStatusChange, updatingId, onClick }: {
+  event: EventGroup;
   onStatusChange: (id: string, status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED') => void;
   updatingId: string | null;
   onClick?: (appointment: Appointment) => void;
 }) => {
   
-  // Get available next statuses based on current status
-  const availableStatuses = useMemo(() => {
-    const statusOptions = [
-      { value: 'PENDING', label: 'Pendente' },
-      { value: 'ACCEPTED', label: 'Aceite' },
-      { value: 'REJECTED', label: 'Rejeitado' },
-      { value: 'COMPLETED', label: 'Concluído' },
-      { value: 'CANCELLED', label: 'Cancelado' }
-    ];
-
-    return statusOptions;
-  }, [apt.status]);
-
+  const eventDate = new Date(event.startTime);
+  
   return (
     <div 
       className="bg-white rounded-lg shadow-md p-4 border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
-      onClick={() => onClick?.(apt)}
+      onClick={() => onClick?.(event.participants[0])}
     >
-      <div className="flex justify-between items-start mb-2 gap-2">
-        <h3 className="font-bold text-lg text-gray-900 break-words overflow-hidden flex-1 min-w-0">
-          {apt.client.name}
-        </h3>
-        <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap flex-shrink-0")}>
-          {getStatusLabel(apt.status)}
-        </Badge>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex-1">
+          <h3 className="font-bold text-lg text-gray-900 mb-1">
+            {event.serviceName}
+            {event.isSlotBased && event.participants[0]?.slotInfo && (
+              <span className="text-sm text-blue-600 ml-2">
+                ({event.participants[0].slotInfo.startTime} - {event.participants[0].slotInfo.endTime})
+              </span>
+            )}
+          </h3>
+          
+          {event.isSlotBased ? (
+            <>
+              <div className="text-sm text-blue-600 font-medium mb-2">
+                {event.participants.length}{event.capacity ? `/${event.capacity}` : ''} participantes
+              </div>
+              <div className="space-y-1">
+                {event.participants.map((participant, idx) => (
+                  <div key={participant.id} className="flex items-center text-sm text-gray-700">
+                    <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                    {participant.client?.name}
+                    <Badge className={cn(getStatusColor(participant.status), "text-xs ml-2")}>
+                      {getStatusLabel(participant.status)}
+                    </Badge>
+                  </div>
+                ))}
+                {event.capacity && event.participants.length < event.capacity && (
+                  <div className="text-gray-400 italic text-sm">
+                    {event.capacity - event.participants.length} vagas disponíveis
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="text-gray-700 text-sm">
+              {event.participants[0]?.client?.name}
+            </div>
+          )}
+        </div>
+        
+        <div className="text-right ml-4">
+          <div className="text-sm text-gray-600">
+            {isToday(eventDate) ? (
+              <span className="text-blue-600 font-medium">Hoje</span>
+            ) : isTomorrow(eventDate) ? (
+              <span className="text-blue-600 font-medium">Amanhã</span>
+            ) : (
+              format(eventDate, 'dd/MM', { locale: ptBR })
+            )}
+          </div>
+          <div className="text-xs text-gray-500">
+            {event.isSlotBased && event.participants[0]?.slotInfo ? 
+              `${event.participants[0].slotInfo.startTime} - ${event.participants[0].slotInfo.endTime}` : 
+              format(eventDate, 'HH:mm', { locale: ptBR })
+            }
+          </div>
+          <div className="text-xs text-gray-500 mt-1">{event.duration}min</div>
+        </div>
       </div>
-      <div className="text-gray-700 break-words overflow-hidden">{apt.services?.[0]?.name}</div>
-      <div className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduledFor), 'PP p', { locale: ptBR })}</div>
-      <div className="text-sm text-gray-500">{apt.duration} min</div>
-      {apt.staff && (
-        <div className="text-sm text-gray-500">Staff: {apt.staff.name}</div>
-      )}
-      {apt.notes && apt.notes.trim() !== "" && (
-        <div className="mt-2 p-2 bg-blue-50 rounded-md">
-          <p className="text-xs font-medium text-blue-800">Notas:</p>
-          <p className="text-sm text-blue-700 break-words overflow-hidden">{apt.notes}</p>
+      
+      {event.participants[0]?.staff && (
+        <div className="text-sm text-gray-500 mb-2">
+          Staff: {event.participants[0].staff.name}
         </div>
       )}
-      <div className="mt-4">
-        <select
-          className="w-full border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
-          value={apt.status}
-          disabled={updatingId === apt.id || availableStatuses.length === 1}
-          onClick={(e) => e.stopPropagation()} // Prevent card click when clicking on select
-          onChange={e => onStatusChange(apt.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
-        >
-          {availableStatuses.map(status => (
-            <option key={status.value} value={status.value}>
-              {status.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      
+      {event.participants[0]?.notes && event.participants[0].notes.trim() !== "" && (
+        <div className="mt-2 p-2 bg-blue-50 rounded-md">
+          <p className="text-xs font-medium text-blue-800">Notas:</p>
+          <p className="text-sm text-blue-700">{event.participants[0].notes}</p>
+        </div>
+      )}
+      
+      {!event.isSlotBased && (
+        <div className="mt-3 pt-3 border-t">
+          <Badge className={cn(getStatusColor(event.status), "text-xs")}>
+            {getStatusLabel(event.status)}
+          </Badge>
+        </div>
+      )}
     </div>
   );
 });
-AppointmentCard.displayName = 'AppointmentCard';
+
+EventCard.displayName = 'EventCard';
 
 interface RecentAppointmentsProps {
   businessSlug?: string | null;
@@ -147,6 +200,7 @@ interface RecentAppointmentsProps {
 export default function RecentAppointments({ businessSlug }: RecentAppointmentsProps = {}) {
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -161,6 +215,63 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
   const [staffFilter, setStaffFilter] = useState('all');
   const [sortBy, setSortBy] = useState('upcoming');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Group appointments into events (for slot-based services)
+  const groupAppointmentsIntoEvents = useCallback((appointments: Appointment[]): EventGroup[] => {
+    console.log('🔄 Grouping appointments:', appointments.length);
+    const groups: { [key: string]: EventGroup } = {};
+    
+    appointments.forEach(apt => {
+      console.log('📋 Processing appointment:', {
+        id: apt.id,
+        client: apt.client?.name,
+        service: apt.services[0]?.name,
+        slotInfo: apt.slotInfo,
+        scheduledFor: apt.scheduledFor
+      });
+      
+      let groupKey: string;
+      
+      if (apt.slotInfo) {
+        // Slot-based service: group by service + slot + date
+        const appointmentDate = new Date(apt.scheduledFor).toISOString().split('T')[0];
+        groupKey = `${apt.services[0]?.name}_${appointmentDate}_${apt.slotInfo.startTime}_${apt.slotInfo.endTime}_${apt.slotInfo.slotIndex}`;
+        console.log('🎯 Slot-based grouping key:', groupKey);
+      } else {
+        // Traditional service: each appointment is its own event
+        groupKey = apt.id;
+        console.log('📅 Traditional grouping key:', groupKey);
+      }
+      
+      if (!groups[groupKey]) {
+        groups[groupKey] = {
+          id: groupKey,
+          serviceName: apt.services[0]?.name || 'Serviço Desconhecido',
+          startTime: apt.slotInfo ? apt.scheduledFor : apt.scheduledFor, // Use full date for both slot-based and traditional
+          endTime: apt.slotInfo ? new Date(new Date(apt.scheduledFor).getTime() + apt.duration * 60000).toISOString() : new Date(new Date(apt.scheduledFor).getTime() + apt.duration * 60000).toISOString(),
+          duration: apt.duration,
+          isSlotBased: !!apt.slotInfo,
+          capacity: apt.slotInfo?.capacity,
+          participants: [],
+          status: apt.status
+        };
+        console.log('✨ Created new group:', groups[groupKey]);
+      }
+      
+      groups[groupKey].participants.push(apt);
+      console.log('👥 Added participant to group:', groupKey, 'Total participants:', groups[groupKey].participants.length);
+      
+      // Update group status to worst case (CANCELLED > REJECTED > PENDING > ACCEPTED > COMPLETED)
+      const statusPriority = { 'CANCELLED': 5, 'REJECTED': 4, 'PENDING': 3, 'ACCEPTED': 2, 'COMPLETED': 1 };
+      if (statusPriority[apt.status] > statusPriority[groups[groupKey].status]) {
+        groups[groupKey].status = apt.status;
+      }
+    });
+    
+    const result = Object.values(groups);
+    console.log('🎯 Final event groups:', result.length, result);
+    return result;
+  }, []);
 
   // Functions for appointment details modal
   const handleAppointmentClick = (appointment: Appointment) => {
@@ -227,13 +338,16 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
             staff: apt.staff ? {
               id: apt.staff.id,
               name: apt.staff.name
-            } : undefined
+            } : undefined,
+            slotInfo: apt.slotInfo // Add slotInfo to the appointment object
           }));
           
           setAppointments(formattedAppointments);
+          setEventGroups(groupAppointmentsIntoEvents(formattedAppointments));
         } else {
           console.error('❌ RecentAppointments: Failed to fetch appointments:', appointmentsResponse.status);
           setAppointments([]);
+          setEventGroups([]);
         }
 
         if (staffResponse.ok) {
@@ -245,6 +359,7 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
       } catch (error) {
         console.error('❌ RecentAppointments: Error fetching data:', error);
         setAppointments([]);
+        setEventGroups([]);
       } finally {
         setLoading(false);
       }
@@ -255,46 +370,46 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
 
   // Enhanced filtering and sorting logic
   const filteredAndSortedAppointments = useMemo(() => {
-    let filtered = appointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.scheduledFor);
+    let filtered = eventGroups.filter(group => {
+      const groupDate = new Date(group.startTime);
       const now = new Date();
       
       // Search filter
       const matchesSearch = 
-        appointment.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.services.some(service => service.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        appointment.staff?.name.toLowerCase().includes(searchTerm.toLowerCase());
+        group.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        group.participants.some(apt => apt.client?.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        group.participants.some(apt => apt.staff?.name.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // Status filter
-      const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || group.status === statusFilter;
       
       // Staff filter
-      const matchesStaff = staffFilter === 'all' || appointment.staff?.id === staffFilter;
+      const matchesStaff = staffFilter === 'all' || group.participants.some(apt => apt.staff?.id === staffFilter);
       
       // Date filter
       let matchesDate = true;
       switch (dateFilter) {
         case 'today':
-          matchesDate = isToday(appointmentDate);
+          matchesDate = isToday(groupDate);
           break;
         case 'tomorrow':
-          matchesDate = isTomorrow(appointmentDate);
+          matchesDate = isTomorrow(groupDate);
           break;
         case 'upcoming':
-          matchesDate = appointmentDate >= startOfDay(now);
+          matchesDate = groupDate >= startOfDay(now);
           break;
         case 'past':
-          matchesDate = appointmentDate < startOfDay(now);
+          matchesDate = groupDate < startOfDay(now);
           break;
         case 'this-week':
-          matchesDate = isThisWeek(appointmentDate, { locale: ptBR });
+          matchesDate = isThisWeek(groupDate, { locale: ptBR });
           break;
         case 'this-month':
-          matchesDate = isThisMonth(appointmentDate);
+          matchesDate = isThisMonth(groupDate);
           break;
         case 'next-7-days':
           const next7Days = addDays(now, 7);
-          matchesDate = appointmentDate >= startOfDay(now) && appointmentDate <= endOfDay(next7Days);
+          matchesDate = groupDate >= startOfDay(now) && groupDate <= endOfDay(next7Days);
           break;
         case 'all':
         default:
@@ -306,8 +421,8 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
 
     // Sort filtered results
     filtered.sort((a, b) => {
-      const dateA = new Date(a.scheduledFor);
-      const dateB = new Date(b.scheduledFor);
+      const dateA = new Date(a.startTime);
+      const dateB = new Date(b.startTime);
       const now = new Date();
       
       switch (sortBy) {
@@ -326,8 +441,8 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
           return dateB.getTime() - dateA.getTime();
           
         case 'client':
-          const nameA = a.client?.name || '';
-          const nameB = b.client?.name || '';
+          const nameA = a.participants[0]?.client?.name || '';
+          const nameB = b.participants[0]?.client?.name || '';
           return nameA.localeCompare(nameB);
           
         default:
@@ -336,7 +451,7 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
     });
 
     return filtered;
-  }, [appointments, searchTerm, statusFilter, dateFilter, staffFilter, sortBy]);
+  }, [eventGroups, searchTerm, statusFilter, dateFilter, staffFilter, sortBy]);
 
   const handleStatusChange = useCallback(async (id: string, newStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED') => {
     setUpdatingId(id);
@@ -349,6 +464,7 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
       });
       if (!res.ok) throw new Error('Failed to update status');
       setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+      setEventGroups(prev => prev.map(g => g.id === id ? { ...g, status: newStatus } : g));
     } catch (err) {
       alert('Falha ao atualizar status');
     } finally {
@@ -401,10 +517,12 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
             staff: apt.staff ? {
               id: apt.staff.id,
               name: apt.staff.name
-            } : undefined
+            } : undefined,
+            slotInfo: apt.slotInfo // Add slotInfo to the appointment object
           }));
           
           setAppointments(formattedAppointments);
+          setEventGroups(groupAppointmentsIntoEvents(formattedAppointments));
         }
       } catch (error) {
         console.error('❌ RecentAppointments: Error refreshing appointments:', error);
@@ -586,11 +704,11 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                   }
                 </div>
               ) : (
-                filteredAndSortedAppointments.map((apt) => (
-                  <AppointmentCard 
-                    key={apt.id} 
-                    apt={apt} 
-                    onStatusChange={handleStatusChange} 
+                filteredAndSortedAppointments.map((group) => (
+                  <EventCard
+                    key={group.id}
+                    event={group}
+                    onStatusChange={handleStatusChange}
                     updatingId={updatingId}
                     onClick={handleAppointmentClick}
                   />
@@ -604,8 +722,8 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Cliente</th>
                       <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Serviço</th>
+                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Clientes</th>
                       <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Data</th>
                       <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-16">Dur.</th>
                       <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
@@ -623,37 +741,61 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                         </td>
                       </tr>
                     ) : (
-                      filteredAndSortedAppointments.map((apt) => {
-                        const appointmentDate = new Date(apt.scheduledFor);
-                        const isUpcoming = appointmentDate >= new Date();
+                      filteredAndSortedAppointments.map((group) => {
+                        const groupDate = new Date(group.startTime);
+                        const isUpcoming = groupDate >= new Date();
                         
                         return (
-                          <tr key={apt.id} className={`border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
+                          <tr key={group.id} className={`border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
                             isUpcoming ? 'bg-blue-50/30' : ''
                           }`}>
                             <td className="px-2 py-4 text-sm max-w-[180px]">
-                              <div className="font-medium break-words overflow-hidden">{apt.client.name}</div>
-                              {apt.staff && (
-                                <div className="text-xs text-gray-500">Staff: {apt.staff.name}</div>
-                              )}
+                              <div className="font-medium break-words overflow-hidden">{group.serviceName}</div>
                             </td>
-                            <td className="px-2 py-4 text-sm max-w-[120px]">
-                              <div className="break-words overflow-hidden">{apt.services?.[0]?.name}</div>
+                            <td className="px-2 py-4 text-sm">
+                              {group.isSlotBased ? (
+                                <div>
+                                  <div className="text-xs font-medium text-blue-600 mb-1">
+                                    👥 Grupo ({group.participants.length}/{group.capacity || '?'})
+                                  </div>
+                                  <div className="space-y-1">
+                                    {group.participants.slice(0, 2).map((participant, idx) => (
+                                      <div key={participant.id} className="text-xs text-gray-600">
+                                        • {participant.client?.name}
+                                      </div>
+                                    ))}
+                                    {group.participants.length > 2 && (
+                                      <div className="text-xs text-gray-400">
+                                        +{group.participants.length - 2} mais...
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="text-xs font-medium text-gray-600 mb-1">
+                                    👤 Individual
+                                  </div>
+                                  <div className="text-xs text-gray-700">
+                                    {group.participants[0]?.client?.name}
+                                  </div>
+                                </div>
+                              )}
                             </td>
                             <td className="px-2 py-4 text-sm whitespace-nowrap">
-                              {isToday(appointmentDate) ? (
+                              {isToday(groupDate) ? (
                                 <div className="text-xs font-medium text-blue-600">Hoje</div>
-                              ) : isTomorrow(appointmentDate) ? (
+                              ) : isTomorrow(groupDate) ? (
                                 <div className="text-xs font-medium text-blue-600">Amanhã</div>
                               ) : (
-                                <div className="text-xs">{format(appointmentDate, 'dd/MM', { locale: ptBR })}</div>
+                                <div className="text-xs">{format(groupDate, 'dd/MM', { locale: ptBR })}</div>
                               )}
-                              <div className="text-xs text-gray-500">{format(appointmentDate, 'HH:mm', { locale: ptBR })}</div>
+                              <div className="text-xs text-gray-500">{format(groupDate, 'HH:mm', { locale: ptBR })}</div>
                             </td>
-                            <td className="px-2 py-4 text-xs text-gray-600">{apt.duration}m</td>
+                            <td className="px-2 py-4 text-xs text-gray-600">{group.duration}m</td>
                             <td className="px-2 py-4">
-                              <Badge className={cn(getStatusColor(apt.status), "text-xs whitespace-nowrap")}>
-                                {getStatusLabel(apt.status)}
+                              <Badge className={cn(getStatusColor(group.status), "text-xs whitespace-nowrap")}>
+                                {getStatusLabel(group.status)}
                               </Badge>
                             </td>
                             <td className="px-2 py-4">
@@ -672,9 +814,9 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                                 return (
                                   <select
                                     className="border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs w-full"
-                                    value={apt.status}
+                                    value={group.status}
                                     disabled={availableStatuses.length === 1}
-                                    onChange={e => handleStatusChange(apt.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
+                                    onChange={e => handleStatusChange(group.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
                                   >
                                     {availableStatuses.map(status => (
                                       <option key={status.value} value={status.value}>

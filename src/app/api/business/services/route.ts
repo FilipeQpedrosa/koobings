@@ -22,16 +22,21 @@ export async function GET(req: NextRequest) {
 
     console.log('🔧 DEBUG: Fetching services for businessId:', businessId);
 
-    const services = await prisma.service.findMany({
-      where: { businessId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Use raw SQL to fetch all fields including the new ones
+    const rawServices = await prisma.$queryRaw`
+      SELECT * FROM "Service" 
+      WHERE "businessId" = ${businessId} 
+      ORDER BY "createdAt" DESC
+    ` as any[];
+    
+    const services = rawServices as any[];
 
     console.log('🔧 DEBUG: Found', services.length, 'services for business');
     console.log('🔧 DEBUG: Latest service:', services[0] ? {
       id: services[0].id,
       name: services[0].name,
-      createdAt: services[0].createdAt
+      createdAt: services[0].createdAt,
+      slots: services[0].slots
     } : 'No services found');
 
     const response = NextResponse.json({ success: true, data: services });
@@ -71,6 +76,21 @@ export async function POST(request: NextRequest) {
       price: z.number().nonnegative(),
       categoryId: z.string().optional(),
       image: z.string().optional(),
+      // New location and slot fields
+      location: z.string().optional(),
+      address: z.string().optional(),
+      maxCapacity: z.number().int().positive().optional(),
+      availableDays: z.array(z.number().int().min(0).max(6)).optional(),
+      startTime: z.string().optional(),
+      endTime: z.string().optional(),
+      minAdvanceHours: z.number().int().positive().optional(),
+      maxAdvanceDays: z.number().int().positive().optional(),
+      anyTimeAvailable: z.boolean().optional(),
+      slots: z.array(z.object({
+        startTime: z.string(),
+        endTime: z.string(),
+        capacity: z.number().int().positive().optional()
+      })).optional(),
     });
 
     let body;

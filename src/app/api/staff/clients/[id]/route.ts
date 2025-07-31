@@ -166,4 +166,73 @@ export async function PUT(req: NextRequest) {
     console.error('Error updating client:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
+}
+
+// DELETE /api/staff/clients/[id] - Soft delete client
+export async function DELETE(req: NextRequest) {
+  const user = getRequestAuthUser(req);
+  if (!user) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const businessId = user.businessId;
+  if (!businessId) {
+    return NextResponse.json({ success: false, error: 'Business ID missing' }, { status: 400 });
+  }
+
+  const clientId = new URL(req.url).pathname.split('/').at(-1);
+  
+  try {
+    // Ensure client belongs to the same business
+    const existingClient = await prisma.client.findUnique({
+      where: { 
+        id: clientId,
+        businessId: businessId,
+        isDeleted: false
+      },
+      include: {
+        _count: {
+          select: {
+            appointments: true
+          }
+        }
+      }
+    });
+
+    if (!existingClient) {
+      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 });
+    }
+
+    // Check if client has appointments
+    if (existingClient._count.appointments > 0) {
+      // Soft delete - just mark as deleted to preserve appointment history
+      const deletedClient = await prisma.client.update({
+        where: { id: clientId },
+        data: { 
+          isDeleted: true,
+          updatedAt: new Date()
+        }
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Client deleted successfully',
+        data: deletedClient 
+      });
+    } else {
+      // Hard delete if no appointments
+      await prisma.client.delete({
+        where: { id: clientId }
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Client deleted successfully' 
+      });
+    }
+
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
 } 

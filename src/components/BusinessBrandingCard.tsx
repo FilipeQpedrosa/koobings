@@ -15,6 +15,8 @@ interface BusinessBrandingCardProps {
 }
 
 export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingCardProps) {
+  console.log('🚀 [BusinessBrandingCard] Component loaded with businessSlug:', businessSlug);
+  
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentLogo, setCurrentLogo] = useState<string | null>(null);
@@ -24,22 +26,38 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🔄 [BusinessBrandingCard] useEffect triggered with businessSlug:', businessSlug);
     if (businessSlug) {
       fetchBusinessInfo();
+    } else {
+      console.log('❌ [BusinessBrandingCard] No businessSlug provided');
+      setLoading(false);
     }
   }, [businessSlug]);
 
   const fetchBusinessInfo = async () => {
     try {
+      console.log('🔍 [BusinessBrandingCard] Fetching business info...');
       const response = await fetch('/api/business/info');
+      console.log('🔍 [BusinessBrandingCard] Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 [BusinessBrandingCard] API Response:', data);
+        console.log('🔍 [BusinessBrandingCard] Logo in response:', data.data?.logo);
+        
         if (data.success && data.data.logo) {
+          console.log('✅ [BusinessBrandingCard] Setting currentLogo to:', data.data.logo);
           setCurrentLogo(data.data.logo);
+        } else {
+          console.log('❌ [BusinessBrandingCard] No logo found in response');
+          setCurrentLogo(null);
         }
+      } else {
+        console.error('❌ [BusinessBrandingCard] Failed to fetch business info:', response.status);
       }
     } catch (error) {
-      console.error('Error fetching business info:', error);
+      console.error('❌ [BusinessBrandingCard] Error fetching business info:', error);
     } finally {
       setLoading(false);
     }
@@ -170,8 +188,37 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
   };
 
   const handleRemoveLogo = async () => {
+    if (!currentLogo) return;
+
+    const confirmed = window.confirm(
+      'Tem a certeza que quer remover o logo?\n\nEsta ação irá apagar permanentemente a imagem e não pode ser desfeita.'
+    );
+    
+    if (!confirmed) return;
+
     setSaving(true);
     try {
+      // First, delete the image from Vercel Blob Storage
+      try {
+        console.log('🗑️ Deleting image from Vercel Blob:', currentLogo);
+        const deleteResponse = await fetch(`/api/upload?url=${encodeURIComponent(currentLogo)}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        
+        if (deleteResponse.ok) {
+          console.log('✅ Image deleted from Vercel Blob successfully');
+        } else {
+          const deleteError = await deleteResponse.json();
+          console.warn('⚠️ Failed to delete image from Vercel Blob:', deleteError);
+          // Continue anyway to remove the reference from database
+        }
+      } catch (blobError) {
+        console.warn('⚠️ Error deleting from Vercel Blob (continuing anyway):', blobError);
+        // Continue anyway to remove the reference from database
+      }
+
+      // Then, remove the logo reference from the database
       const response = await fetch('/api/business/info', {
         method: 'PATCH',
         headers: {
@@ -295,7 +342,7 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
               variant="outline"
               disabled={uploading || saving || previewLogo !== null}
               onClick={handleButtonClick}
-              className="w-full"
+              className="flex-1"
             >
               {uploading ? (
                 <>
@@ -309,6 +356,51 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
                 </>
               )}
             </Button>
+            
+            {currentLogo && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={async () => {
+                  if (window.confirm('Tem a certeza que quer remover o logo?\n\nEsta ação irá apagar permanentemente a imagem e não pode ser desfeita.')) {
+                    setSaving(true);
+                    try {
+                      // Delete from Vercel Blob
+                      await fetch(`/api/upload?url=${encodeURIComponent(currentLogo)}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                      });
+                      
+                      // Remove from database
+                      await fetch('/api/business/info', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ logo: null }),
+                      });
+                      
+                      setCurrentLogo(null);
+                      toast({
+                        title: "Sucesso",
+                        description: "Logo removido com sucesso!",
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Erro",
+                        description: "Erro ao remover logo",
+                        variant: "destructive"
+                      });
+                    } finally {
+                      setSaving(false);
+                    }
+                  }
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Remover
+              </Button>
+            )}
           </div>
 
           <Alert className="bg-blue-50 border-blue-200">

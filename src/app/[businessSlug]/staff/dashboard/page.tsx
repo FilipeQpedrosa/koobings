@@ -4,6 +4,7 @@ import DashboardStats from '@/components/Staff/dashboard/DashboardStats';
 import RecentAppointments from '@/components/Staff/dashboard/RecentAppointments';
 import { useAuth } from '@/hooks/useAuth';
 import { useParams } from 'next/navigation';
+import Image from 'next/image';
 
 interface Stats {
   totalAppointments: number;
@@ -134,8 +135,19 @@ export default function StaffDashboard() {
         {/* Mobile Layout: Stack vertically */}
         <div className="block sm:hidden">
           <div className="flex items-center justify-center gap-3 mb-3">
-            {logo && (
-              <img src={logo} alt="Logo" className="w-16 h-16 rounded-full object-cover border-2 border-blue-200 flex-shrink-0 shadow-md" />
+            {logo ? (
+              <Image 
+                src={logo} 
+                alt="Logo" 
+                width={64}
+                height={64}
+                className="w-16 h-16 rounded-full object-cover border-2 border-blue-200 flex-shrink-0 shadow-md"
+                unoptimized={true}
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl border-2 border-blue-200 shadow-md">
+                {companyName.charAt(0).toUpperCase()}
+              </div>
             )}
             <h1 className="text-lg font-bold text-gray-900 text-center break-words">
               {companyName}
@@ -152,8 +164,19 @@ export default function StaffDashboard() {
         {/* Desktop Layout: Horizontal with flexible sizing */}
         <div className="hidden sm:block">
           <div className="flex items-center justify-center gap-4 mb-2 flex-wrap">
-            {logo && (
-              <img src={logo} alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-blue-200 flex-shrink-0 shadow-md" />
+            {logo ? (
+              <Image 
+                src={logo} 
+                alt="Logo" 
+                width={80}
+                height={80}
+                className="w-20 h-20 rounded-full object-cover border-2 border-blue-200 flex-shrink-0 shadow-md"
+                unoptimized={true}
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl border-2 border-blue-200 shadow-md">
+                {companyName.charAt(0).toUpperCase()}
+              </div>
             )}
             <div className="flex items-center gap-2 flex-wrap justify-center">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 text-center break-words max-w-none">
