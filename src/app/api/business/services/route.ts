@@ -4,6 +4,7 @@ import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
+
 // GET: List all services for a business
 export async function GET(req: NextRequest) {
   try {
@@ -68,6 +69,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
     }
 
+    console.log('🔧 DEBUG: Creating service for businessId:', businessId);
+
     // Input validation
     const schema = z.object({
       name: z.string().min(1),
@@ -96,19 +99,25 @@ export async function POST(request: NextRequest) {
     let body;
     try {
       body = await request.json();
+      console.log('🔧 DEBUG: Request body:', body);
     } catch (err) {
+      console.error('🔧 DEBUG: Invalid JSON body:', err);
       return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
     }
 
     let validatedData;
     try {
       validatedData = schema.parse(body);
+      console.log('🔧 DEBUG: Validated data:', validatedData);
     } catch (error) {
+      console.error('🔧 DEBUG: Validation error:', error);
       if (error instanceof z.ZodError) {
         return NextResponse.json({ success: false, error: { code: 'INVALID_SERVICE_DATA', message: 'Invalid service data', details: error.errors } }, { status: 400 });
       }
       throw error;
     }
+
+    console.log('🔧 DEBUG: Creating service with data:', validatedData);
 
     const service = await prisma.service.create({
       data: {
