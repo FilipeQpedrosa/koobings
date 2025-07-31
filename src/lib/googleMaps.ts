@@ -26,11 +26,9 @@ export async function validateAddress(address: string): Promise<GoogleMapsValida
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
   
   if (!apiKey) {
-    console.warn('Google Maps API key not configured');
-    return {
-      isValid: true, // Allow fallback when API key is not configured
-      formattedAddress: address
-    };
+    console.warn('Google Maps API key not configured - using basic validation');
+    // Basic manual validation when API key is not available
+    return validateAddressManually(address);
   }
 
   try {
@@ -58,10 +56,7 @@ export async function validateAddress(address: string): Promise<GoogleMapsValida
       };
     } else if (data.status === 'OVER_QUERY_LIMIT') {
       console.warn('Google Maps API quota exceeded');
-      return {
-        isValid: true, // Allow fallback when quota is exceeded
-        formattedAddress: address
-      };
+      return validateAddressManually(address);
     } else {
       return {
         isValid: false,
@@ -70,9 +65,49 @@ export async function validateAddress(address: string): Promise<GoogleMapsValida
     }
   } catch (error) {
     console.error('Google Maps validation error:', error);
+    return validateAddressManually(address);
+  }
+}
+
+/**
+ * Basic manual address validation when Google Maps is not available
+ */
+function validateAddressManually(address: string): GoogleMapsValidationResult {
+  const trimmed = address.trim();
+  
+  // Very basic validation rules for Portuguese addresses
+  const hasStreetAndNumber = /^.+[,\s]+\d+/.test(trimmed) || /\d+.*[,\s]+.+/.test(trimmed);
+  const hasMinLength = trimmed.length >= 8;
+  const hasLetters = /[a-zA-ZÀ-ÿ]/.test(trimmed);
+  const hasNumbers = /\d/.test(trimmed);
+  
+  // Common Portuguese address patterns
+  const hasPortuguesePattern = /(?:rua|avenida|av|largo|praça|travessa|estrada|alameda)/i.test(trimmed);
+  
+  if (hasMinLength && hasLetters && hasNumbers && (hasStreetAndNumber || hasPortuguesePattern)) {
     return {
-      isValid: true, // Allow fallback on network errors
-      formattedAddress: address
+      isValid: true,
+      formattedAddress: trimmed,
+    };
+  } else {
+    let error = 'Formato de morada inválido. ';
+    
+    if (!hasMinLength) {
+      error += 'Morada muito curta. ';
+    }
+    if (!hasLetters) {
+      error += 'Deve conter letras. ';
+    }
+    if (!hasNumbers) {
+      error += 'Deve conter números. ';
+    }
+    if (!hasStreetAndNumber && !hasPortuguesePattern) {
+      error += 'Use o formato: "Rua/Avenida Nome, Número, Localidade".';
+    }
+    
+    return {
+      isValid: false,
+      error: error.trim()
     };
   }
 }

@@ -52,6 +52,9 @@ DATABASE_URL=your_database_url
 
 # Email
 RESEND_API_KEY=your_resend_api_key
+
+# Google Maps (optional - for address validation)
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
 
 4. Run database migrations:
