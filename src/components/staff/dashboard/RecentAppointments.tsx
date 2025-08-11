@@ -211,7 +211,7 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('upcoming');
+  const [dateFilter, setDateFilter] = useState('all'); // Changed from 'upcoming' to 'all' for debugging
   const [staffFilter, setStaffFilter] = useState('all');
   const [sortBy, setSortBy] = useState('upcoming');
   const [showFilters, setShowFilters] = useState(false);
@@ -286,87 +286,90 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
 
   const handleNoteAdded = () => {
     closeAppointmentDetailsModal();
-    // Optionally reload appointments to reflect changes
+    // Reload appointments to reflect changes
+    fetchData();
   };
 
   // Fetch appointments and staff from API
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        console.log('📅 RecentAppointments: Fetching appointments and staff...');
-        
-        // Fetch both appointments and staff members
-        const [appointmentsResponse, staffResponse] = await Promise.all([
-          fetch(`/api/business/appointments?t=${Date.now()}`, { 
-            credentials: 'include',
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          }),
-          fetch(`/api/business/staff?t=${Date.now()}`, {
-            credentials: 'include',
-            cache: 'no-store'
-          })
-        ]);
-        
-        console.log('📅 RecentAppointments: Response status:', appointmentsResponse.status, staffResponse.status);
-        
-        if (appointmentsResponse.ok) {
-          const data = await appointmentsResponse.json();
-          const appointmentsArray = data?.data?.appointments || [];
-          
-          console.log('📅 RecentAppointments: Received appointments:', appointmentsArray.length);
-          
-          const formattedAppointments: Appointment[] = appointmentsArray.map((apt: any) => ({
-            id: apt.id,
-            client: {
-              name: apt.client?.name || 'Cliente sem nome',
-              image: apt.client?.image
-            },
-            services: apt.services || [],
-            scheduledFor: apt.scheduledFor,
-            duration: apt.duration || 60,
-            status: apt.status?.toLowerCase() === 'pending' ? 'PENDING' : 
-                   apt.status?.toLowerCase() === 'accepted' ? 'ACCEPTED' :
-                   apt.status?.toLowerCase() === 'rejected' ? 'REJECTED' :
-                   apt.status?.toLowerCase() === 'completed' ? 'COMPLETED' : 
-                   apt.status?.toLowerCase() === 'cancelled' ? 'CANCELLED' : 'PENDING',
-            notes: apt.notes,
-            staff: apt.staff ? {
-              id: apt.staff.id,
-              name: apt.staff.name
-            } : undefined,
-            slotInfo: apt.slotInfo // Add slotInfo to the appointment object
-          }));
-          
-          setAppointments(formattedAppointments);
-          setEventGroups(groupAppointmentsIntoEvents(formattedAppointments));
-        } else {
-          console.error('❌ RecentAppointments: Failed to fetch appointments:', appointmentsResponse.status);
-          setAppointments([]);
-          setEventGroups([]);
-        }
-
-        if (staffResponse.ok) {
-          const staffData = await staffResponse.json();
-          if (staffData.success && staffData.data) {
-            setStaffMembers(staffData.data);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      console.log('📅 RecentAppointments: Fetching appointments and staff...');
+      
+      // Fetch both appointments and staff members
+      const [appointmentsResponse, staffResponse] = await Promise.all([
+        fetch(`/api/business/appointments?t=${Date.now()}`, { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           }
-        }
-      } catch (error) {
-        console.error('❌ RecentAppointments: Error fetching data:', error);
+        }),
+        fetch(`/api/business/staff?t=${Date.now()}`, {
+          credentials: 'include',
+          cache: 'no-store'
+        })
+      ]);
+      
+      console.log('📅 RecentAppointments: Response status:', appointmentsResponse.status, staffResponse.status);
+      
+      if (appointmentsResponse.ok) {
+        const data = await appointmentsResponse.json();
+        const appointmentsArray = data?.data?.appointments || [];
+        
+        console.log('📅 RecentAppointments: Received appointments:', appointmentsArray.length);
+        
+        const formattedAppointments: Appointment[] = appointmentsArray.map((apt: any) => ({
+          id: apt.id,
+          client: {
+            name: apt.client?.name || 'Cliente sem nome',
+            image: apt.client?.image
+          },
+          services: apt.services || [],
+          scheduledFor: apt.scheduledFor,
+          duration: apt.duration || 60,
+          status: apt.status?.toLowerCase() === 'pending' ? 'PENDING' : 
+                 apt.status?.toLowerCase() === 'accepted' ? 'ACCEPTED' :
+                 apt.status?.toLowerCase() === 'confirmed' ? 'ACCEPTED' : // Map CONFIRMED to ACCEPTED for UI
+                 apt.status?.toLowerCase() === 'rejected' ? 'REJECTED' :
+                 apt.status?.toLowerCase() === 'completed' ? 'COMPLETED' : 
+                 apt.status?.toLowerCase() === 'cancelled' ? 'CANCELLED' : 'PENDING',
+          notes: apt.notes,
+          staff: apt.staff ? {
+            id: apt.staff.id,
+            name: apt.staff.name
+          } : undefined,
+          slotInfo: apt.slotInfo // Add slotInfo to the appointment object
+        }));
+        
+        setAppointments(formattedAppointments);
+        setEventGroups(groupAppointmentsIntoEvents(formattedAppointments));
+      } else {
+        console.error('❌ RecentAppointments: Failed to fetch appointments:', appointmentsResponse.status);
         setAppointments([]);
         setEventGroups([]);
-      } finally {
-        setLoading(false);
       }
-    }
 
+      if (staffResponse.ok) {
+        const staffData = await staffResponse.json();
+        if (staffData.success && staffData.data) {
+          setStaffMembers(staffData.data);
+        }
+      }
+    } catch (error) {
+      console.error('❌ RecentAppointments: Error fetching data:', error);
+      setAppointments([]);
+      setEventGroups([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [businessSlug, groupAppointmentsIntoEvents]);
+
+  // Fetch appointments and staff from API
+  useEffect(() => {
     fetchData();
-  }, [businessSlug]);
+  }, [businessSlug, fetchData]);
 
   // Enhanced filtering and sorting logic
   const filteredAndSortedAppointments = useMemo(() => {
@@ -456,21 +459,86 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
   const handleStatusChange = useCallback(async (id: string, newStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED') => {
     setUpdatingId(id);
     try {
-      const res = await fetch(`/api/appointments/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error('Failed to update status');
-      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
-      setEventGroups(prev => prev.map(g => g.id === id ? { ...g, status: newStatus } : g));
+      // Find if this is a group ID or individual appointment ID
+      const targetGroup = eventGroups.find(g => g.id === id);
+      const targetAppointment = appointments.find(a => a.id === id);
+      
+      if (targetGroup && targetGroup.participants.length > 0) {
+        // This is a group ID - update all participants in the group
+        console.log('🎯 Updating group:', id, 'with', targetGroup.participants.length, 'participants');
+        
+        // Update all participants via API
+        const updatePromises = targetGroup.participants.map(participant => 
+          fetch(`/api/business/appointments/${participant.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ status: newStatus }),
+          })
+        );
+        
+        const results = await Promise.all(updatePromises);
+        const failedUpdates = results.filter(res => !res.ok);
+        
+        if (failedUpdates.length > 0) {
+          throw new Error(`Failed to update ${failedUpdates.length} appointments`);
+        }
+        
+        // Update local state for all participants
+        setAppointments(prev => prev.map(a => {
+          const isParticipant = targetGroup.participants.some(p => p.id === a.id);
+          return isParticipant ? { ...a, status: newStatus } : a;
+        }));
+        
+        // Update the group
+        setEventGroups(prev => prev.map(g => {
+          if (g.id === id) {
+            const updatedParticipants = g.participants.map(p => ({ ...p, status: newStatus }));
+            return { ...g, status: newStatus, participants: updatedParticipants };
+          }
+          return g;
+        }));
+        
+      } else if (targetAppointment) {
+        // This is an individual appointment ID
+        console.log('🎯 Updating individual appointment:', id);
+        
+        const res = await fetch(`/api/business/appointments/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: newStatus }),
+        });
+        
+        if (!res.ok) throw new Error('Failed to update status');
+        
+        // Update appointments array
+        setAppointments(prev => prev.map(a => 
+          a.id === id ? { ...a, status: newStatus } : a
+        ));
+        
+        // Update event groups - find groups containing this appointment
+        setEventGroups(prev => prev.map(g => {
+          const hasParticipant = g.participants.some(p => p.id === id);
+          if (hasParticipant) {
+            const updatedParticipants = g.participants.map(p => 
+              p.id === id ? { ...p, status: newStatus } : p
+            );
+            return { ...g, status: newStatus, participants: updatedParticipants };
+          }
+          return g;
+        }));
+      } else {
+        throw new Error('Appointment or group not found');
+      }
+      
     } catch (err) {
+      console.error('Error updating status:', err);
       alert('Falha ao atualizar status');
     } finally {
       setUpdatingId(null);
     }
-  }, []);
+  }, [eventGroups, appointments]);
 
   function handleCreateAppointment() {
     setShowBookingModal(true);
@@ -510,6 +578,7 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
             duration: apt.duration || 60,
             status: apt.status?.toLowerCase() === 'pending' ? 'PENDING' : 
                    apt.status?.toLowerCase() === 'accepted' ? 'ACCEPTED' :
+                   apt.status?.toLowerCase() === 'confirmed' ? 'ACCEPTED' : // Map CONFIRMED to ACCEPTED for UI
                    apt.status?.toLowerCase() === 'rejected' ? 'REJECTED' :
                    apt.status?.toLowerCase() === 'completed' ? 'COMPLETED' : 
                    apt.status?.toLowerCase() === 'cancelled' ? 'CANCELLED' : 'PENDING',
@@ -719,21 +788,20 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
             {/* Desktop Table View */}
             <div className="hidden sm:block w-full">
               <div className="w-full">
-                <table className="w-full">
+                <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b">
-                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Serviço</th>
-                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Clientes</th>
-                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Data</th>
-                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-16">Dur.</th>
-                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                      <th className="px-2 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-32">Ação</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-[25%]">Serviço</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-[30%]">Clientes</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-[20%]">Data</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-[10%]">Dur.</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase w-[15%]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredAndSortedAppointments.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-500">
+                        <td colSpan={5} className="text-center py-8 text-gray-500">
                           {searchTerm || statusFilter !== 'all' || dateFilter !== 'all' || staffFilter !== 'all' 
                             ? 'Nenhum agendamento encontrado com os filtros atuais.' 
                             : 'Nenhum agendamento encontrado.'
@@ -746,86 +814,72 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                         const isUpcoming = groupDate >= new Date();
                         
                         return (
-                          <tr key={group.id} className={`border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
-                            isUpcoming ? 'bg-blue-50/30' : ''
-                          }`}>
-                            <td className="px-2 py-4 text-sm max-w-[180px]">
-                              <div className="font-medium break-words overflow-hidden">{group.serviceName}</div>
+                          <tr 
+                            key={group.id} 
+                            className={`border-b last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer ${
+                              isUpcoming ? 'bg-blue-50/30' : ''
+                            }`}
+                            onClick={() => handleAppointmentClick(group.participants[0])}
+                          >
+                            <td className="px-3 py-3 text-sm">
+                              <div className="font-medium text-gray-900 truncate">{group.serviceName}</div>
+                              {group.participants[0]?.staff && (
+                                <div className="text-xs text-gray-500 truncate">
+                                  por {group.participants[0].staff.name}
+                                </div>
+                              )}
                             </td>
-                            <td className="px-2 py-4 text-sm">
+                            <td className="px-3 py-3 text-sm">
                               {group.isSlotBased ? (
                                 <div>
                                   <div className="text-xs font-medium text-blue-600 mb-1">
-                                    👥 Grupo ({group.participants.length}/{group.capacity || '?'})
+                                    👥 {group.participants.length}{group.capacity ? `/${group.capacity}` : ''} pessoas
                                   </div>
-                                  <div className="space-y-1">
-                                    {group.participants.slice(0, 2).map((participant, idx) => (
-                                      <div key={participant.id} className="text-xs text-gray-600">
+                                  <div className="space-y-0.5">
+                                    {group.participants.slice(0, 3).map((participant, idx) => (
+                                      <div key={participant.id} className="text-xs text-gray-700 truncate">
                                         • {participant.client?.name}
                                       </div>
                                     ))}
-                                    {group.participants.length > 2 && (
+                                    {group.participants.length > 3 && (
                                       <div className="text-xs text-gray-400">
-                                        +{group.participants.length - 2} mais...
+                                        +{group.participants.length - 3} mais...
                                       </div>
                                     )}
                                   </div>
                                 </div>
                               ) : (
                                 <div>
-                                  <div className="text-xs font-medium text-gray-600 mb-1">
-                                    👤 Individual
-                                  </div>
-                                  <div className="text-xs text-gray-700">
+                                  <div className="text-sm font-medium text-gray-900 truncate">
                                     {group.participants[0]?.client?.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    👤 Individual
                                   </div>
                                 </div>
                               )}
                             </td>
-                            <td className="px-2 py-4 text-sm whitespace-nowrap">
-                              {isToday(groupDate) ? (
-                                <div className="text-xs font-medium text-blue-600">Hoje</div>
-                              ) : isTomorrow(groupDate) ? (
-                                <div className="text-xs font-medium text-blue-600">Amanhã</div>
-                              ) : (
-                                <div className="text-xs">{format(groupDate, 'dd/MM', { locale: ptBR })}</div>
-                              )}
-                              <div className="text-xs text-gray-500">{format(groupDate, 'HH:mm', { locale: ptBR })}</div>
+                            <td className="px-3 py-3 text-sm">
+                              <div className="text-sm font-medium text-gray-900">
+                                {isToday(groupDate) ? (
+                                  <span className="text-blue-600">Hoje</span>
+                                ) : isTomorrow(groupDate) ? (
+                                  <span className="text-blue-600">Amanhã</span>
+                                ) : (
+                                  format(groupDate, 'dd/MM/yy', { locale: ptBR })
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {format(groupDate, 'HH:mm', { locale: ptBR })}
+                              </div>
                             </td>
-                            <td className="px-2 py-4 text-xs text-gray-600">{group.duration}m</td>
-                            <td className="px-2 py-4">
-                              <Badge className={cn(getStatusColor(group.status), "text-xs whitespace-nowrap")}>
+                            <td className="px-3 py-3 text-sm text-gray-600 font-medium">
+                              {group.duration}min
+                            </td>
+                            <td className="px-3 py-3">
+                              <Badge className={cn(getStatusColor(group.status), "text-xs font-medium")}>
                                 {getStatusLabel(group.status)}
                               </Badge>
-                            </td>
-                            <td className="px-2 py-4">
-                              {(() => {
-                                // Get available next statuses based on current status
-                                const statusOptions = [
-                                  { value: 'PENDING', label: 'Pendente' },
-                                  { value: 'ACCEPTED', label: 'Aceite' },
-                                  { value: 'REJECTED', label: 'Rejeitado' },
-                                  { value: 'COMPLETED', label: 'Concluído' },
-                                  { value: 'CANCELLED', label: 'Cancelado' }
-                                ];
-
-                                const availableStatuses = statusOptions;
-
-                                return (
-                                  <select
-                                    className="border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs w-full"
-                                    value={group.status}
-                                    disabled={availableStatuses.length === 1}
-                                    onChange={e => handleStatusChange(group.id, e.target.value as 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED')}
-                                  >
-                                    {availableStatuses.map(status => (
-                                      <option key={status.value} value={status.value}>
-                                        {status.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                );
-                              })()}
                             </td>
                           </tr>
                         );

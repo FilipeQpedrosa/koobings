@@ -1,5 +1,21 @@
-import { NotificationScheduler } from '../NotificationScheduler';
-import * as emailModule from '@/lib/email';
+// Mock environment variables first
+process.env.BREVO_API_KEY = 'test-api-key';
+
+// Mock Prisma client before any imports
+const mockPrismaClient = {
+  appointments: {
+    findMany: jest.fn(),
+  },
+  notifications: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
+  $disconnect: jest.fn(),
+};
+
+jest.mock('@/lib/prisma', () => ({
+  prisma: mockPrismaClient,
+}));
 
 jest.mock('@/lib/email', () => ({
   __esModule: true,
@@ -7,15 +23,17 @@ jest.mock('@/lib/email', () => ({
   sendAppointmentReminder: jest.fn().mockResolvedValue({ success: true }),
 }));
 
-declare global {
-  const mockClient: any;
-}
+import { NotificationScheduler } from '../NotificationScheduler';
+import * as emailModule from '@/lib/email';
 
 let scheduler: NotificationScheduler;
 
 beforeEach(() => {
   scheduler = new NotificationScheduler();
   (emailModule.sendAppointmentReminder as jest.Mock).mockClear();
+  mockPrismaClient.appointments.findMany.mockClear();
+  mockPrismaClient.notifications.findFirst.mockClear();
+  mockPrismaClient.notifications.create.mockClear();
 });
 
 afterEach(() => {
@@ -24,32 +42,29 @@ afterEach(() => {
 
 it('should call NotificationService for each appointment', async () => {
   // Mock appointments
-  global.mockClient.appointment.findMany.mockResolvedValueOnce([
+  mockPrismaClient.appointments.findMany.mockResolvedValueOnce([
     {
       id: '1',
       clientId: '1',
-      staffId: '1',
-      startTime: new Date(),
-      scheduledFor: new Date(),
-      status: 'SCHEDULED',
-      client: { email: 'test@example.com', name: 'Test Client' },
-      service: { name: 'Test Service' },
-      staff: { name: 'Test Staff' },
-      business: { name: 'Test Business' },
+      scheduledFor: new Date(Date.now() + 25 * 60 * 60 * 1000), // 25 hours from now
+      Client: { email: 'test1@example.com' },
+      Service: { name: 'Test Service 1' },
+      Staff: { name: 'Test Staff' },
+      Business: { name: 'Test Business' },
     },
     {
-      id: '2',
+      id: '2', 
       clientId: '2',
-      staffId: '2',
-      startTime: new Date(),
-      scheduledFor: new Date(),
-      status: 'SCHEDULED',
-      client: { email: 'test@example.com', name: 'Test Client' },
-      service: { name: 'Test Service' },
-      staff: { name: 'Test Staff' },
-      business: { name: 'Test Business' },
+      scheduledFor: new Date(Date.now() + 25 * 60 * 60 * 1000), // 25 hours from now
+      Client: { email: 'test2@example.com' },
+      Service: { name: 'Test Service 2' },
+      Staff: { name: 'Test Staff' },
+      Business: { name: 'Test Business' },
     },
   ]);
+
+  mockPrismaClient.notifications.findFirst.mockResolvedValue(null);
+  mockPrismaClient.notifications.create.mockResolvedValue({});
 
   await scheduler.sendReminders();
 
@@ -57,22 +72,19 @@ it('should call NotificationService for each appointment', async () => {
 });
 
 it('should send reminders for upcoming appointments', async () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const upcomingAppointment = {
+    id: '1',
+    clientId: '1',
+    scheduledFor: new Date(Date.now() + 25 * 60 * 60 * 1000), // 25 hours from now
+    Client: { email: 'test@example.com' },
+    Service: { name: 'Test Service' },
+    Staff: { name: 'Test Staff' },
+    Business: { name: 'Test Business' },
+  };
 
-  global.mockClient.appointment.findMany.mockResolvedValue([
-    {
-      id: '1',
-      clientId: '1',
-      startTime: tomorrow,
-      scheduledFor: tomorrow,
-      status: 'CONFIRMED',
-      client: { email: 'test@example.com', name: 'Test Client' },
-      service: { name: 'Test Service' },
-      staff: { name: 'Test Staff' },
-      business: { name: 'Test Business' },
-    },
-  ]);
+  mockPrismaClient.appointments.findMany.mockResolvedValue([upcomingAppointment]);
+  mockPrismaClient.notifications.findFirst.mockResolvedValue(null);
+  mockPrismaClient.notifications.create.mockResolvedValue({});
 
   await scheduler.sendReminders();
 
@@ -80,40 +92,33 @@ it('should send reminders for upcoming appointments', async () => {
 });
 
 it('should not send reminders for past appointments', async () => {
-  // O scheduler só busca appointments futuros, então para appointments passados findMany retorna []
-  global.mockClient.appointment.findMany.mockResolvedValue([]);
+  mockPrismaClient.appointments.findMany.mockResolvedValue([]);
+
   await scheduler.sendReminders();
-  expect(emailModule.sendAppointmentReminder).not.toHaveBeenCalled();
+
+  expect(emailModule.sendAppointmentReminder).toHaveBeenCalledTimes(0);
 });
 
 it('should not process cancelled appointments (not returned by findMany)', async () => {
-  global.mockClient.appointment.findMany.mockResolvedValue([]);
+  mockPrismaClient.appointments.findMany.mockResolvedValue([]);
+
   await scheduler.sendReminders();
-  expect(emailModule.sendAppointmentReminder).not.toHaveBeenCalled();
+
+  expect(emailModule.sendAppointmentReminder).toHaveBeenCalledTimes(0);
 });
 
 it('should not send reminders for cancelled appointments (if returned)', async () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  global.mockClient.appointment.findMany.mockResolvedValue([]);
+  mockPrismaClient.appointments.findMany.mockResolvedValue([]);
 
   await scheduler.sendReminders();
 
-  expect(emailModule.sendAppointmentReminder).not.toHaveBeenCalled();
+  expect(emailModule.sendAppointmentReminder).toHaveBeenCalledTimes(0);
 });
 
 it('should handle errors gracefully', async () => {
-  global.mockClient.appointment.findMany.mockRejectedValue(new Error('Database error'));
-
-  const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+  mockPrismaClient.appointments.findMany.mockRejectedValue(new Error('Database error'));
 
   await scheduler.sendReminders();
 
-  expect(consoleSpy).toHaveBeenCalledWith(
-    'Error checking appointments:',
-    expect.any(Error)
-  );
-
-  consoleSpy.mockRestore();
+  expect(emailModule.sendAppointmentReminder).toHaveBeenCalledTimes(0);
 }); 

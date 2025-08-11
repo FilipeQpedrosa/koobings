@@ -615,6 +615,16 @@ export default function StaffBookingsPage() {
           onNoteAdded={handleNoteAdded}
         />
       )}
+
+      {/* Floating Action Button - Mobile */}
+      <Link href={`/${businessSlug}/staff/schedule`}>
+        <Button 
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 md:hidden z-40"
+          size="icon"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+      </Link>
     </div>
   );
 } 

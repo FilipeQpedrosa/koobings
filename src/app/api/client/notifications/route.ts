@@ -1,88 +1,92 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { PrismaClient } from '@prisma/client';
-import { authOptions } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt';
 
 // GET /api/client/notifications - Get client notifications
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Acesso negado' } },
+        { status: 401 }
+      );
     }
 
-    const { searchParams } = new URL(request.url);
-    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+    // Find client by email to get clientId
+    const client = await prisma.independentClient.findFirst({
+      where: { email: user.email },
+      select: { id: true }
+    });
 
-    const notifications = await prisma.notification.findMany({
+    if (!client) {
+      return NextResponse.json(
+        { success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Cliente não encontrado' } },
+        { status: 404 }
+      );
+    }
+
+    const notifications = await prisma.notifications.findMany({
       where: {
-        userId: session.user.id,
-        read: unreadOnly ? false : undefined,
+        clientId: client.id,
       },
       orderBy: {
         createdAt: 'desc',
       },
+      take: 50, // Limit to 50 most recent notifications
     });
 
     return NextResponse.json({ success: true, data: notifications });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'NOTIFICATIONS_FETCH_ERROR', message: 'Failed to fetch notifications' } },
+      { success: false, error: { code: 'NOTIFICATIONS_FETCH_ERROR', message: 'Falha ao carregar notificações' } },
       { status: 500 }
     );
   }
 }
 
 // PATCH /api/client/notifications - Mark notifications as read
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Acesso negado' } },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
-    if (body.preferences) {
-      // Update notification preferences in the Client model's preferences JSON field
-      const updatedClient = await prisma.client.update({
-        where: { id: session.user.id },
-        data: { preferences: body.preferences },
-        select: { preferences: true }
-      });
-      return NextResponse.json({ success: true, data: updatedClient.preferences });
-    }
-
     const { notificationIds } = body;
+
     if (!notificationIds || !Array.isArray(notificationIds)) {
       return NextResponse.json(
-        { success: false, error: { code: 'NOTIFICATION_IDS_REQUIRED', message: 'Notification IDs array is required' } },
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'IDs de notificação inválidos' } },
         { status: 400 }
       );
     }
 
-    // Verify notifications belong to client
-    const notifications = await prisma.notification.findMany({
-      where: {
-        id: { in: notificationIds },
-        userId: session.user.id,
-      },
+    // Find client by email
+    const client = await prisma.independentClient.findFirst({
+      where: { email: user.email },
+      select: { id: true }
     });
 
-    if (notifications.length !== notificationIds.length) {
+    if (!client) {
       return NextResponse.json(
-        { success: false, error: { code: 'NOTIFICATIONS_NOT_FOUND', message: 'Some notifications not found or not accessible' } },
+        { success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Cliente não encontrado' } },
         { status: 404 }
       );
     }
 
-    // Mark notifications as read
-    await prisma.notification.updateMany({
+    // Update notifications to mark as read
+    const updatedNotifications = await prisma.notifications.updateMany({
       where: {
         id: { in: notificationIds },
-        userId: session.user.id,
+        clientId: client.id, // Ensure client owns these notifications
       },
       data: {
         read: true,
@@ -90,11 +94,16 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true, 
+      data: { 
+        updatedCount: updatedNotifications.count 
+      } 
+    });
   } catch (error) {
     console.error('Error updating notifications:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'NOTIFICATIONS_UPDATE_ERROR', message: 'Failed to update notifications' } },
+      { success: false, error: { code: 'NOTIFICATIONS_UPDATE_ERROR', message: 'Falha ao atualizar notificações' } },
       { status: 500 }
     );
   }

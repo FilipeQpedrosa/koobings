@@ -1,121 +1,128 @@
-import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt';
 
-const prisma = new PrismaClient();
-
-// POST /api/client/onboarding - Handle client onboarding
-export async function POST(request: Request) {
+// POST /api/client/onboarding - Complete client onboarding
+export async function POST(request: NextRequest) {
   try {
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Acesso negado' } },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      insuranceInfo,
-      preferences
+    const { 
+      name, 
+      phone, 
+      preferences = {},
+      marketingConsent = false 
     } = body;
 
-    // Create the client with all related information
-    const client = await prisma.client.create({
+    // Validate required fields
+    if (!name) {
+      return NextResponse.json(
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'Nome é obrigatório' } },
+        { status: 400 }
+      );
+    }
+
+    // Update client profile with onboarding data
+    const updatedClient = await prisma.independentClient.updateMany({
+      where: { email: user.email },
       data: {
-        name: `${firstName} ${lastName}`,
-        email,
-        phone,
-        status: 'ACTIVE',
-        preferences: {
-          emailNotifications: preferences?.email ?? true,
-          smsNotifications: preferences?.sms ?? false,
-          reminderTime: preferences?.reminderTime ?? 24,
-          marketingEmails: preferences?.marketing ?? true,
-          preferredContactMethod: preferences?.preferredContactMethod ?? 'EMAIL',
-          servicePreferences: preferences?.servicePreferences ?? [],
-        },
-        business: {
-          connect: { id: insuranceInfo?.businessId ?? '' }
-        },
-        clientRelationships: {
-          create: {
-            businessId: insuranceInfo?.businessId ?? '',
-            status: 'ACTIVE',
-          },
-        },
-      },
+        name: name.trim(),
+        phone: phone || null,
+        preferences: preferences as any,
+        marketingConsent,
+        onboardingCompleted: true,
+        updatedAt: new Date()
+      }
     });
 
-    return NextResponse.json({ success: true, data: client });
+    if (updatedClient.count === 0) {
+      return NextResponse.json(
+        { success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Cliente não encontrado' } },
+        { status: 404 }
+      );
+    }
+
+    // Fetch updated client data
+    const client = await prisma.independentClient.findFirst({
+      where: { email: user.email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        preferences: true,
+        onboardingCompleted: true
+      }
+    });
+
+    console.log('[CLIENT_ONBOARDING] ✅ Onboarding completed for client:', client?.id);
+
+    return NextResponse.json({ 
+      success: true, 
+      data: client
+    });
+
   } catch (error) {
-    console.error('Error in client onboarding:', error);
+    console.error('[CLIENT_ONBOARDING] Error completing onboarding:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'ONBOARDING_ERROR', message: 'Failed to complete onboarding' } },
+      { success: false, error: { code: 'ONBOARDING_ERROR', message: 'Falha ao completar configuração' } },
       { status: 500 }
     );
   }
 }
 
-// GET /api/client/onboarding - Get onboarding requirements
-export async function GET(request: Request) {
+// GET /api/client/onboarding - Get client onboarding status
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId');
-
-    if (!businessId) {
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
       return NextResponse.json(
-        { success: false, error: { code: 'BUSINESS_ID_REQUIRED', message: 'Business ID is required' } },
-        { status: 400 }
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Acesso negado' } },
+        { status: 401 }
       );
     }
 
-    // Get business configuration for onboarding
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      include: {
-        featureConfiguration: {
-          include: {
-            features: {
-              include: {
-                options: true,
-              },
-            },
-          },
-        },
-        services: {
-          include: {
-            category: true,
-            staff: true,
-          },
-        },
-      },
+    // Find client by email
+    const client = await prisma.independentClient.findFirst({
+      where: { email: user.email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        onboardingCompleted: true,
+        preferences: true
+      }
     });
 
-    if (!business) {
+    if (!client) {
       return NextResponse.json(
-        { success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } },
+        { success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Cliente não encontrado' } },
         { status: 404 }
       );
     }
 
-    // Return onboarding requirements and available services
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json({ 
+      success: true, 
       data: {
-        business: {
-          name: business.name,
-          type: business.type,
-        },
-        features: business.featureConfiguration?.features || [],
-        services: business.services,
-        requirements: {
-          requireMedicalInfo: business.type === 'PSYCHOLOGY',
-          requirePreferences: true,
-          requireContactMethod: true,
-        },
+        ...client,
+        needsOnboarding: !client.onboardingCompleted
       }
     });
+
   } catch (error) {
-    console.error('Error fetching onboarding requirements:', error);
+    console.error('[CLIENT_ONBOARDING] Error getting onboarding status:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'ONBOARDING_FETCH_ERROR', message: 'Failed to fetch onboarding requirements' } },
+      { success: false, error: { code: 'ONBOARDING_STATUS_ERROR', message: 'Falha ao verificar configuração' } },
       { status: 500 }
     );
   }

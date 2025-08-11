@@ -1,24 +1,38 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { PrismaClient } from '@prisma/client';
-import { authOptions } from '@/lib/auth';
-
-const prisma = new PrismaClient();
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt';
 
 // GET /api/client/reviews - Get client reviews
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Acesso negado' } },
+        { status: 401 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get('clientId') || session.user.id;
+    const clientEmail = searchParams.get('clientEmail') || user.email;
 
-    const reviews = await prisma.review.findMany({
+    // Find client by email to get clientId
+    const client = await prisma.independentClient.findFirst({
+      where: { email: clientEmail },
+      select: { id: true }
+    });
+
+    if (!client) {
+      return NextResponse.json(
+        { success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Cliente não encontrado' } },
+        { status: 404 }
+      );
+    }
+
+    const reviews = await prisma.reviews.findMany({
       where: {
-        clientId,
+        clientId: client.id,
       },
       include: {
         appointment: {
@@ -37,67 +51,71 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Error fetching reviews:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'REVIEWS_FETCH_ERROR', message: 'Failed to fetch reviews' } },
+      { success: false, error: { code: 'REVIEWS_FETCH_ERROR', message: 'Falha ao carregar avaliações' } },
       { status: 500 }
     );
   }
 }
 
 // POST /api/client/reviews - Create new review
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Acesso negado' } },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
     const { appointmentId, rating, comment } = body;
 
+    // Validate required fields
     if (!appointmentId || !rating) {
       return NextResponse.json(
-        { success: false, error: { code: 'MISSING_FIELDS', message: 'Appointment ID and rating are required' } },
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'Dados obrigatórios em falta' } },
         { status: 400 }
       );
     }
 
-    // Verify appointment belongs to client and is completed
-    const appointment = await prisma.appointments.findFirst({
-      where: {
-        id: appointmentId,
-        clientId: session.user.id,
-        status: 'COMPLETED',
-      },
+    // Find client by email
+    const client = await prisma.independentClient.findFirst({
+      where: { email: user.email },
+      select: { id: true }
     });
 
-    if (!appointment) {
+    if (!client) {
       return NextResponse.json(
-        { success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found or not completed' } },
+        { success: false, error: { code: 'CLIENT_NOT_FOUND', message: 'Cliente não encontrado' } },
         { status: 404 }
       );
     }
 
-    // Check if review already exists
-    const existingReview = await prisma.review.findFirst({
+    // Verify appointment belongs to client
+    const appointment = await prisma.appointments.findFirst({
       where: {
-        appointmentId,
-      },
+        id: appointmentId,
+        Client: { email: user.email },
+        status: 'COMPLETED'
+      }
     });
 
-    if (existingReview) {
+    if (!appointment) {
       return NextResponse.json(
-        { success: false, error: { code: 'REVIEW_EXISTS', message: 'Review already exists for this appointment' } },
-        { status: 400 }
+        { success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Agendamento não encontrado ou não concluído' } },
+        { status: 404 }
       );
     }
 
-    // Create the review
-    const review = await prisma.review.create({
+    // Create review
+    const review = await prisma.reviews.create({
       data: {
-        clientId: session.user.id,
+        clientId: client.id,
         appointmentId,
-        rating,
-        comment,
+        rating: parseInt(rating),
+        comment: comment || null,
       },
       include: {
         appointment: {
@@ -113,69 +131,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error creating review:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'REVIEW_CREATE_ERROR', message: 'Failed to create review' } },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH /api/client/reviews - Update review
-export async function PATCH(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { reviewId, rating, comment } = body;
-
-    if (!reviewId || !rating) {
-      return NextResponse.json(
-        { success: false, error: { code: 'MISSING_FIELDS', message: 'Review ID and rating are required' } },
-        { status: 400 }
-      );
-    }
-
-    // Verify review belongs to client
-    const existingReview = await prisma.review.findFirst({
-      where: {
-        id: reviewId,
-        clientId: session.user.id,
-      },
-    });
-
-    if (!existingReview) {
-      return NextResponse.json(
-        { success: false, error: { code: 'REVIEW_NOT_FOUND', message: 'Review not found' } },
-        { status: 404 }
-      );
-    }
-
-    // Update the review
-    const review = await prisma.review.update({
-      where: {
-        id: reviewId,
-      },
-      data: {
-        rating,
-        comment,
-      },
-      include: {
-        appointment: {
-          include: {
-            service: true,
-            staff: true,
-          },
-        },
-      },
-    });
-
-    return NextResponse.json({ success: true, data: review });
-  } catch (error) {
-    console.error('Error updating review:', error);
-    return NextResponse.json(
-      { success: false, error: { code: 'REVIEW_UPDATE_ERROR', message: 'Failed to update review' } },
+      { success: false, error: { code: 'REVIEW_CREATE_ERROR', message: 'Falha ao criar avaliação' } },
       { status: 500 }
     );
   }

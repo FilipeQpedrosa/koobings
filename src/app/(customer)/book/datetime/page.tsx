@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { format, addDays } from 'date-fns';
+import { format, isToday, isTomorrow, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,6 @@ export default function BookingDateTime() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
   useEffect(() => {
@@ -242,10 +241,10 @@ export default function BookingDateTime() {
         </Button>
         <Button
           onClick={handleContinue}
-          disabled={!selectedDate || !selectedTime || isLoading}
+          disabled={!selectedDate || !selectedTime || loadingSlots}
           className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2"
         >
-          {isLoading ? 'Processando...' : 'Continuar'}
+          {loadingSlots ? 'Processando...' : 'Continuar'}
         </Button>
       </div>
     </div>

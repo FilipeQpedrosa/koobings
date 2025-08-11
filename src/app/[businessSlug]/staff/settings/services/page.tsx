@@ -41,6 +41,7 @@ interface Service {
     startTime: string;
     endTime: string;
     capacity?: number;
+    availableDays?: number[]; // Added for specific days
   }>;
 }
 
@@ -63,6 +64,7 @@ interface ServiceFormData {
     startTime: string;
     endTime: string;
     capacity?: number;
+    availableDays?: number[]; // Added for specific days
   }>;
 }
 
@@ -1102,53 +1104,95 @@ export default function StaffSettingsServicesPage() {
                   <Label className="text-sm font-medium text-gray-700">⏰ Slots Disponíveis</Label>
                   {formData.slots.map((slot, index) => (
                     <div key={index} className="flex items-center space-x-2 p-3 border rounded-lg bg-gray-50">
-                      <div className="flex-1 grid grid-cols-3 gap-2">
-                        <div>
-                          <Label htmlFor={`slot-start-${index}`} className="text-xs text-gray-600">Início</Label>
-                          <Input
-                            id={`slot-start-${index}`}
-                            type="time"
-                            value={slot.startTime}
-                            onChange={(e) => {
-                              const newSlots = [...(formData.slots || [])];
-                              newSlots[index] = { ...newSlots[index], startTime: e.target.value };
-                              setFormData({ ...formData, slots: newSlots });
-                            }}
-                            disabled={submitting}
-                            className="text-sm"
-                          />
+                      <div className="flex-1 space-y-3">
+                        {/* Time and capacity row */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <Label htmlFor={`slot-start-${index}`} className="text-xs text-gray-600">Início</Label>
+                            <Input
+                              id={`slot-start-${index}`}
+                              type="time"
+                              value={slot.startTime}
+                              onChange={(e) => {
+                                const newSlots = [...(formData.slots || [])];
+                                newSlots[index] = { ...newSlots[index], startTime: e.target.value };
+                                setFormData({ ...formData, slots: newSlots });
+                              }}
+                              disabled={submitting}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`slot-end-${index}`} className="text-xs text-gray-600">Fim</Label>
+                            <Input
+                              id={`slot-end-${index}`}
+                              type="time"
+                              value={slot.endTime}
+                              onChange={(e) => {
+                                const newSlots = [...(formData.slots || [])];
+                                newSlots[index] = { ...newSlots[index], endTime: e.target.value };
+                                setFormData({ ...formData, slots: newSlots });
+                              }}
+                              disabled={submitting}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`slot-capacity-${index}`} className="text-xs text-gray-600">Vagas</Label>
+                            <Input
+                              id={`slot-capacity-${index}`}
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={slot.capacity || formData.maxCapacity || 1}
+                              onChange={(e) => {
+                                const newSlots = [...(formData.slots || [])];
+                                newSlots[index] = { ...newSlots[index], capacity: parseInt(e.target.value) };
+                                setFormData({ ...formData, slots: newSlots });
+                              }}
+                              disabled={submitting}
+                              className="text-sm"
+                            />
+                          </div>
                         </div>
+                        
+                        {/* Days of week row */}
                         <div>
-                          <Label htmlFor={`slot-end-${index}`} className="text-xs text-gray-600">Fim</Label>
-                          <Input
-                            id={`slot-end-${index}`}
-                            type="time"
-                            value={slot.endTime}
-                            onChange={(e) => {
-                              const newSlots = [...(formData.slots || [])];
-                              newSlots[index] = { ...newSlots[index], endTime: e.target.value };
-                              setFormData({ ...formData, slots: newSlots });
-                            }}
-                            disabled={submitting}
-                            className="text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor={`slot-capacity-${index}`} className="text-xs text-gray-600">Vagas</Label>
-                          <Input
-                            id={`slot-capacity-${index}`}
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={slot.capacity || formData.maxCapacity || 1}
-                            onChange={(e) => {
-                              const newSlots = [...(formData.slots || [])];
-                              newSlots[index] = { ...newSlots[index], capacity: parseInt(e.target.value) };
-                              setFormData({ ...formData, slots: newSlots });
-                            }}
-                            disabled={submitting}
-                            className="text-sm"
-                          />
+                          <Label className="text-xs text-gray-600 mb-1 block">📅 Dias da semana para este slot:</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { value: 1, label: 'Seg' },
+                              { value: 2, label: 'Ter' },
+                              { value: 3, label: 'Qua' },
+                              { value: 4, label: 'Qui' },
+                              { value: 5, label: 'Sex' },
+                              { value: 6, label: 'Sáb' },
+                              { value: 0, label: 'Dom' }
+                            ].map((day) => (
+                              <div key={day.value} className="flex items-center space-x-1">
+                                <input
+                                  type="checkbox"
+                                  id={`slot-${index}-day-${day.value}`}
+                                  checked={(slot as any).availableDays?.includes(day.value) || false}
+                                  onChange={(e) => {
+                                    const newSlots = [...(formData.slots || [])];
+                                    const currentDays = (newSlots[index] as any).availableDays || [];
+                                    if (e.target.checked) {
+                                      (newSlots[index] as any).availableDays = [...currentDays, day.value];
+                                    } else {
+                                      (newSlots[index] as any).availableDays = currentDays.filter((d: number) => d !== day.value);
+                                    }
+                                    setFormData({ ...formData, slots: newSlots });
+                                  }}
+                                  disabled={submitting}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <Label htmlFor={`slot-${index}-day-${day.value}`} className="text-xs text-gray-600">
+                                  {day.label}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <Button
