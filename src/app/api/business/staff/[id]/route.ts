@@ -1,33 +1,20 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { hash } from 'bcryptjs';
 import { Prisma } from '@prisma/client';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'fallback-secret';
-
-async function verifyJWT(request: NextRequest) {
-  try {
-    const token = request.cookies.get('auth-token')?.value;
-    if (!token) return null;
-    
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-}
 
 export async function GET(
   request: NextRequest,
-  { params }: any
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await verifyJWT(request);
+    const { id } = await params;
+    const user = getRequestAuthUser(request);
 
     if (!user) {
-      console.error('Unauthorized: No JWT token.');
+      console.error('Unauthorized: No user found.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
@@ -53,7 +40,7 @@ export async function GET(
 
     const staff = await prisma.staff.findFirst({
       where: {
-        id: params.id,
+        id,
         businessId
       },
       include: {
@@ -81,12 +68,13 @@ export async function GET(
 }
 
 // PUT /api/business/staff/[id] - Update staff member
-export async function PUT(request: NextRequest, { params }: any) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await verifyJWT(request);
+    const { id: staffIdToUpdate } = await params;
+    const user = getRequestAuthUser(request);
 
     if (!user) {
-      console.error('Unauthorized: No JWT token.');
+      console.error('Unauthorized: No user found.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
@@ -116,8 +104,6 @@ export async function PUT(request: NextRequest, { params }: any) {
     if (!hasAdminPermission) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
     }
-
-    const staffIdToUpdate = params.id;
 
     // Validate input
     const schema = z.object({
@@ -158,12 +144,13 @@ export async function PUT(request: NextRequest, { params }: any) {
 }
 
 // DELETE /api/business/staff/[id] - Delete staff member
-export async function DELETE(request: NextRequest, { params }: any) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await verifyJWT(request);
+    const { id: staffIdToDelete } = await params;
+    const user = getRequestAuthUser(request);
 
     if (!user) {
-      console.error('Unauthorized: No JWT token.');
+      console.error('Unauthorized: No user found.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
@@ -193,8 +180,6 @@ export async function DELETE(request: NextRequest, { params }: any) {
     if (!hasAdminPermission) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Admin access required' } }, { status: 401 });
     }
-
-    const staffIdToDelete = params.id;
 
     // Ensure we don't delete the last admin or ourselves (only applicable for staff members)
     if (user.role === 'STAFF' && user.id === staffIdToDelete) {

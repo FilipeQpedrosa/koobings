@@ -59,6 +59,14 @@ export default function HomePage() {
 
   const checkAuthStatus = async () => {
     try {
+      // Only check auth status if we have session cookies
+      const hasCookies = document.cookie.includes('authToken') || document.cookie.includes('next-auth');
+      
+      if (!hasCookies) {
+        setAuthLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/client/profile', {
         method: 'GET',
         credentials: 'include'

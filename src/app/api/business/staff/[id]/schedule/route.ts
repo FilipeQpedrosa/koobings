@@ -1,117 +1,79 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
-import { startOfWeek, endOfWeek, parseISO } from 'date-fns';
+import { NextRequest, NextResponse } from 'next/server';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { prisma } from '@/lib/prisma';
 
-// GET: Get staff schedule
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    const { id } = await params;
+    const user = getRequestAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const businessId = session.user.businessId;
-
-    if (!businessId) {
-      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
-    }
-
-    const url = new URL(request.url);
-    const weekParam = url.searchParams.get('week');
-    let weekStart, weekEnd;
-    if (weekParam) {
-      const weekDate = parseISO(weekParam);
-      weekStart = startOfWeek(weekDate, { weekStartsOn: 0 });
-      weekEnd = endOfWeek(weekDate, { weekStartsOn: 0 });
-    } else {
-      // Default to current week
-      const now = new Date();
-      weekStart = startOfWeek(now, { weekStartsOn: 0 });
-      weekEnd = endOfWeek(now, { weekStartsOn: 0 });
-    }
-
+    // Get staff member's schedule
     const staff = await prisma.staff.findFirst({
       where: {
-        id: params.id,
-        businessId
+        id,
+        businessId: user.businessId
       },
       include: {
         availability: true,
-        appointments: {
-          where: {
-            scheduledFor: {
-              gte: weekStart,
-              lte: weekEnd
-            },
-            status: { in: ['PENDING', 'CONFIRMED'] }
-          },
-          select: {
-            id: true,
-            scheduledFor: true,
-            duration: true,
-            status: true,
-            client: { select: { id: true, name: true } },
-            service: { select: { id: true, name: true } }
-          }
-        }
       }
     });
 
     if (!staff) {
-      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
+      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: {
-      availability: staff.availability?.schedule || {},
-      appointments: staff.appointments
-    }});
+    return NextResponse.json(staff);
   } catch (error) {
     console.error('Error fetching staff schedule:', error);
-    return NextResponse.json({ success: false, error: { code: 'STAFF_SCHEDULE_FETCH_ERROR', message: 'Internal server error' } }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function PUT(request: Request, { params }: any) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    const { id } = await params;
+    const user = getRequestAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const businessId = session.user.businessId;
+    const body = await request.json();
+    const { dayOfWeek, startTime, endTime } = body;
 
-    if (!businessId) {
-      return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
-    }
-
-    const staff = await prisma.staff.findFirst({
-      where: {
-        id: params.id,
-        businessId
+    const schedule = await prisma.staffAvailability.create({
+      data: {
+        staffId: id,
+        dayOfWeek,
+        startTime,
+        endTime,
       }
     });
 
-    if (!staff) {
-      return NextResponse.json({ success: false, error: { code: 'STAFF_NOT_FOUND', message: 'Staff member not found' } }, { status: 404 });
+    return NextResponse.json(schedule);
+  } catch (error) {
+    console.error('Error creating staff schedule:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const user = getRequestAuthUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { schedule } = await request.json();
-
-    // Update the schedule JSON for the staff member
-    const updated = await prisma.staffAvailability.update({
-      where: { staffId: params.id },
-      data: { schedule }
+    await prisma.staffAvailability.deleteMany({
+      where: { staffId: id }
     });
 
-    return NextResponse.json({ success: true, data: { schedule: updated.schedule } });
+    return NextResponse.json({ message: 'Schedule deleted successfully' });
   } catch (error) {
-    console.error('Error updating staff schedule:', error);
-    return NextResponse.json({ success: false, error: { code: 'STAFF_SCHEDULE_UPDATE_ERROR', message: 'Internal server error' } }, { status: 500 });
+    console.error('Error deleting staff schedule:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

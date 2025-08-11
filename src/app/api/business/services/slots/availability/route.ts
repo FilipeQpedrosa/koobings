@@ -3,10 +3,43 @@ import { prisma } from '@/lib/prisma';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { z } from 'zod';
 
+// Force Node.js runtime for Prisma compatibility
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// GET method - return error explaining only POST is allowed
+export async function GET(request: NextRequest) {
+  return NextResponse.json({
+    success: false,
+    error: {
+      code: 'METHOD_NOT_ALLOWED',
+      message: 'This endpoint only accepts POST requests. Use POST with serviceId, date, and optional staffId in the request body.'
+    }
+  }, { status: 405 });
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 /api/business/services/slots/availability POST - Starting...');
     
+    // Debug: Check Prisma initialization
+    console.log('🔍 Prisma client status:', !!prisma);
+    console.log('🔍 Prisma type:', typeof prisma);
+    // @ts-ignore - Schema model names are correct
+    console.log('🔍 Prisma Service model:', !!prisma?.Service);
+    // @ts-ignore - Schema model names are correct
+    console.log('🔍 Prisma appointments model:', !!prisma?.appointments);
+    
+    // Test Prisma connection
+    try {
+      await prisma.$connect();
+      console.log('🔍 Prisma connection successful');
+    } catch (dbError) {
+      console.error('🔍 Prisma connection failed:', dbError);
+      throw new Error(`Database connection failed: ${dbError}`);
+    }
+
+    // Authentication check
     const user = getRequestAuthUser(request);
     if (!user) {
       return NextResponse.json({ 
@@ -36,8 +69,9 @@ export async function POST(request: NextRequest) {
 
     console.log('📅 Checking slot availability:', { serviceId, date, staffId });
 
-    // Get the service with slots
-    const service = await prisma.service.findUnique({
+    // Get the service with slots - Use exact schema model name
+    // @ts-ignore - Schema uses Service model (singular, capitalized)
+    const service = await prisma.Service.findUnique({
       where: { 
         id: serviceId,
         businessId // Ensure service belongs to the business
@@ -51,40 +85,86 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // If service doesn't have slots, return traditional availability
-    if (!(service as any).slots || !Array.isArray((service as any).slots) || (service as any).slots.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          serviceType: 'traditional',
-          message: 'Service uses traditional time slots'
-        }
-      });
-    }
-
     // Parse the target date
     const targetDate = new Date(date + 'T00:00:00.000Z');
     const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Map day numbers to day names for slot lookup
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek];
 
     console.log('🗓️ Day filtering debug:', {
       date,
       targetDate: targetDate.toISOString(),
       dayOfWeek,
+      dayName,
       serviceAvailableDays: (service as any).availableDays,
       includes: (service as any).availableDays?.includes(dayOfWeek),
       serviceId,
-      serviceName: service.name
+      serviceName: service.name,
+      hasSlots: !!(service as any).slots,
+      slotsData: (service as any).slots,
+      timestamp: new Date().toISOString()
     });
 
-    // Check if service is available on this day
-    if ((service as any).availableDays && !(service as any).availableDays.includes(dayOfWeek)) {
-      console.log('❌ Service not available on this day of week');
+    console.log('🗓️ Looking for slots for day:', dayName);
+    
+    // NEW HYBRID APPROACH: Check for day-specific slots first, then fallback to general
+    let dailySlots: any[] = [];
+    let slotsSource = 'none';
+    
+    if ((service as any).slots) {
+      const slotsData = (service as any).slots;
+      
+      // Try day-specific slots first (new format)
+      if (typeof slotsData === 'object' && !Array.isArray(slotsData) && slotsData[dayName]) {
+        dailySlots = slotsData[dayName];
+        slotsSource = 'day-specific';
+        console.log(`✅ Found ${dailySlots.length} day-specific slots for ${dayName}`);
+      }
+      // Fallback to general slots (old format or 'general' key)
+      else if (Array.isArray(slotsData)) {
+        // Old format: array of slots applies to all days (but respect availableDays)
+        const hasAvailableDaysRestriction = (service as any).availableDays && Array.isArray((service as any).availableDays) && (service as any).availableDays.length > 0;
+        
+        if (!hasAvailableDaysRestriction || (service as any).availableDays.includes(dayOfWeek)) {
+          dailySlots = slotsData;
+          slotsSource = 'general-legacy';
+          console.log(`✅ Using ${dailySlots.length} general slots (legacy format) for ${dayName}`);
+        } else {
+          console.log(`❌ Service not available on ${dayName} (availableDays restriction)`);
+        }
+      }
+      // Check for 'general' key in new format
+      else if (typeof slotsData === 'object' && slotsData['general']) {
+        // Check availableDays restriction for general slots
+        const hasAvailableDaysRestriction = (service as any).availableDays && Array.isArray((service as any).availableDays) && (service as any).availableDays.length > 0;
+        
+        if (!hasAvailableDaysRestriction || (service as any).availableDays.includes(dayOfWeek)) {
+          dailySlots = slotsData['general'];
+          slotsSource = 'general-new';
+          console.log(`✅ Using ${dailySlots.length} general slots (new format) for ${dayName}`);
+        } else {
+          console.log(`❌ Service not available on ${dayName} (availableDays restriction)`);
+        }
+      }
+    }
+
+    console.log('🎯 Slots decision:', {
+      dayName,
+      dayOfWeek,
+      slotsSource,
+      slotsCount: dailySlots.length,
+      availableDays: (service as any).availableDays
+    });
+
+    if (dailySlots.length === 0) {
       return NextResponse.json({
         success: true,
         data: {
           serviceType: 'slots',
           availableSlots: [],
-          message: 'Service not available on this day of week'
+          message: slotsSource === 'none' ? 'Service has no slots configured' : 'Service not available on this day'
         }
       });
     }
@@ -93,7 +173,8 @@ export async function POST(request: NextRequest) {
     const startOfDay = new Date(date + 'T00:00:00.000Z');
     const endOfDay = new Date(date + 'T23:59:59.999Z');
 
-    const existingAppointments = await prisma.appointment.findMany({
+    // @ts-ignore - Schema uses appointments model (plural)
+    const existingAppointments = await prisma.appointments.findMany({
       where: {
         serviceId,
         scheduledFor: { gte: startOfDay, lte: endOfDay },
@@ -101,7 +182,7 @@ export async function POST(request: NextRequest) {
         status: { not: 'CANCELLED' }
       },
       include: {
-        client: {
+        Client: {
           select: {
             isDeleted: true
           }
@@ -110,10 +191,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Filter out appointments for deleted clients
-    const validAppointments = existingAppointments.filter((apt: any) => !apt.client?.isDeleted);
+    const validAppointments = existingAppointments.filter((apt: any) => !apt.Client?.isDeleted);
 
     // Check availability for each slot
-    const slotsWithAvailability = ((service as any).slots as any[]).map((slot: any, index: number) => {
+    const slotsWithAvailability = dailySlots.map((slot: any, index: number) => {
       const slotCapacity = slot.capacity || (service as any).maxCapacity || 1;
       
       // Count bookings for this specific slot

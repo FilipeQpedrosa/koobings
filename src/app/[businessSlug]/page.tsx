@@ -21,7 +21,6 @@ import {
   Heart,
   Share2
 } from 'lucide-react';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 interface Business {

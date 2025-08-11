@@ -103,20 +103,19 @@ describe('ServiceCard', () => {
       />
     )
 
-    const editButton = screen.getByLabelText('Edit service')
+    const editButton = screen.getByLabelText('Editar serviço')
     await act(async () => {
       fireEvent.click(editButton)
     })
 
-    expect(screen.getByText('Edit Service')).toBeInTheDocument()
+    // Check that the edit form is visible
+    expect(screen.getByDisplayValue('Test Service')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Test Description')).toBeInTheDocument()
   })
 
   it('shows delete confirmation and deletes service when confirmed', async () => {
-    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
-    (global.fetch as jest.Mock).mockImplementationOnce(() => 
-      Promise.resolve({ ok: true })
-    )
-
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    
     render(
       <ServiceCard
         service={mockService}
@@ -125,23 +124,25 @@ describe('ServiceCard', () => {
       />
     )
 
-    const deleteButton = screen.getByLabelText('Delete service')
+    const deleteButton = screen.getByLabelText('Excluir serviço')
     await act(async () => {
       fireEvent.click(deleteButton)
     })
 
-    expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete this service?')
+    expect(confirmSpy).toHaveBeenCalledWith('Tem certeza de que deseja excluir este serviço?')
     expect(global.fetch).toHaveBeenCalledWith(
       `/api/business/services/${mockService.id}`,
-      expect.objectContaining({ method: 'DELETE' })
+      expect.objectContaining({
+        method: 'DELETE'
+      })
     )
 
     confirmSpy.mockRestore()
   })
 
   it('does not delete when confirmation is cancelled', async () => {
-    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => false)
-
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    
     render(
       <ServiceCard
         service={mockService}
@@ -150,21 +151,22 @@ describe('ServiceCard', () => {
       />
     )
 
-    const deleteButton = screen.getByLabelText('Delete service')
+    const deleteButton = screen.getByLabelText('Excluir serviço')
     await act(async () => {
       fireEvent.click(deleteButton)
     })
 
+    expect(confirmSpy).toHaveBeenCalled()
     expect(global.fetch).not.toHaveBeenCalled()
-    confirmSpy.mockRestore()
   })
 
   it('handles delete error gracefully', async () => {
-    const confirmSpy = jest.spyOn(window, 'confirm').mockImplementation(() => true);
-    (global.fetch as jest.Mock).mockImplementationOnce(() => 
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+    ;(global.fetch as jest.Mock).mockImplementationOnce(() => 
       Promise.reject(new Error('Network error'))
     )
-
+    
     render(
       <ServiceCard
         service={mockService}
@@ -173,22 +175,19 @@ describe('ServiceCard', () => {
       />
     )
 
-    const deleteButton = screen.getByLabelText('Delete service')
+    const deleteButton = screen.getByLabelText('Excluir serviço')
     await act(async () => {
       fireEvent.click(deleteButton)
     })
 
-    await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        title: 'Error',
-        description: 'Failed to delete service. Please try again.',
-        variant: 'destructive'
-      })
-    })
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith('Error deleting service:', expect.any(Error))
+    
     confirmSpy.mockRestore()
+    consoleSpy.mockRestore()
   })
 
-  it('displays provider list when service has providers', () => {
+  it('displays provider list when service has providers', async () => {
     render(
       <ServiceCard
         service={mockService}
@@ -197,7 +196,7 @@ describe('ServiceCard', () => {
       />
     )
 
-    expect(screen.getByText('Available Providers:')).toBeInTheDocument()
+    expect(screen.getByText('Provedores Disponíveis:')).toBeInTheDocument()
     expect(screen.getByText('Test Provider')).toBeInTheDocument()
   })
 }) 

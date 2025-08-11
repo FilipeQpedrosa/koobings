@@ -34,6 +34,7 @@ export default function AppointmentDetailsModal({
 }: AppointmentDetailsModalProps) {
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const { toast } = useToast();
 
   const addNote = async () => {
@@ -72,6 +73,43 @@ export default function AppointmentDetailsModal({
       });
     } finally {
       setAddingNote(false);
+    }
+  };
+
+  const updateStatus = async (newStatus: string) => {
+    try {
+      setUpdatingStatus(true);
+      const response = await fetch(`/api/business/appointments/${appointment.id}`, {
+        method: 'PATCH', // Changed from PUT to PATCH
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast({
+            title: "Sucesso",
+            description: "Status do agendamento atualizado"
+          });
+          onNoteAdded?.(); // Refresh data
+          onClose(); // Close modal
+        }
+      } else {
+        throw new Error('Falha ao atualizar status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar status",
+        variant: "destructive"
+      });
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -179,6 +217,87 @@ export default function AppointmentDetailsModal({
                   {addingNote ? 'A adicionar...' : 'Adicionar'}
                 </Button>
               </div>
+            </div>
+          </div>
+
+          {/* Status Change Actions - Mobile Optimized */}
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Alterar Status</h4>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
+              {appointment.status === 'PENDING' && (
+                <>
+                  <Button 
+                    onClick={() => updateStatus('CONFIRMED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✓ Confirmar'}
+                  </Button>
+                  <Button 
+                    onClick={() => updateStatus('CANCELLED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="destructive" 
+                    className="text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✗ Cancelar'}
+                  </Button>
+                </>
+              )}
+              {appointment.status === 'CONFIRMED' && (
+                <>
+                  <Button 
+                    onClick={() => updateStatus('COMPLETED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✓ Concluir'}
+                  </Button>
+                  <Button 
+                    onClick={() => updateStatus('CANCELLED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="destructive" 
+                    className="text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✗ Cancelar'}
+                  </Button>
+                </>
+              )}
+              {appointment.status === 'ACCEPTED' && (
+                <>
+                  <Button 
+                    onClick={() => updateStatus('COMPLETED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✓ Concluir'}
+                  </Button>
+                  <Button 
+                    onClick={() => updateStatus('CANCELLED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="destructive" 
+                    className="text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✗ Cancelar'}
+                  </Button>
+                </>
+              )}
+              {(appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') && (
+                <Button 
+                  onClick={() => updateStatus('CONFIRMED')}
+                  size="sm"
+                  disabled={updatingStatus}
+                  variant="outline" 
+                  className="text-xs px-3 py-2"
+                >
+                  {updatingStatus ? '...' : '↻ Reativar'}
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>

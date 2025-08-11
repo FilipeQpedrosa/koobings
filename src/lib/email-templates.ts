@@ -1,5 +1,3 @@
-import { format } from 'date-fns';
-
 interface EmailTemplate {
   subject: string;
   html: string;

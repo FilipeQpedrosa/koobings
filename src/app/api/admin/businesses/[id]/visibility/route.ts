@@ -97,14 +97,48 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       allowOnlineBooking
     } = await request.json();
 
-    // Get current business settings
+    // Get current business with counts for validation
+    // @ts-ignore - Prisma count works correctly at runtime
     const business = await prisma.business.findUnique({
       where: { id: params.id },
-      select: { settings: true, name: true, status: true }
+      select: { 
+        settings: true, 
+        name: true, 
+        status: true,
+        _count: {
+          select: {
+            services: true,
+            staff: true
+          }
+        }
+      }
     });
 
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+    }
+
+    // VALIDATION: Check business readiness before approval
+    if (adminApproved === true) {
+      const validationErrors = [];
+      
+      // @ts-ignore - _count exists at runtime
+      if (business._count.services === 0) {
+        validationErrors.push('O negócio deve ter pelo menos 1 serviço criado');
+      }
+      
+      // @ts-ignore - _count exists at runtime
+      if (business._count.staff === 0) {
+        validationErrors.push('O negócio deve ter pelo menos 1 membro da equipa');
+      }
+      
+      if (validationErrors.length > 0) {
+        return NextResponse.json({ 
+          error: 'Não é possível aprovar o negócio',
+          validationErrors,
+          message: 'Complete os requisitos antes de aprovar para o portal cliente'
+        }, { status: 400 });
+      }
     }
 
     const currentSettings = business.settings as any || {};
@@ -120,46 +154,56 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         lastUpdatedBy: user.id,
         lastUpdatedAt: new Date().toISOString(),
         
-        // Business visibility - only if admin approved
-        isPublic: adminApproved === false ? false : (isPublic ?? currentSettings.visibility?.isPublic ?? false),
-        showInMarketplace: adminApproved === false ? false : (showInMarketplace ?? currentSettings.visibility?.showInMarketplace ?? false),
-        showInSearch: adminApproved === false ? false : (showInSearch ?? currentSettings.visibility?.showInSearch ?? false),
-        allowOnlineBooking: adminApproved === false ? false : (allowOnlineBooking ?? currentSettings.visibility?.allowOnlineBooking ?? true)
+        // AUTO-ENABLE: When approved, automatically enable all portal features
+        isPublic: adminApproved === true ? true : (adminApproved === false ? false : (isPublic ?? currentSettings.visibility?.isPublic ?? false)),
+        showInMarketplace: adminApproved === true ? true : (adminApproved === false ? false : (showInMarketplace ?? currentSettings.visibility?.showInMarketplace ?? false)),
+        showInSearch: adminApproved === true ? true : (adminApproved === false ? false : (showInSearch ?? currentSettings.visibility?.showInSearch ?? false)),
+        allowOnlineBooking: adminApproved === true ? true : (adminApproved === false ? false : (allowOnlineBooking ?? currentSettings.visibility?.allowOnlineBooking ?? true))
       }
     };
 
+    // Update business settings AND status
+    const updateData: any = { settings: updatedSettings };
+    
+    // AUTO-ACTIVATE: When approved, automatically set status to ACTIVE
+    if (adminApproved === true && business.status !== 'ACTIVE') {
+      updateData.status = 'ACTIVE';
+    }
+    
     // Update business settings
     await prisma.business.update({
       where: { id: params.id },
-      data: { 
-        settings: updatedSettings,
-        updatedAt: new Date()
-      }
+      data: updateData
     });
 
-    // Log the admin action
-    console.log('👁️ Admin visibility settings update:', {
+    console.log('🎯 Admin visibility update:', {
       businessId: params.id,
       businessName: business.name,
       adminUser: user.email,
-      adminApproved,
-      isPublic,
-      showInMarketplace,
-      adminNotes
+      approved: adminApproved,
+      autoActivated: adminApproved === true && business.status !== 'ACTIVE',
+      autoEnabledFeatures: adminApproved === true
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Visibility settings updated successfully',
+      message: adminApproved === true ? 
+        'Negócio aprovado e ativado automaticamente no portal cliente!' : 
+        'Configurações de visibilidade atualizadas',
       data: {
-        visibilitySettings: updatedSettings.visibility,
-        updatedBy: user.email,
-        updatedAt: new Date().toISOString()
+        approved: adminApproved,
+        autoActivated: adminApproved === true && business.status !== 'ACTIVE',
+        portalFeatures: adminApproved === true ? {
+          isPublic: true,
+          showInMarketplace: true,
+          showInSearch: true,
+          allowOnlineBooking: true
+        } : null
       }
     });
 
   } catch (error) {
-    console.error('❌ Error updating business visibility settings:', error);
+    console.error('❌ Error updating business visibility:', error);
     return NextResponse.json({
       error: 'Failed to update visibility settings'
     }, { status: 500 });
