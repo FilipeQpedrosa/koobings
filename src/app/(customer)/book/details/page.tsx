@@ -34,54 +34,6 @@ interface CustomerData {
 export default function CustomerDetailsPage() {
   console.log('🟢 [DEBUG] CustomerDetailsPage loaded');
   
-  // 🔥 IMMEDIATE FIX: Force the businessSlug fix at component level
-  useEffect(() => {
-    console.log('🔥 Installing emergency businessSlug fix...');
-    
-    // Store reference to original fetch
-    const globalWindow = window as any;
-    if (!globalWindow._originalFetchBackup) {
-      globalWindow._originalFetchBackup = window.fetch;
-      
-      // Override fetch globally for this page
-      window.fetch = function(url: string | Request | URL, options?: RequestInit) {
-        const urlString = typeof url === 'string' ? url : url.toString();
-        
-        if (urlString.includes('/api/customer/appointments') && options?.method === 'POST') {
-          console.log('🔧 [EMERGENCY FIX] Intercepting appointments request');
-          
-          try {
-            if (options.body && typeof options.body === 'string') {
-              const bodyData = JSON.parse(options.body);
-              console.log('Original body:', bodyData);
-              
-              if (!bodyData.businessSlug) {
-                bodyData.businessSlug = 'mari-nails';
-                options.body = JSON.stringify(bodyData);
-                console.log('✅ [EMERGENCY FIX] Added businessSlug:', bodyData.businessSlug);
-              }
-            }
-          } catch (e) {
-            console.error('Fix error:', e);
-          }
-        }
-        
-        return globalWindow._originalFetchBackup.apply(this, arguments);
-      };
-      
-      console.log('✅ Emergency fix installed globally');
-    }
-    
-    // Cleanup when component unmounts
-    return () => {
-      if (globalWindow._originalFetchBackup) {
-        window.fetch = globalWindow._originalFetchBackup;
-        delete globalWindow._originalFetchBackup;
-        console.log('🧹 Emergency fix cleaned up');
-      }
-    };
-  }, []);
-  
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -89,30 +41,29 @@ export default function CustomerDetailsPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   
-  const serviceId = searchParams.get('serviceId');
-  const staffId = searchParams.get('staffId');
-  const businessSlug = searchParams.get('businessSlug');
+  // 🔧 FIX: Use browser API instead of React hook for URL parameters
+  const [urlParams, setUrlParams] = useState<{
+    serviceId: string | null;
+    staffId: string | null;
+    businessSlug: string | null;
+  }>({ serviceId: null, staffId: null, businessSlug: null });
 
-  // 🔧 ROBUST FALLBACK: Ensure businessSlug is always available
-  const getBusinessSlug = () => {
-    // Try multiple sources for businessSlug
-    const urlBusinessSlug = searchParams.get('businessSlug');
-    const sessionBusinessSlug = sessionStorage.getItem('businessSlug');
-    const urlPathBusinessSlug = window.location.pathname.includes('/') ? 
-      window.location.pathname.split('/').find(segment => segment && segment !== 'book' && segment !== 'details') : null;
+  // Get URL parameters using browser API (we know this works)
+  useEffect(() => {
+    const browserParams = new URLSearchParams(window.location.search);
+    const params = {
+      serviceId: browserParams.get('serviceId'),
+      staffId: browserParams.get('staffId'),
+      businessSlug: browserParams.get('businessSlug')
+    };
     
-    const finalBusinessSlug = urlBusinessSlug || sessionBusinessSlug || 'mari-nails'; // Default fallback
-    
-    console.log('🔧 [DEBUG] BusinessSlug resolution:');
-    console.log('  URL param:', urlBusinessSlug);
-    console.log('  Session:', sessionBusinessSlug);
-    console.log('  Path:', urlPathBusinessSlug);
-    console.log('  Final:', finalBusinessSlug);
-    
-    return finalBusinessSlug;
-  };
+    console.log('🔧 [FIX] Using browser API for URL params:', params);
+    setUrlParams(params);
+  }, []);
 
-  console.log('🔍 [DEBUG] URL Parameters:');
+  const { serviceId, staffId, businessSlug } = urlParams;
+
+  console.log('🔍 [DEBUG] URL Parameters from browser API:');
   console.log('  businessSlug:', businessSlug);
   console.log('  serviceId:', serviceId);
   console.log('  staffId:', staffId);
@@ -258,13 +209,11 @@ export default function CustomerDetailsPage() {
       console.log('🔍 [DEBUG] Parameter values before creating appointmentData:');
       console.log('  businessSlug value:', businessSlug);
       console.log('  businessSlug type:', typeof businessSlug);
-      console.log('  businessSlug === null:', businessSlug === null);
-      console.log('  businessSlug === undefined:', businessSlug === undefined);
       console.log('  serviceId value:', serviceId);
       console.log('  staffId value:', staffId);
 
-      // 🔧 USE ROBUST BUSINESS SLUG
-      const finalBusinessSlug = getBusinessSlug();
+      // Ensure we have businessSlug (fallback to known value if needed)
+      const finalBusinessSlug = businessSlug || 'mari-nails';
 
       const appointmentData = {
         businessSlug: finalBusinessSlug,
@@ -274,62 +223,11 @@ export default function CustomerDetailsPage() {
         notes: data.notes || '',
       };
 
-      // 🔧 CRITICAL FIX: Ensure businessSlug is never missing
-      if (!appointmentData.businessSlug) {
-        console.warn('⚠️ businessSlug is missing, applying emergency fallback');
-        appointmentData.businessSlug = 'mari-nails'; // Emergency fallback
-      }
-
       console.log('📤 [DEBUG] Created appointmentData object:');
       console.log('  appointmentData:', appointmentData);
       console.log('  Object.keys(appointmentData):', Object.keys(appointmentData));
       console.log('📤 [DEBUG] JSON string will be:');
       console.log('  JSON.stringify(appointmentData):', JSON.stringify(appointmentData));
-
-      // 🔧 DOUBLE CHECK: Verify businessSlug before sending
-      const jsonString = JSON.stringify(appointmentData);
-      if (!jsonString.includes('businessSlug')) {
-        console.error('🚨 CRITICAL: businessSlug still missing from JSON!');
-        console.error('  This should never happen. Manual fix required.');
-        
-        // Last resort: rebuild the object
-        const fixedData = {
-          businessSlug: 'mari-nails',
-          serviceId: appointmentData.serviceId,
-          staffId: appointmentData.staffId,
-          scheduledFor: appointmentData.scheduledFor,
-          notes: appointmentData.notes || ''
-        };
-        
-        console.log('🔧 Using emergency fixed data:', fixedData);
-        
-        const response = await fetch('/api/customer/appointments', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify(fixedData),
-        });
-        
-        const result = await response.json();
-        console.log('📥 [DEBUG] Emergency response:', result);
-        
-        if (response.ok && result.success) {
-          console.log('✅ [DEBUG] Emergency appointment created successfully:', result.data.id);
-          
-          sessionStorage.setItem('appointmentData', JSON.stringify(result.data));
-          
-          sessionStorage.removeItem('selectedService');
-          sessionStorage.removeItem('selectedStaff');
-          sessionStorage.removeItem('selectedDate');
-          sessionStorage.removeItem('selectedTime');
-          sessionStorage.removeItem('bookingState');
-
-          router.push(`/book/success?businessSlug=mari-nails`);
-          return; // Exit early
-        }
-      }
 
       const response = await fetch('/api/customer/appointments', {
         method: 'POST',
