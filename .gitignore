@@ -55,3 +55,8 @@ next.config.ts
 src/generated/prisma/*.node
 # Lint reports
 lint-report.json
+
+# Environment files with secrets
+.env.production-real
+.env.production-vars
+.env.vercel
