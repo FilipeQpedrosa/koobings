@@ -147,7 +147,13 @@ export default function StaffSchedulesPage() {
   };
 
   const saveStaffSchedule = async () => {
+    console.log(`🔍 [STAFF SCHEDULES] Save button clicked`);
+    console.log(`🔍 [STAFF SCHEDULES] selectedStaffId:`, selectedStaffId);
+    console.log(`🔍 [STAFF SCHEDULES] isSaving:`, isSaving);
+    console.log(`🔍 [STAFF SCHEDULES] staffSchedules:`, staffSchedules);
+    
     if (!selectedStaffId) {
+      console.error(`❌ [STAFF SCHEDULES] No staff selected`);
       toast({
         title: "Erro",
         description: "Selecione um membro da equipa",
@@ -158,6 +164,7 @@ export default function StaffSchedulesPage() {
 
     try {
       setIsSaving(true);
+      console.log(`💾 [STAFF SCHEDULES] Setting isSaving to true`);
       
       console.log(`💾 [STAFF SCHEDULES] Saving schedule for staff: ${selectedStaffId}`);
       
@@ -181,7 +188,10 @@ export default function StaffSchedulesPage() {
       
       console.log(`📋 [STAFF SCHEDULES] Schedule data to save for staff ${selectedStaffId}:`, schedule);
       
-      const response = await fetch(`/api/business/staff/${selectedStaffId}/availability`, {
+      const url = `/api/business/staff/${selectedStaffId}/availability`;
+      console.log(`🌐 [STAFF SCHEDULES] Making request to: ${url}`);
+      
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -189,6 +199,9 @@ export default function StaffSchedulesPage() {
         credentials: 'include',
         body: JSON.stringify({ schedule })
       });
+      
+      console.log(`📡 [STAFF SCHEDULES] Response status: ${response.status}`);
+      console.log(`📡 [STAFF SCHEDULES] Response ok: ${response.ok}`);
       
       if (response.ok) {
         const responseData = await response.json();
@@ -199,18 +212,27 @@ export default function StaffSchedulesPage() {
           description: "Horário da equipa guardado com sucesso"
         });
       } else {
-        const errorData = await response.json();
-        console.error(`❌ [STAFF SCHEDULES] Failed to save schedule for staff ${selectedStaffId}:`, errorData);
-        throw new Error('Falha ao guardar horário');
+        console.error(`❌ [STAFF SCHEDULES] Response not ok. Status: ${response.status}`);
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.error(`❌ [STAFF SCHEDULES] Error response data:`, errorData);
+        } catch (jsonError) {
+          console.error(`❌ [STAFF SCHEDULES] Failed to parse error response as JSON:`, jsonError);
+          const textData = await response.text();
+          console.error(`❌ [STAFF SCHEDULES] Error response text:`, textData);
+        }
+        throw new Error(`HTTP ${response.status}: Falha ao guardar horário`);
       }
     } catch (error) {
-      console.error('Error saving staff schedule:', error);
+      console.error('❌ [STAFF SCHEDULES] Catch block - Error saving staff schedule:', error);
       toast({
         title: "Erro",
         description: "Falha ao guardar horário da equipa",
         variant: "destructive"
       });
     } finally {
+      console.log(`🔄 [STAFF SCHEDULES] Setting isSaving to false`);
       setIsSaving(false);
     }
   };
@@ -264,7 +286,13 @@ export default function StaffSchedulesPage() {
           </div>
         </div>
         
-        <Button onClick={saveStaffSchedule} disabled={isSaving || !selectedStaffId}>
+        <Button 
+          onClick={() => {
+            console.log(`🔘 [STAFF SCHEDULES] Button 1 clicked! isSaving: ${isSaving}, selectedStaffId: ${selectedStaffId}`);
+            saveStaffSchedule();
+          }} 
+          disabled={isSaving || !selectedStaffId}
+        >
           <Save className="h-4 w-4 mr-2" />
           {isSaving ? 'A guardar...' : 'Guardar'}
         </Button>
@@ -403,7 +431,13 @@ export default function StaffSchedulesPage() {
                     Os horários serão aplicados na disponibilidade da equipa para agendamentos
                   </p>
                 </div>
-                <Button onClick={saveStaffSchedule} disabled={isSaving || !selectedStaffId}>
+                <Button 
+                  onClick={() => {
+                    console.log(`🔘 [STAFF SCHEDULES] Button 2 clicked! isSaving: ${isSaving}, selectedStaffId: ${selectedStaffId}`);
+                    saveStaffSchedule();
+                  }} 
+                  disabled={isSaving || !selectedStaffId}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   {isSaving ? 'A guardar...' : 'Guardar Alterações'}
                 </Button>
