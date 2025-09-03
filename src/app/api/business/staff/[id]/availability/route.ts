@@ -20,9 +20,17 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const staffId = url.pathname.split('/').slice(-2)[0]; // Extract staff ID from URL
 
+    console.log(`🔍 [STAFF AVAILABILITY GET] Loading availability for staff: ${staffId}`);
+
     const availability = await prisma.staffAvailability.findUnique({
       where: { staffId: staffId }
     });
+
+    if (!availability) {
+      console.log(`📋 [STAFF AVAILABILITY GET] No availability record found for staff ${staffId}, returning empty schedule`);
+    } else {
+      console.log(`✅ [STAFF AVAILABILITY GET] Found availability for staff ${staffId}:`, JSON.stringify(availability.schedule, null, 2));
+    }
 
     return NextResponse.json({ success: true, data: availability || { schedule: {} } });
   } catch (error) {
@@ -62,6 +70,9 @@ export async function PUT(request: Request) {
 
     const { schedule } = await request.json();
 
+    console.log(`💾 [STAFF AVAILABILITY PUT] Saving availability for staff: ${staffId}`);
+    console.log(`📋 [STAFF AVAILABILITY PUT] Schedule data:`, JSON.stringify(schedule, null, 2));
+
     // Upsert the schedule JSON for the staff member (create if doesn't exist, update if exists)
     const updated = await prisma.staffAvailability.upsert({
       where: { staffId: staffId },
@@ -74,6 +85,8 @@ export async function PUT(request: Request) {
         schedule: schedule
       }
     });
+
+    console.log(`✅ [STAFF AVAILABILITY PUT] Successfully saved availability for staff: ${staffId}`);
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {

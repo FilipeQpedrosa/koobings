@@ -63,6 +63,17 @@ export default function StaffSchedulesPage() {
 
   useEffect(() => {
     if (selectedStaffId) {
+      console.log(`🔄 [STAFF SCHEDULES] Staff selection changed to: ${selectedStaffId}`);
+      // Reset schedules to default before loading new ones
+      setStaffSchedules([
+        { day: 1, name: 'Segunda-feira', isWorking: false, start: '09:00', end: '18:00', lunchBreakStart: '12:00', lunchBreakEnd: '13:00' },
+        { day: 2, name: 'Terça-feira', isWorking: false, start: '09:00', end: '18:00', lunchBreakStart: '12:00', lunchBreakEnd: '13:00' },
+        { day: 3, name: 'Quarta-feira', isWorking: false, start: '09:00', end: '18:00', lunchBreakStart: '12:00', lunchBreakEnd: '13:00' },
+        { day: 4, name: 'Quinta-feira', isWorking: false, start: '09:00', end: '18:00', lunchBreakStart: '12:00', lunchBreakEnd: '13:00' },
+        { day: 5, name: 'Sexta-feira', isWorking: false, start: '09:00', end: '18:00', lunchBreakStart: '12:00', lunchBreakEnd: '13:00' },
+        { day: 6, name: 'Sábado', isWorking: false, start: '09:00', end: '18:00', lunchBreakStart: '12:00', lunchBreakEnd: '13:00' },
+        { day: 0, name: 'Domingo', isWorking: false, start: '09:00', end: '18:00', lunchBreakStart: '12:00', lunchBreakEnd: '13:00' }
+      ]);
       loadStaffSchedule(selectedStaffId);
     }
   }, [selectedStaffId]);
@@ -89,14 +100,20 @@ export default function StaffSchedulesPage() {
 
   const loadStaffSchedule = async (staffId: string) => {
     try {
+      console.log(`🔍 [STAFF SCHEDULES] Loading schedule for staff: ${staffId}`);
+      
       const response = await fetch(`/api/business/staff/${staffId}/availability`, {
         credentials: 'include'
       });
       
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.data?.schedule) {
-          const schedule = data.data.schedule;
+        console.log(`📋 [STAFF SCHEDULES] Response for staff ${staffId}:`, data);
+        
+        if (data.success) {
+          const schedule = data.data?.schedule || {};
+          console.log(`📅 [STAFF SCHEDULES] Schedule data for staff ${staffId}:`, schedule);
+          
           const dayMap: Record<number, string> = {
             1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 
             5: 'friday', 6: 'saturday', 0: 'sunday'
@@ -105,6 +122,8 @@ export default function StaffSchedulesPage() {
           const mappedSchedules = staffSchedules.map(dayTemplate => {
             const dayKey = dayMap[dayTemplate.day];
             const dayData = schedule[dayKey];
+            
+            console.log(`📋 [STAFF SCHEDULES] Day ${dayTemplate.name} (${dayKey}):`, dayData);
             
             return {
               ...dayTemplate,
@@ -116,8 +135,11 @@ export default function StaffSchedulesPage() {
             };
           });
           
+          console.log(`✅ [STAFF SCHEDULES] Mapped schedules for staff ${staffId}:`, mappedSchedules);
           setStaffSchedules(mappedSchedules);
         }
+      } else {
+        console.error(`❌ [STAFF SCHEDULES] Failed to load schedule for staff ${staffId}:`, response.status);
       }
     } catch (error) {
       console.error('Error loading staff schedule:', error);
@@ -137,6 +159,8 @@ export default function StaffSchedulesPage() {
     try {
       setIsSaving(true);
       
+      console.log(`💾 [STAFF SCHEDULES] Saving schedule for staff: ${selectedStaffId}`);
+      
       const dayMap: Record<number, string> = {
         1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 
         5: 'friday', 6: 'saturday', 0: 'sunday'
@@ -155,6 +179,8 @@ export default function StaffSchedulesPage() {
         };
       });
       
+      console.log(`📋 [STAFF SCHEDULES] Schedule data to save for staff ${selectedStaffId}:`, schedule);
+      
       const response = await fetch(`/api/business/staff/${selectedStaffId}/availability`, {
         method: 'PUT',
         headers: {
@@ -165,11 +191,16 @@ export default function StaffSchedulesPage() {
       });
       
       if (response.ok) {
+        const responseData = await response.json();
+        console.log(`✅ [STAFF SCHEDULES] Successfully saved schedule for staff ${selectedStaffId}:`, responseData);
+        
         toast({
           title: "Sucesso",
           description: "Horário da equipa guardado com sucesso"
         });
       } else {
+        const errorData = await response.json();
+        console.error(`❌ [STAFF SCHEDULES] Failed to save schedule for staff ${selectedStaffId}:`, errorData);
         throw new Error('Falha ao guardar horário');
       }
     } catch (error) {
