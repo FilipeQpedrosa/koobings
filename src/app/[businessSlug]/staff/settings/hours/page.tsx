@@ -177,94 +177,107 @@ export default function BusinessHoursSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           {businessHours.map((day, index) => (
-            <div key={day.day} className="p-4 border rounded-lg space-y-3">
+            <div key={day.day} className="border rounded-lg overflow-hidden">
               {/* Day Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-32">
-                    <Label className="text-sm font-medium">{day.name}</Label>
+              <div className="bg-gray-50 px-4 py-3 border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <h3 className="font-medium text-gray-900 w-28">{day.name}</h3>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={day.isOpen}
+                        onCheckedChange={(checked) => updateBusinessHour(index, 'isOpen', checked)}
+                      />
+                      <Label className="text-sm text-gray-600">
+                        {day.isOpen ? 'Aberto' : 'Fechado'}
+                      </Label>
+                    </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={day.isOpen}
-                      onCheckedChange={(checked) => updateBusinessHour(index, 'isOpen', checked)}
-                    />
-                    <Label className="text-sm">
-                      {day.isOpen ? 'Aberto' : 'Fechado'}
-                    </Label>
-                  </div>
+                  {day.isOpen && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToAllDays(index)}
+                      className="text-xs bg-white"
+                    >
+                      Copiar para todos
+                    </Button>
+                  )}
                 </div>
-                
-                {day.isOpen && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToAllDays(index)}
-                    className="text-xs"
-                  >
-                    Copiar para todos
-                  </Button>
-                )}
               </div>
               
               {/* Time Configuration */}
               {day.isOpen && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Working Hours */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Horário de Trabalho</Label>
-                    <div className="flex items-center space-x-2">
-                      <Label htmlFor={`start-${day.day}`} className="text-sm">Das</Label>
-                      <Input
-                        id={`start-${day.day}`}
-                        type="time"
-                        value={day.start}
-                        onChange={(e) => updateBusinessHour(index, 'start', e.target.value)}
-                        className="w-24"
-                      />
-                      <Label htmlFor={`end-${day.day}`} className="text-sm">às</Label>
-                      <Input
-                        id={`end-${day.day}`}
-                        type="time"
-                        value={day.end}
-                        onChange={(e) => updateBusinessHour(index, 'end', e.target.value)}
-                        className="w-24"
-                      />
+                <div className="p-4 bg-white">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Working Hours */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2 text-blue-600">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                        <Label className="text-sm font-medium">Horário de Funcionamento</Label>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
+                            <Label className="text-sm text-gray-600 min-w-[30px]">Das</Label>
+                            <Input
+                              type="time"
+                              value={day.start}
+                              onChange={(e) => updateBusinessHour(index, 'start', e.target.value)}
+                              className="w-28 h-9"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Label className="text-sm text-gray-600 min-w-[20px]">às</Label>
+                            <Input
+                              type="time"
+                              value={day.end}
+                              onChange={(e) => updateBusinessHour(index, 'end', e.target.value)}
+                              className="w-28 h-9"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Lunch Break */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Pausa para Almoço</Label>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        type="time"
-                        value={day.lunchBreakStart || ''}
-                        onChange={(e) => updateBusinessHour(index, 'lunchBreakStart', e.target.value)}
-                        className="w-24"
-                        placeholder="12:00"
-                      />
-                      <span className="text-sm text-gray-400">às</span>
-                      <Input
-                        type="time"
-                        value={day.lunchBreakEnd || ''}
-                        onChange={(e) => updateBusinessHour(index, 'lunchBreakEnd', e.target.value)}
-                        className="w-24"
-                        placeholder="13:00"
-                      />
+                    
+                    {/* Lunch Break */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2 text-orange-600">
+                        <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
+                        <Label className="text-sm font-medium">Pausa para Almoço</Label>
+                        <span className="text-xs text-gray-500">(opcional)</span>
+                      </div>
+                      <div className="bg-orange-50 p-3 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-2">
+                            <Label className="text-sm text-gray-600 min-w-[30px]">Das</Label>
+                            <Input
+                              type="time"
+                              value={day.lunchBreakStart || ''}
+                              onChange={(e) => updateBusinessHour(index, 'lunchBreakStart', e.target.value)}
+                              className="w-28 h-9"
+                              placeholder="12:00"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Label className="text-sm text-gray-600 min-w-[20px]">às</Label>
+                            <Input
+                              type="time"
+                              value={day.lunchBreakEnd || ''}
+                              onChange={(e) => updateBusinessHour(index, 'lunchBreakEnd', e.target.value)}
+                              className="w-28 h-9"
+                              placeholder="13:00"
+                            />
+                          </div>
+                        </div>
+                        {day.lunchBreakStart && day.lunchBreakEnd && (
+                          <div className="mt-2 text-xs text-orange-700 bg-orange-100 px-2 py-1 rounded">
+                            Pausa configurada: {day.lunchBreakStart} - {day.lunchBreakEnd}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Info */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Informação</Label>
-                    <p className="text-xs text-gray-500">
-                      {day.lunchBreakStart && day.lunchBreakEnd 
-                        ? `Pausa: ${day.lunchBreakStart} - ${day.lunchBreakEnd}`
-                        : 'Sem pausa definida'
-                      }
-                    </p>
                   </div>
                 </div>
               )}
