@@ -71,6 +71,12 @@ export async function PUT(request: Request) {
 
     console.log(`💾 [STAFF AVAILABILITY PUT] Saving availability for staff: ${staffId}`);
     console.log(`📋 [STAFF AVAILABILITY PUT] Schedule data:`, JSON.stringify(schedule, null, 2));
+    
+    // Validate that the schedule data is valid
+    if (!schedule || typeof schedule !== 'object') {
+      console.error(`❌ [STAFF AVAILABILITY PUT] Invalid schedule data for staff ${staffId}:`, schedule);
+      return NextResponse.json({ success: false, error: { code: 'INVALID_SCHEDULE_DATA', message: 'Invalid schedule data' } }, { status: 400 });
+    }
 
     // Upsert the schedule JSON for the staff member (create if doesn't exist, update if exists)
     const updated = await prisma.staffAvailability.upsert({
@@ -78,10 +84,12 @@ export async function PUT(request: Request) {
       create: {
         id: `${staffId}_availability_${Date.now()}`,
         staffId: staffId,
-        schedule: schedule
+        schedule: schedule,
+        updatedAt: new Date()
       },
       update: {
-        schedule: schedule
+        schedule: schedule,
+        updatedAt: new Date()
       }
     });
 
@@ -89,7 +97,16 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
-    console.error('Error updating staff availability:', error);
+    console.error('❌ [STAFF AVAILABILITY PUT] Error updating staff availability:', error);
+    console.error('❌ [STAFF AVAILABILITY PUT] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('❌ [STAFF AVAILABILITY PUT] Error message:', error instanceof Error ? error.message : String(error));
+    
+    // If it's a Prisma error, log more details
+    if (error && typeof error === 'object' && 'code' in error) {
+      console.error('❌ [STAFF AVAILABILITY PUT] Prisma error code:', (error as any).code);
+      console.error('❌ [STAFF AVAILABILITY PUT] Prisma error meta:', (error as any).meta);
+    }
+    
     return NextResponse.json({ success: false, error: { code: 'STAFF_AVAILABILITY_UPDATE_ERROR', message: 'Internal server error' } }, { status: 500 });
   }
 } 
