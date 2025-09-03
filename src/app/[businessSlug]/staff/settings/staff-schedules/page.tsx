@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Save, ArrowLeft, User, Clock } from 'lucide-react';
+import { Calendar, Save, ArrowLeft, User, Clock, Coffee, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -265,187 +265,254 @@ export default function StaffSchedulesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">A carregar...</p>
+        </div>
       </div>
     );
   }
 
+  const workingDaysCount = staffSchedules.filter(day => day.isWorking).length;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Horários da Equipa</h1>
-            <p className="text-gray-600">Configure os horários individuais de cada membro da equipa</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-indigo-50/30 p-6">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Modern Header */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => router.back()}
+                className="p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
+              </button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Horários da Equipa</h1>
+                <p className="text-gray-500">Configure horários personalizados para cada membro</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {selectedStaffId && (
+                <div className="text-right bg-blue-50 px-4 py-2 rounded-lg">
+                  <p className="text-sm text-blue-600 font-medium">Editando horários de</p>
+                  <p className="font-bold text-blue-900">{selectedStaff?.name}</p>
+                </div>
+              )}
+              <Button 
+                onClick={() => {
+                  console.log(`🔘 [STAFF SCHEDULES] Button clicked! isSaving: ${isSaving}, selectedStaffId: ${selectedStaffId}`);
+                  saveStaffSchedule();
+                }} 
+                disabled={isSaving || !selectedStaffId}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 rounded-xl font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+              >
+                <Save className="h-5 w-5 mr-2" />
+                {isSaving ? 'A guardar...' : 'Guardar Alterações'}
+              </Button>
+            </div>
           </div>
         </div>
-        
-        <Button 
-          onClick={() => {
-            console.log(`🔘 [STAFF SCHEDULES] Button 1 clicked! isSaving: ${isSaving}, selectedStaffId: ${selectedStaffId}`);
-            saveStaffSchedule();
-          }} 
-          disabled={isSaving || !selectedStaffId}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {isSaving ? 'A guardar...' : 'Guardar'}
-        </Button>
-      </div>
 
-      {/* Staff Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <User className="h-5 w-5 mr-2" />
-            Selecionar Membro da Equipa
-          </CardTitle>
-          <CardDescription>
-            Escolha o membro da equipa para configurar os horários
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {staffMembers.length > 0 ? (
-            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione um membro da equipa" />
-              </SelectTrigger>
-              <SelectContent>
-                {staffMembers.map((staff) => (
-                  <SelectItem key={staff.id} value={staff.id}>
-                    <div className="flex items-center space-x-2">
-                      <span>{staff.name}</span>
-                      <span className="text-sm text-gray-500">({staff.email})</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-center py-4">
-              <p className="text-gray-500">
-                Nenhum membro da equipa encontrado. 
-                <Button variant="link" onClick={() => router.push(`/${user?.businessSlug}/staff/settings/staff`)}>
-                  Adicione membros da equipa primeiro
-                </Button>
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Staff Schedule Configuration */}
-      {selectedStaffId && selectedStaff && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Clock className="h-5 w-5 mr-2" />
-              Horários de {selectedStaff.name}
-            </CardTitle>
-            <CardDescription>
-              Configure os horários de trabalho para cada dia da semana
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {staffSchedules.map((day, index) => (
-              <div key={day.day} className="flex items-center space-x-4 p-4 border rounded-lg">
-                <div className="w-32">
-                  <Label className="text-sm font-medium">{day.name}</Label>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={day.isWorking}
-                    onCheckedChange={(checked) => updateStaffSchedule(index, 'isWorking', checked)}
-                  />
-                  <Label className="text-sm">
-                    {day.isWorking ? 'Trabalha' : 'Folga'}
-                  </Label>
-                </div>
-                
-                {day.isWorking && (
-                  <>
-                    <div className="flex items-center space-x-2">
-                      <Label htmlFor={`start-${day.day}`} className="text-sm">Das</Label>
-                      <Input
-                        id={`start-${day.day}`}
-                        type="time"
-                        value={day.start}
-                        onChange={(e) => updateStaffSchedule(index, 'start', e.target.value)}
-                        className="w-20"
-                      />
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Label htmlFor={`end-${day.day}`} className="text-sm">às</Label>
-                      <Input
-                        id={`end-${day.day}`}
-                        type="time"
-                        value={day.end}
-                        onChange={(e) => updateStaffSchedule(index, 'end', e.target.value)}
-                        className="w-20"
-                      />
-                    </div>
-                    
-                    <div className="flex items-center space-x-1 border-l pl-2">
-                      <Label className="text-xs text-gray-500">Almoço:</Label>
-                      <Input
-                        type="time"
-                        value={day.lunchBreakStart || ''}
-                        onChange={(e) => updateStaffSchedule(index, 'lunchBreakStart', e.target.value)}
-                        className="w-16 text-xs"
-                        placeholder="12:00"
-                      />
-                      <span className="text-xs text-gray-400">-</span>
-                      <Input
-                        type="time"
-                        value={day.lunchBreakEnd || ''}
-                        onChange={(e) => updateStaffSchedule(index, 'lunchBreakEnd', e.target.value)}
-                        className="w-16 text-xs"
-                        placeholder="13:00"
-                      />
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToAllDays(index)}
-                      className="text-xs"
-                    >
-                      Copiar para todos
-                    </Button>
-                  </>
-                )}
+        {/* Staff Selection Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <User className="h-5 w-5 text-blue-600" />
               </div>
-            ))}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Selecionar Membro da Equipa</h3>
+                <p className="text-gray-500">Escolha quem quer configurar</p>
+              </div>
+            </div>
             
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between">
+            {staffMembers.length > 0 ? (
+              <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+                <SelectTrigger className="w-80 h-12 rounded-lg border-gray-200">
+                  <SelectValue placeholder="Escolha um membro da equipa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staffMembers.map((staff) => (
+                    <SelectItem key={staff.id} value={staff.id}>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{staff.name}</p>
+                          <p className="text-sm text-gray-500">{staff.email}</p>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="text-center py-8">
+                <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-gray-500 mb-4">Nenhum membro da equipa encontrado</p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push(`/${user?.businessSlug}/staff/settings/staff`)}
+                  className="rounded-lg"
+                >
+                  Adicionar Staff Primeiro
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Schedule Configuration */}
+        {selectedStaffId && selectedStaff && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Clock className="h-5 w-5 text-green-600" />
+                </div>
                 <div>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="text-xl font-semibold text-gray-900">Configurar Horários</h3>
+                  <p className="text-gray-500">
+                    {workingDaysCount} {workingDaysCount === 1 ? 'dia configurado' : 'dias configurados'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span>Alterações salvas automaticamente</span>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              {staffSchedules.map((day, index) => (
+                <div key={day.day} className="border border-gray-200 rounded-xl p-5 hover:border-blue-200 transition-colors">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-3">
+                        <Calendar className="h-5 w-5 text-gray-400" />
+                        <h4 className="font-semibold text-gray-900">{day.name}</h4>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={day.isWorking}
+                          onCheckedChange={(checked) => updateStaffSchedule(index, 'isWorking', checked)}
+                          className="data-[state=checked]:bg-green-500"
+                        />
+                        <span className={`text-sm font-medium ${day.isWorking ? 'text-green-600' : 'text-gray-500'}`}>
+                          {day.isWorking ? 'Trabalha' : 'Folga'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {day.isWorking && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToAllDays(index)}
+                        className="rounded-lg"
+                      >
+                        Copiar para todos
+                      </Button>
+                    )}
+                  </div>
+
+                  {day.isWorking && (
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {/* Working Hours */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Clock className="h-4 w-4 text-blue-500" />
+                          <span className="font-medium text-blue-700">Horário de Trabalho</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-sm text-gray-600 mb-1 block">Início</Label>
+                            <Input
+                              type="time"
+                              value={day.start}
+                              onChange={(e) => updateStaffSchedule(index, 'start', e.target.value)}
+                              className="h-10 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm text-gray-600 mb-1 block">Fim</Label>
+                            <Input
+                              type="time"
+                              value={day.end}
+                              onChange={(e) => updateStaffSchedule(index, 'end', e.target.value)}
+                              className="h-10 rounded-lg"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Lunch Break */}
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Coffee className="h-4 w-4 text-orange-500" />
+                          <span className="font-medium text-orange-700">Pausa de Almoço</span>
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Opcional</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-sm text-gray-600 mb-1 block">Início</Label>
+                            <Input
+                              type="time"
+                              value={day.lunchBreakStart}
+                              onChange={(e) => updateStaffSchedule(index, 'lunchBreakStart', e.target.value)}
+                              className="h-10 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm text-gray-600 mb-1 block">Fim</Label>
+                            <Input
+                              type="time"
+                              value={day.lunchBreakEnd}
+                              onChange={(e) => updateStaffSchedule(index, 'lunchBreakEnd', e.target.value)}
+                              className="h-10 rounded-lg"
+                            />
+                          </div>
+                        </div>
+                        
+                        {day.lunchBreakStart && day.lunchBreakEnd && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                            <p className="text-sm text-orange-700">
+                              <AlertCircle className="h-4 w-4 inline mr-1" />
+                              Pausa: {day.lunchBreakStart} - {day.lunchBreakEnd}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="font-medium text-blue-900">Configuração Completa</p>
+                  <p className="text-sm text-blue-700">
                     Os horários serão aplicados na disponibilidade da equipa para agendamentos
                   </p>
                 </div>
-                <Button 
-                  onClick={() => {
-                    console.log(`🔘 [STAFF SCHEDULES] Button 2 clicked! isSaving: ${isSaving}, selectedStaffId: ${selectedStaffId}`);
-                    saveStaffSchedule();
-                  }} 
-                  disabled={isSaving || !selectedStaffId}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? 'A guardar...' : 'Guardar Alterações'}
-                </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
