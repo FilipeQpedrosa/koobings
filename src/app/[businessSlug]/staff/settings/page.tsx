@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Settings, Users, Package, Tag, ArrowRight, Shield, Eye, Database, Lock, Save, AlertCircle, Grid, Calendar } from 'lucide-react';
-import Link from 'next/link';
+import { Clock, Calendar, Save, Users, Tag, Settings as SettingsIcon, Package, Shield, Grid, Database, Eye, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 import BusinessBrandingCard from '@/components/BusinessBrandingCard';
 
 interface BusinessPermissions {
@@ -20,30 +21,119 @@ interface BusinessPermissions {
   requireAdminCancelApproval: boolean;
 }
 
-export default function StaffSettingsPage() {
-  // 🔥 ALL HOOKS AT THE TOP - NEVER CONDITIONAL
+export default function StaffSettings() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('general');
+  const [isSaving, setIsSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // Add missing permissions state
   const [permissions, setPermissions] = useState<BusinessPermissions>({
     allowStaffToViewAllBookings: false,
     restrictStaffToViewAllClients: false,
     restrictStaffToViewAllNotes: false,
     requireAdminCancelApproval: false,
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  
+  // Business Hours State
+  const [businessHours, setBusinessHours] = useState([
+    { day: 1, name: 'Segunda', isOpen: false, start: '09:00', end: '18:00' },
+    { day: 2, name: 'Terça', isOpen: false, start: '09:00', end: '18:00' },
+    { day: 3, name: 'Quarta', isOpen: false, start: '09:00', end: '18:00' },
+    { day: 4, name: 'Quinta', isOpen: false, start: '09:00', end: '18:00' },
+    { day: 5, name: 'Sexta', isOpen: false, start: '09:00', end: '18:00' },
+    { day: 6, name: 'Sábado', isOpen: false, start: '09:00', end: '18:00' },
+    { day: 0, name: 'Domingo', isOpen: false, start: '09:00', end: '18:00' }
+  ]);
 
-  // 🔥 HYDRATION SAFETY - Wait for client mount
+  // Hydration safety
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Load business hours and permissions
   useEffect(() => {
     if (mounted && !authLoading && user?.businessSlug) {
+      loadBusinessHours();
       fetchBusinessPermissions();
     }
   }, [mounted, authLoading, user?.businessSlug]);
+
+  const loadBusinessHours = async () => {
+    try {
+      const response = await fetch('/api/business/hours', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.length > 0) {
+          // Map API data to our state structure
+          const mappedHours = businessHours.map(dayTemplate => {
+            const dayData = data.data.find((h: any) => h.day === dayTemplate.day);
+            return {
+              ...dayTemplate,
+              isOpen: dayData?.isOpen || false,
+              start: dayData?.start || '09:00',
+              end: dayData?.end || '18:00'
+            };
+          });
+          setBusinessHours(mappedHours);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading business hours:', error);
+    }
+  };
+
+  const saveBusinessHours = async () => {
+    try {
+      setIsSaving(true);
+      
+      const response = await fetch('/api/business/hours', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          hours: businessHours.map(h => ({
+            day: h.day,
+            isOpen: h.isOpen,
+            start: h.isOpen ? h.start : null,
+            end: h.isOpen ? h.end : null
+          }))
+        })
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Sucesso",
+          description: "Horários de funcionamento guardados com sucesso"
+        });
+      } else {
+        throw new Error('Falha ao guardar horários');
+      }
+    } catch (error) {
+      console.error('Error saving business hours:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao guardar horários de funcionamento",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateBusinessHour = (dayIndex: number, field: string, value: any) => {
+    const updated = [...businessHours];
+    updated[dayIndex] = { ...updated[dayIndex], [field]: value };
+    setBusinessHours(updated);
+  };
 
   const settingsOptions = [
     {
@@ -176,7 +266,7 @@ export default function StaffSettingsPage() {
             className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
             onClick={() => console.log('🔧 General tab clicked')}
           >
-            <Settings className="h-4 w-4 mr-2" />
+            <SettingsIcon className="h-4 w-4 mr-2" />
             Geral
           </TabsTrigger>
           <TabsTrigger 
@@ -223,11 +313,25 @@ export default function StaffSettingsPage() {
                   <span className="text-sm font-medium">Categories</span>
                 </Link>
                 <Link 
+                  href={`/${user?.businessSlug}/staff/settings/hours`}
+                  className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Clock className="h-8 w-8 text-orange-600 mb-2" />
+                  <span className="text-sm font-medium">Horários</span>
+                </Link>
+                <Link 
                   href={`/${user?.businessSlug}/staff/schedule`}
                   className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <Calendar className="h-8 w-8 text-orange-600 mb-2" />
+                  <Calendar className="h-8 w-8 text-blue-500 mb-2" />
                   <span className="text-sm font-medium">Schedule</span>
+                </Link>
+                <Link 
+                  href={`/${user?.businessSlug}/staff/settings/staff-schedules`}
+                  className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Users className="h-8 w-8 text-indigo-600 mb-2" />
+                  <span className="text-sm font-medium">Horários Staff</span>
                 </Link>
               </div>
             </CardContent>

@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { NextResponse, NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 
 const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
@@ -12,28 +11,58 @@ const businessHoursSchema = z.object({
     isOpen: z.boolean(),
     start: z.string().regex(timeRegex, 'Invalid time format').nullable(),
     end: z.string().regex(timeRegex, 'Invalid time format').nullable(),
+    lunchBreakStart: z.string().regex(timeRegex, 'Invalid time format').nullable().optional(),
+    lunchBreakEnd: z.string().regex(timeRegex, 'Invalid time format').nullable().optional(),
   })).refine((hours) => {
     return hours.every(hour => {
       if (!hour.isOpen) return true;
       if (!hour.start || !hour.end) return false;
       const start = new Date(`1970-01-01T${hour.start}`);
       const end = new Date(`1970-01-01T${hour.end}`);
+      
+      // Validate lunch break times if provided
+      if (hour.lunchBreakStart && hour.lunchBreakEnd) {
+        const lunchStart = new Date(`1970-01-01T${hour.lunchBreakStart}`);
+        const lunchEnd = new Date(`1970-01-01T${hour.lunchBreakEnd}`);
+        
+        // Lunch break must be within business hours and end after start
+        return end > start && 
+               lunchEnd > lunchStart && 
+               lunchStart >= start && 
+               lunchEnd <= end;
+      }
+      
       return end > start;
     });
-  }, 'End time must be after start time')
+  }, 'Invalid time configuration')
 });
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user || !session.user.id) {
-      console.error('Unauthorized: No session or user.');
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      console.error('Unauthorized: No user or email.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
+    // Get business ID from authenticated user
+    let businessId: string;
+    
+    if (user.role === 'BUSINESS_OWNER') {
+      businessId = user.businessId!;
+    } else if (user.role === 'STAFF') {
+      businessId = user.businessId!;
+    } else {
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid user role' } }, { status: 401 });
+    }
+
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_ID_MISSING', message: 'Business ID missing' } }, { status: 400 });
+    }
+
     const hours = await prisma.businessHours.findMany({
-      where: { businessId: session.user.id },
+      where: { businessId: businessId },
       orderBy: { dayOfWeek: 'asc' },
     });
 
@@ -44,6 +73,8 @@ export async function GET() {
         isOpen: hour.isOpen,
         start: hour.startTime,
         end: hour.endTime,
+        lunchBreakStart: (hour as any).lunchBreakStart,
+        lunchBreakEnd: (hour as any).lunchBreakEnd,
       }))
     });
   } catch (error) {
@@ -52,13 +83,28 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user || !session.user.id) {
-      console.error('Unauthorized: No session or user.');
+    const user = getRequestAuthUser(request);
+    
+    if (!user || !user.email) {
+      console.error('Unauthorized: No user or email.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    }
+
+    // Get business ID from authenticated user
+    let businessId: string;
+    
+    if (user.role === 'BUSINESS_OWNER') {
+      businessId = user.businessId!;
+    } else if (user.role === 'STAFF') {
+      businessId = user.businessId!;
+    } else {
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid user role' } }, { status: 401 });
+    }
+
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'BUSINESS_ID_MISSING', message: 'Business ID missing' } }, { status: 400 });
     }
 
     const body = await request.json();
@@ -71,18 +117,23 @@ export async function POST(request: Request) {
 
     // Delete existing hours
     await prisma.businessHours.deleteMany({
-      where: { businessId: session.user.id },
+      where: { businessId: businessId },
     });
 
     // Create new hours
+    const createData = validatedData.hours.map(hour => ({
+      id: `${businessId}_${hour.day}_${Date.now()}`, // Generate unique ID
+      businessId: businessId,
+      dayOfWeek: hour.day,
+      isOpen: hour.isOpen,
+      startTime: hour.start,
+      endTime: hour.end,
+      lunchBreakStart: hour.lunchBreakStart || null,
+      lunchBreakEnd: hour.lunchBreakEnd || null,
+    }));
+
     await prisma.businessHours.createMany({
-      data: validatedData.hours.map(hour => ({
-        businessId: session.user.id,
-        dayOfWeek: hour.day,
-        isOpen: hour.isOpen,
-        startTime: hour.start,
-        endTime: hour.end,
-      })),
+      data: createData,
     });
 
     return NextResponse.json({ success: true });
