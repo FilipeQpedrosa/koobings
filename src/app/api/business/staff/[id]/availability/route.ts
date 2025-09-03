@@ -18,18 +18,13 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const weekParam = url.searchParams.get('week');
     const staffId = url.pathname.split('/').slice(-2)[0]; // Extract staff ID from URL
-    
-    if (!weekParam) {
-      return NextResponse.json({ success: false, error: { code: 'WEEK_PARAM_REQUIRED', message: 'Week parameter is required' } }, { status: 400 });
-    }
 
     const availability = await prisma.staffAvailability.findUnique({
       where: { staffId: staffId }
     });
 
-    return NextResponse.json({ success: true, data: availability?.schedule || {} });
+    return NextResponse.json({ success: true, data: availability || { schedule: {} } });
   } catch (error) {
     console.error('Error fetching staff availability:', error);
     return NextResponse.json({ success: false, error: { code: 'STAFF_AVAILABILITY_FETCH_ERROR', message: 'Internal server error' } }, { status: 500 });
@@ -67,13 +62,20 @@ export async function PUT(request: Request) {
 
     const { schedule } = await request.json();
 
-    // Update the schedule JSON for the staff member
-    const updated = await prisma.staffAvailability.update({
+    // Upsert the schedule JSON for the staff member (create if doesn't exist, update if exists)
+    const updated = await prisma.staffAvailability.upsert({
       where: { staffId: staffId },
-      data: { schedule }
+      create: {
+        id: `${staffId}_availability_${Date.now()}`,
+        staffId: staffId,
+        schedule: schedule
+      },
+      update: {
+        schedule: schedule
+      }
     });
 
-    return NextResponse.json({ success: true, data: updated.schedule });
+    return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error('Error updating staff availability:', error);
     return NextResponse.json({ success: false, error: { code: 'STAFF_AVAILABILITY_UPDATE_ERROR', message: 'Internal server error' } }, { status: 500 });

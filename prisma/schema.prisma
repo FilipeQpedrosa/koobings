@@ -13,7 +13,6 @@ model Business {
   createdAt                     DateTime                @default(now())
   updatedAt                     DateTime
   name                          String
-  slug                          String                  @unique
   ownerName                     String?
   email                         String                  @unique
   phone                         String?
@@ -29,6 +28,7 @@ model Business {
   restrictStaffToViewAllClients Boolean                 @default(false)
   restrictStaffToViewAllNotes   Boolean                 @default(false)
   requireAdminCancelApproval    Boolean                 @default(false)
+  slug                          String                  @unique
   BusinessHours                 BusinessHours[]
   Client                        Client[]
   ClientRelationship            ClientRelationship[]
@@ -50,13 +50,15 @@ model Business {
 }
 
 model BusinessHours {
-  id         String   @id
-  businessId String
-  dayOfWeek  Int
-  isOpen     Boolean
-  startTime  String?
-  endTime    String?
-  Business   Business @relation(fields: [businessId], references: [id])
+  id               String   @id
+  businessId       String
+  dayOfWeek        Int
+  isOpen           Boolean
+  startTime        String?
+  endTime          String?
+  lunchBreakStart  String?
+  lunchBreakEnd    String?
+  Business         Business @relation(fields: [businessId], references: [id])
 }
 
 model Client {
@@ -87,25 +89,40 @@ model Client {
   @@index([status])
 }
 
-model IndependentClient {
-  id                 String   @id
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime
-  name               String
-  email              String   @unique
-  phone              String?
-  password           String
-  status             String   @default("ACTIVE")
-  emailVerified      Boolean  @default(false)
-  emailVerifiedAt    DateTime?
-  lastLogin          DateTime?
-  preferences        Json?
-  isDeleted          Boolean  @default(false)
+model Customer {
+  id                  String             @id
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  name                String
+  email               String             @unique
+  phone               String?
+  password            String
+  status              String             @default("ACTIVE")
+  emailVerified       Boolean            @default(false)
+  emailVerifiedAt     DateTime?
+  lastLogin           DateTime?
+  preferences         Json?
+  isDeleted           Boolean            @default(false)
+  onboardingCompleted Boolean            @default(false)
+  marketingConsent    Boolean            @default(false)
+  favorites           CustomerFavorite[]
 
   @@index([email])
   @@index([isDeleted])
   @@index([status])
   @@index([lastLogin])
+}
+
+model CustomerFavorite {
+  id         String   @id @default(cuid())
+  customerId String
+  businessId String
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, businessId])
+  @@index([customerId])
+  @@index([businessId])
 }
 
 model ClientRelationship {
@@ -142,20 +159,19 @@ model Service {
   description        String?
   duration           Int
   price              Float
-  image              String?
   businessId         String
   categoryId         String?
-  // New fields for multi-location support
-  location           String?             // Location name (e.g., "Porto", "Lisboa")
-  address            String?             // Complete address for Google Maps validation
-  maxCapacity        Int?                @default(1) // Maximum capacity (1 = individual, >1 = multi-pax event)
-  availableDays      Int[]               @default([]) // Array of available days (0=Sunday, 1=Monday, etc.)
-  startTime          String?             // Start time in HH:MM format
-  endTime            String?             // End time in HH:MM format
-  minAdvanceHours    Int                 @default(24) // Minimum hours in advance
-  maxAdvanceDays     Int                 @default(30) // Maximum days in advance
-  anyTimeAvailable   Boolean?            @default(false) // Available any time of day
-  slots              Json?               // Time slots with startTime, endTime, capacity
+  image              String?
+  address            String?
+  anyTimeAvailable   Boolean?            @default(false)
+  availableDays      Int[]               @default([])
+  endTime            String?
+  location           String?
+  maxAdvanceDays     Int                 @default(30)
+  maxCapacity        Int?                @default(1)
+  minAdvanceHours    Int                 @default(24)
+  slots              Json?
+  startTime          String?
   Business           Business            @relation(fields: [businessId], references: [id])
   service_categories service_categories? @relation(fields: [categoryId], references: [id])
   appointments       appointments[]
@@ -252,7 +268,7 @@ model appointments {
   serviceId              String
   businessId             String
   recurringAppointmentId String?
-  slotInfo               Json?                   // Store slot booking information (startTime, endTime, slotIndex, capacity)
+  slotInfo               Json?
   Business               Business                @relation(fields: [businessId], references: [id])
   Client                 Client                  @relation(fields: [clientId], references: [id])
   recurring_appointments recurring_appointments? @relation(fields: [recurringAppointmentId], references: [id])
@@ -567,12 +583,12 @@ enum AdminRole {
 
 enum AppointmentStatus {
   PENDING
-  ACCEPTED
-  REJECTED
   CONFIRMED
   COMPLETED
   CANCELLED
   NO_SHOW
+  ACCEPTED
+  REJECTED
 }
 
 enum BusinessStatus {
