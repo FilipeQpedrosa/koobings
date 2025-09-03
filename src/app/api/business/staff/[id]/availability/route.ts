@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
-    const businessId = session.user.businessId;
+    const businessId = user.businessId;
 
     if (!businessId) {
       return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
@@ -42,13 +41,13 @@ export async function GET(request: Request) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = getRequestAuthUser(request);
 
-    if (!session?.user) {
+    if (!user) {
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
-    const businessId = session.user.businessId;
+    const businessId = user.businessId;
 
     if (!businessId) {
       return NextResponse.json({ success: false, error: { code: 'BUSINESS_NOT_FOUND', message: 'Business not found' } }, { status: 404 });
