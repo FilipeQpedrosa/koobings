@@ -152,6 +152,12 @@ export default function StaffSchedulesPage() {
     console.log(`🔍 [STAFF SCHEDULES] isSaving:`, isSaving);
     console.log(`🔍 [STAFF SCHEDULES] staffSchedules:`, staffSchedules);
     
+    // Prevent multiple simultaneous saves
+    if (isSaving) {
+      console.log(`⚠️ [STAFF SCHEDULES] Save already in progress, ignoring click`);
+      return;
+    }
+    
     if (!selectedStaffId) {
       console.error(`❌ [STAFF SCHEDULES] No staff selected`);
       toast({
@@ -197,7 +203,9 @@ export default function StaffSchedulesPage() {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ schedule })
+        body: JSON.stringify({ schedule }),
+        // Add longer timeout for slower connections
+        signal: AbortSignal.timeout(30000) // 30 seconds timeout
       });
       
       console.log(`📡 [STAFF SCHEDULES] Response status: ${response.status}`);
@@ -208,9 +216,13 @@ export default function StaffSchedulesPage() {
         console.log(`✅ [STAFF SCHEDULES] Successfully saved schedule for staff ${selectedStaffId}:`, responseData);
         
         toast({
-          title: "Sucesso",
-          description: "Horário da equipa guardado com sucesso"
+          title: "✅ Guardado com sucesso!",
+          description: `Horários de ${selectedStaff?.name} actualizados`,
+          className: "bg-green-50 border-green-200 text-green-800"
         });
+        
+        // Reload the schedule to confirm it was saved
+        await loadStaffSchedule(selectedStaffId);
       } else {
         console.error(`❌ [STAFF SCHEDULES] Response not ok. Status: ${response.status}`);
         let errorData;
@@ -226,11 +238,26 @@ export default function StaffSchedulesPage() {
       }
     } catch (error) {
       console.error('❌ [STAFF SCHEDULES] Catch block - Error saving staff schedule:', error);
-      toast({
-        title: "Erro",
-        description: "Falha ao guardar horário da equipa",
-        variant: "destructive"
-      });
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "⏱️ Tempo esgotado",
+          description: "A operação demorou muito tempo. Tente novamente.",
+          variant: "destructive"
+        });
+      } else if (error instanceof Error && error.message.includes('fetch')) {
+        toast({
+          title: "🌐 Erro de conexão",
+          description: "Verifique a sua conexão e tente novamente.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "❌ Erro",
+          description: "Falha ao guardar horário da equipa",
+          variant: "destructive"
+        });
+      }
     } finally {
       console.log(`🔄 [STAFF SCHEDULES] Setting isSaving to false`);
       setIsSaving(false);
@@ -309,10 +336,23 @@ export default function StaffSchedulesPage() {
                   saveStaffSchedule();
                 }} 
                 disabled={isSaving || !selectedStaffId}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 rounded-xl font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
+                className={`px-8 py-3 rounded-xl font-semibold shadow-lg transition-all transform ${
+                  isSaving 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 hover:scale-105'
+                } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <Save className="h-5 w-5 mr-2" />
-                {isSaving ? 'A guardar...' : 'Guardar Alterações'}
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+                    A guardar...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-5 w-5 mr-2" />
+                    Guardar Alterações
+                  </>
+                )}
               </Button>
             </div>
           </div>
