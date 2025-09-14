@@ -1,6 +1,4 @@
 # Railway Configuration
-# This file helps Railway understand how to deploy your Next.js app
-
 [build]
 command = "npm run build"
 

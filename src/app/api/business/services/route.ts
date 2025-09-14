@@ -1,118 +1,205 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
-// GET: List services - SIMPLIFIED VERSION
-export async function GET(request: NextRequest) {
+
+// GET: List all services for a business
+export async function GET(req: NextRequest) {
   try {
-    console.log('🔧 GET /api/business/services - Starting...');
+    const user = getRequestAuthUser(req);
     
-    // Simple auth check
-    const user = getRequestAuthUser(request);
-    if (!user || !user.businessId) {
-      console.log('❌ No user or businessId found');
-      return NextResponse.json({ 
-        success: false, 
-        error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } 
-      }, { status: 401 });
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
-    console.log('✅ User authenticated:', user.email);
+    const businessId = user.businessId;
+    
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
+    }
 
-    // Get services with minimal data
-    const services = await prisma.service.findMany({
-      where: {
-        businessId: user.businessId
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        duration: true,
-        price: true,
-        eventType: true,
-        capacity: true,
-        isActive: true,
-        slotsNeeded: true,
-        createdAt: true,
-        updatedAt: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    console.log('🔧 DEBUG: Fetching services for businessId:', businessId);
 
-    console.log('✅ Found services:', services.length);
+    // Use raw SQL to fetch all fields including the new ones
+    const rawServices = await prisma.$queryRaw`
+      SELECT * FROM "Service" 
+      WHERE "businessId" = ${businessId} 
+      ORDER BY "createdAt" DESC
+    ` as any[];
+    
+    const services = rawServices as any[];
 
-    return NextResponse.json({
-      success: true,
-      data: services
-    });
+    console.log('🔧 DEBUG: Found', services.length, 'services for business');
+    console.log('🔧 DEBUG: Latest service:', services[0] ? {
+      id: services[0].id,
+      name: services[0].name,
+      createdAt: services[0].createdAt,
+      slots: services[0].slots
+    } : 'No services found');
 
+    const response = NextResponse.json({ success: true, data: services });
+    
+    // Add anti-cache headers to ensure fresh data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    response.headers.set('Surrogate-Control', 'no-store');
+    
+    return response;
   } catch (error) {
-    console.error('❌ GET /api/business/services error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } 
-    }, { status: 500 });
+    console.error('GET /business/services error:', error);
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Internal Error' } }, { status: 500 });
   }
 }
 
-// POST: Create service - SIMPLIFIED VERSION
+// POST: Create a new service
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔧 POST /api/business/services - Starting...');
-    
     const user = getRequestAuthUser(request);
-    if (!user || !user.businessId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } 
-      }, { status: 401 });
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
-    const body = await request.json();
-    console.log('📋 Request body:', body);
-
-    // Validate required fields
-    if (!body.name || !body.price) {
-      return NextResponse.json({ 
-        success: false, 
-        error: { code: 'VALIDATION_ERROR', message: 'Nome e preço são obrigatórios' } 
-      }, { status: 400 });
+    const businessId = user.businessId;
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
     }
 
-    // Create service with minimal data
+    console.log('🔧 DEBUG: Creating service for businessId:', businessId);
+
+    // Input validation
+    const schema = z.object({
+      name: z.string().min(1),
+      description: z.string().optional(),
+      duration: z.number().int().positive(),
+      price: z.number().nonnegative(),
+      categoryId: z.string().optional(),
+      image: z.string().optional(),
+      // New location and slot fields
+      location: z.string().optional(),
+      address: z.string().optional(),
+      maxCapacity: z.number().int().positive().optional(),
+      availableDays: z.array(z.number().int().min(0).max(6)).optional(),
+      startTime: z.string().optional(),
+      endTime: z.string().optional(),
+      minAdvanceHours: z.number().int().positive().optional(),
+      maxAdvanceDays: z.number().int().positive().optional(),
+      anyTimeAvailable: z.boolean().optional(),
+      slots: z.union([
+        // Old format: array of slots with availableDays
+        z.array(z.object({
+          startTime: z.string(),
+          endTime: z.string(),
+          capacity: z.number().int().positive().optional(),
+          availableDays: z.array(z.number().int().min(0).max(6)).optional()
+        })),
+        // New format: object with day names as keys
+        z.record(z.string(), z.array(z.object({
+          startTime: z.string(),
+          endTime: z.string(),
+          capacity: z.number().int().positive().optional()
+        })))
+      ]).optional(),
+    });
+
+    let body;
+    try {
+      body = await request.json();
+      console.log('🔧 DEBUG: Request body:', body);
+    } catch (err) {
+      console.error('🔧 DEBUG: Invalid JSON body:', err);
+      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
+    }
+
+    let validatedData;
+    try {
+      validatedData = schema.parse(body);
+      console.log('🔧 DEBUG: Validated data:', validatedData);
+    } catch (error) {
+      console.error('🔧 DEBUG: Validation error:', error);
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ success: false, error: { code: 'INVALID_SERVICE_DATA', message: 'Invalid service data', details: error.errors } }, { status: 400 });
+      }
+      throw error;
+    }
+
+    console.log('🔧 DEBUG: Creating service with data:', validatedData);
+
+    // Convert slots from old format to new format if needed
+    let processedSlots = validatedData.slots;
+    if (validatedData.slots && Array.isArray(validatedData.slots)) {
+      console.log('🔄 Converting slots from old format to new day-specific format');
+      
+      // Map day numbers to day names
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const convertedSlots: Record<string, any[]> = {};
+      
+      validatedData.slots.forEach((slot: any) => {
+        if (slot.availableDays && Array.isArray(slot.availableDays)) {
+          // This slot has specific days - add it to each specified day
+          slot.availableDays.forEach((dayNumber: number) => {
+            const dayName = dayNames[dayNumber];
+            if (!convertedSlots[dayName]) {
+              convertedSlots[dayName] = [];
+            }
+            convertedSlots[dayName].push({
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              capacity: slot.capacity
+            });
+          });
+        } else {
+          // This slot has no specific days - add it to all days (legacy behavior)
+          dayNames.forEach(dayName => {
+            if (!convertedSlots[dayName]) {
+              convertedSlots[dayName] = [];
+            }
+            convertedSlots[dayName].push({
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              capacity: slot.capacity
+            });
+          });
+        }
+      });
+      
+      processedSlots = convertedSlots;
+      console.log('🔄 Converted slots:', processedSlots);
+    }
+
     const service = await prisma.service.create({
       data: {
-        id: require('crypto').randomUUID(),
-        businessId: user.businessId,
-        name: body.name,
-        description: body.description || '',
-        duration: body.duration || 30,
-        price: parseFloat(body.price),
-        eventType: body.eventType || 'INDIVIDUAL',
-        capacity: body.capacity || 1,
-        isActive: body.isActive !== false,
-        availabilitySchedule: body.availabilitySchedule || {},
-        slots: {},
-        slotsNeeded: Math.ceil((body.duration || 30) / 30),
-        updatedAt: new Date()
-      }
+        id: randomUUID(),
+        updatedAt: new Date(),
+        businessId,
+        ...validatedData,
+        slots: processedSlots as any, // Cast as any for JSON field - override after spread
+      } as any, // Cast the entire data object to bypass TypeScript issues
     });
 
-    console.log('✅ Service created:', service.id);
-
-    return NextResponse.json({
-      success: true,
-      data: service
+    console.log('🔧 DEBUG: Service created successfully:', {
+      id: service.id,
+      name: service.name,
+      businessId: service.businessId,
+      createdAt: service.createdAt,
+      timestamp: new Date().toISOString()
     });
 
+    return NextResponse.json({ success: true, data: service }, { status: 201 });
   } catch (error) {
-    console.error('❌ POST /api/business/services error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } 
+    console.error('POST /business/services error:', error);
+    return NextResponse.json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : 'Internal Error'
+      }
     }, { status: 500 });
   }
 }
+
+// TODO: Add rate limiting middleware for abuse protection in the future.
