@@ -48,6 +48,9 @@ const publicRoutes = [
   '/auth/client', // Customer authentication pages
   '/auth/customer', // Customer authentication pages
   '/api/auth',
+  '/api/business/services', // Add this API route
+  '/api/business/hours', // Add this API route
+  '/api/business/info', // Add this API route
   '/api/health',
   '/api/debug-auth',
   '/api/debug-auth-flow',
