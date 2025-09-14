@@ -6,10 +6,12 @@ import { cn } from '@/lib/utils';
 import {
   Building2,
   Settings,
+  Tag,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Businesses', href: '/admin/businesses', icon: Building2 },
+  { name: 'Business Categories', href: '/admin/business-categories', icon: Tag },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

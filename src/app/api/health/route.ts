@@ -50,18 +50,27 @@ export async function GET() {
     healthStatus.status = 'degraded'
   }
 
-  try {
-    // Check Redis
-    const redisStartTime = Date.now()
-    const client = await RedisClient.getInstance()
-    await client.ping()
-    healthStatus.services.redis = {
-      status: 'up',
-      latency: Date.now() - redisStartTime
+  // Skip Redis check during build time
+  if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV) {
+    try {
+      // Check Redis
+      const redisStartTime = Date.now()
+      const client = await RedisClient.getInstance()
+      await client.ping()
+      healthStatus.services.redis = {
+        status: 'up',
+        latency: Date.now() - redisStartTime
+      }
+    } catch (error) {
+      logger.error('Redis health check failed', { error })
+      healthStatus.status = 'degraded'
     }
-  } catch (error) {
-    logger.error('Redis health check failed', { error })
-    healthStatus.status = 'degraded'
+  } else {
+    // During build, mark Redis as unavailable
+    healthStatus.services.redis = {
+      status: 'down',
+      latency: 0
+    }
   }
 
   // If all services are down, mark as unhealthy

@@ -1,97 +1,179 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { logger } from '@/lib/logger'; // Assuming a logger utility exists
+import { getRequestAuthUser } from '@/lib/jwt-safe';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    console.log('🔍 /api/business/appointments/check-availability POST - Starting...');
+    
+    const user = getRequestAuthUser(request);
+    if (!user || !user.email) {
+      console.error('❌ Unauthorized: No user or email.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
-    let body;
-    try {
-      body = await request.json();
-    } catch (err) {
-      logger.error('check-availability: Invalid JSON body', { err });
-      return NextResponse.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
-    }
-    const { staffId, date, startTime, duration } = body;
-    if (!staffId || !date || !startTime || !duration) {
-      logger.warn('check-availability: Missing required fields', { body });
-      return NextResponse.json({ success: false, error: { code: 'MISSING_FIELDS', message: 'Missing required fields: staffId, date, startTime, duration' } }, { status: 400 });
-    }
-    const start = new Date(startTime);
-    const end = new Date(start.getTime() + duration * 60000);
-    
-    logger.info(`check-availability: Checking for staff ${staffId} between ${start.toISOString()} and ${end.toISOString()}`);
+    console.log('👤 User authenticated:', { email: user.email, role: user.role, businessId: user.businessId });
 
-    // 1. Check for explicit unavailability (vacation, sick, etc.)
-    const unavailabilities = await prisma.staffUnavailability.findMany({
-      where: {
-        staffId,
-        start: { lte: end },
-        end: { gte: start },
-      },
-    });
-    if (unavailabilities.length > 0) {
-      logger.info(`check-availability: Staff ${staffId} is unavailable due to explicit block.`, { unavailabilities });
-      return NextResponse.json({
-        success: true,
-        data: {
-          available: false,
-          reason: 'Explicit unavailability',
-          unavailabilities,
+    // Get the staff member and their business or use business from session
+    let businessId = user.businessId;
+    
+    if (!businessId && user.role === 'STAFF') {
+      const staff = await prisma.staff.findUnique({
+        where: { email: user.email },
+        include: { Business: true }
+      });
+      businessId = staff?.Business?.id;
+    }
+
+    if (!businessId) {
+      console.error('❌ No business ID found for user.');
+      return NextResponse.json({ success: false, error: { code: 'NO_BUSINESS', message: 'No business found' } }, { status: 400 });
+    }
+
+    const body = await request.json();
+    console.log('📋 Request body:', body);
+
+    // Support both single time check and bulk time check
+    if (body.timeSlots && Array.isArray(body.timeSlots)) {
+      // BULK CHECK - Check multiple time slots at once
+      console.log('🚀 Performing BULK availability check for', body.timeSlots.length, 'time slots');
+      
+      const { staffId, date, duration, timeSlots } = body;
+      
+      if (!staffId || !date || !duration || !timeSlots.length) {
+        return NextResponse.json({ 
+          success: false, 
+          error: { code: 'MISSING_FIELDS', message: 'Missing required fields for bulk check' } 
+        }, { status: 400 });
+      }
+
+      const results: {[key: string]: { available: boolean, reason?: string }} = {};
+      
+      // Get all existing appointments for this staff member on this date
+      const existingAppointments = await prisma.appointments.findMany({
+        where: {
+          staffId: staffId,
+          scheduledFor: {
+            gte: new Date(`${date}T00:00:00.000Z`),
+            lt: new Date(`${date}T23:59:59.999Z`)
+          },
+          status: {
+            in: ['PENDING', 'CONFIRMED']
+          }
+        },
+        select: {
+          scheduledFor: true,
+          duration: true
         }
       });
-    }
 
-    // 2. Check for overlapping appointments
-    const conflictingAppointments = await prisma.appointments.findMany({
-      where: {
-        staffId,
-        status: { not: 'CANCELLED' },
-        scheduledFor: {
-          lt: end,
-        },
-      },
-    });
+      console.log('📅 Found', existingAppointments.length, 'existing appointments for staff on', date);
 
-    const trueConflict = conflictingAppointments.find((appt: any) => {
-      const existingStart = appt.scheduledFor;
-      const existingEnd = new Date(existingStart.getTime() + appt.duration * 60000);
-      return existingStart < end && existingEnd > start;
-    });
+      // Check each time slot
+      for (const timeSlot of timeSlots) {
+        const startTime = new Date(`${date}T${timeSlot}:00.000Z`);
+        const endTime = new Date(startTime.getTime() + (duration * 60 * 1000));
 
-    if (trueConflict) {
-        logger.info(`check-availability: Staff ${staffId} has a conflicting appointment.`, { trueConflict });
-        return NextResponse.json({
-          success: true,
-          data: {
-            available: false,
-            reason: 'Overlapping appointment',
-            overlapping: trueConflict,
-          }
+        // Check for conflicts with existing appointments
+        const hasConflict = existingAppointments.some(appointment => {
+          const appointmentStart = new Date(appointment.scheduledFor);
+          const appointmentEnd = new Date(appointmentStart.getTime() + (appointment.duration * 60 * 1000));
+
+          return (
+            (startTime >= appointmentStart && startTime < appointmentEnd) ||
+            (endTime > appointmentStart && endTime <= appointmentEnd) ||
+            (startTime <= appointmentStart && endTime >= appointmentEnd)
+          );
         });
-    }
 
-    // 3. Otherwise, staff is fully available
-    logger.info(`check-availability: Staff ${staffId} is available.`);
-    return NextResponse.json({
-      success: true,
-      data: {
-        available: true,
-        reason: 'Fully available by default',
+        results[timeSlot] = {
+          available: !hasConflict,
+          reason: hasConflict ? 'Time slot conflicts with existing appointment' : undefined
+        };
       }
-    });
+
+      console.log('✅ Bulk check completed in single database query');
+      return NextResponse.json({ 
+        success: true, 
+        data: { 
+          type: 'bulk',
+          results: results
+        } 
+      });
+      
+    } else {
+      // SINGLE CHECK - Original functionality
+      const { staffId, date, time, duration } = body;
+      
+      if (!staffId || !date || !time || !duration) {
+        return NextResponse.json({ 
+          success: false, 
+          error: { code: 'MISSING_FIELDS', message: 'Missing required fields' } 
+        }, { status: 400 });
+      }
+
+      console.log('🔍 Checking availability:', { staffId, date, time, duration });
+
+      const startTime = new Date(`${date}T${time}:00.000Z`);
+      const endTime = new Date(startTime.getTime() + (duration * 60 * 1000));
+
+      console.log('⏰ Time range:', { startTime: startTime.toISOString(), endTime: endTime.toISOString() });
+
+      // Check for conflicting appointments
+      const conflictingAppointments = await prisma.appointments.findMany({
+        where: {
+          staffId: staffId,
+          scheduledFor: {
+            gte: new Date(`${date}T00:00:00.000Z`),
+            lt: new Date(`${date}T23:59:59.999Z`)
+          },
+          status: {
+            in: ['PENDING', 'CONFIRMED']
+          }
+        }
+      });
+
+      console.log('📋 Found', conflictingAppointments.length, 'existing appointments for staff on this date');
+
+      const hasConflict = conflictingAppointments.some(appointment => {
+        const appointmentStart = new Date(appointment.scheduledFor);
+        const appointmentEnd = new Date(appointmentStart.getTime() + (appointment.duration * 60 * 1000));
+
+        const conflict = (
+          (startTime >= appointmentStart && startTime < appointmentEnd) ||
+          (endTime > appointmentStart && endTime <= appointmentEnd) ||
+          (startTime <= appointmentStart && endTime >= appointmentEnd)
+        );
+
+        if (conflict) {
+          console.log('❌ Conflict found with appointment:', {
+            appointmentId: appointment.id,
+            appointmentStart: appointmentStart.toISOString(),
+            appointmentEnd: appointmentEnd.toISOString(),
+            requestedStart: startTime.toISOString(),
+            requestedEnd: endTime.toISOString()
+          });
+        }
+
+        return conflict;
+      });
+
+      const available = !hasConflict;
+      console.log('🎯 Final availability result:', { available, hasConflict });
+
+      return NextResponse.json({ 
+        success: true, 
+        data: { 
+          available,
+          reason: hasConflict ? 'Time slot conflicts with existing appointment' : undefined
+        } 
+      });
+    }
   } catch (error) {
-    logger.error('check-availability: An unexpected error occurred', {
-       message: error instanceof Error ? error.message : 'Unknown error',
-       stack: error instanceof Error ? error.stack : undefined,
-       details: error 
-    });
-    return NextResponse.json({ success: false, error: { code: 'AVAILABILITY_CHECK_ERROR', message: error instanceof Error ? error.message : 'Internal Server Error' } }, { status: 500 });
+    console.error('❌ Error in check-availability:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } 
+    }, { status: 500 });
   }
 } 

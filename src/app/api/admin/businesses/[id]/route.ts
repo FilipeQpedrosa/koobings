@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRequestAuthUser } from '@/lib/jwt';  // Use the same JWT system as status API
+import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { verifyUltraSecureSessionV2 } from '@/lib/ultra-secure-auth-v2'; // Add this import
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
@@ -22,12 +23,29 @@ export async function GET(request: NextRequest, { params }: any) {
   try {
     console.log('🔍 GET Business request for ID:', params.id);
 
-    // Use the same JWT authentication as the status API
-    const user = getRequestAuthUser(request);
+    // 🚀 PRIORITY 1: Try Ultra-Secure Session first
+    console.log('🔍 Checking Ultra-Secure session for individual business...');
+    let user = null;
+    const ultraSecureSession = verifyUltraSecureSessionV2(request);
+    
+    if (ultraSecureSession && ultraSecureSession.role === 'ADMIN') {
+      console.log('✅ Ultra-Secure admin session verified for individual business:', ultraSecureSession.email);
+      user = {
+        id: ultraSecureSession.userId,
+        email: ultraSecureSession.email,
+        role: 'ADMIN',
+        isAdmin: true
+      };
+    } else {
+      // 🔄 FALLBACK: Try JWT token
+      console.log('🔍 Fallback to JWT verification for individual business...');
+      user = getRequestAuthUser(request);
+    }
+    
     console.log('🔧 [DEBUG] Authentication result:', user ? { id: user.id, email: user.email, role: user.role, isAdmin: user.isAdmin } : 'No user found');
     
     if (!user) {
-      console.log('❌ [DEBUG] No authenticated user found');
+      console.log('❌ [DEBUG] Both Ultra-Secure and JWT verification failed for individual business');
       return NextResponse.json(
         { error: 'Não autenticado' },
         { status: 401 }
@@ -43,7 +61,7 @@ export async function GET(request: NextRequest, { params }: any) {
       );
     }
 
-    console.log('✅ Admin access verified for:', user.email);
+    console.log('✅ Admin access verified for individual business:', user.email);
 
     const business = await prisma.business.findUnique({
       where: { id: params.id },
@@ -135,12 +153,29 @@ export async function PUT(
   try {
     console.log('🔍 PUT Business request for ID:', params.id);
 
-    // Use the same JWT authentication as the status API
-    const user = getRequestAuthUser(request);
+    // 🚀 PRIORITY 1: Try Ultra-Secure Session first
+    console.log('🔍 Checking Ultra-Secure session for PUT individual business...');
+    let user = null;
+    const ultraSecureSession = verifyUltraSecureSessionV2(request);
+    
+    if (ultraSecureSession && ultraSecureSession.role === 'ADMIN') {
+      console.log('✅ Ultra-Secure admin session verified for PUT individual business:', ultraSecureSession.email);
+      user = {
+        id: ultraSecureSession.userId,
+        email: ultraSecureSession.email,
+        role: 'ADMIN',
+        isAdmin: true
+      };
+    } else {
+      // 🔄 FALLBACK: Try JWT token
+      console.log('🔍 Fallback to JWT verification for PUT individual business...');
+      user = getRequestAuthUser(request);
+    }
+    
     console.log('🔧 [DEBUG] Authentication result:', user ? { id: user.id, email: user.email, role: user.role, isAdmin: user.isAdmin } : 'No user found');
     
     if (!user) {
-      console.log('❌ [DEBUG] No authenticated user found');
+      console.log('❌ [DEBUG] Both Ultra-Secure and JWT verification failed for PUT individual business');
       return NextResponse.json(
         { error: 'Não autenticado' },
         { status: 401 }
@@ -156,7 +191,7 @@ export async function PUT(
       );
     }
 
-    console.log('✅ Admin access verified for:', user.email);
+    console.log('✅ Admin access verified for PUT individual business:', user.email);
 
     const body = await request.json();
     console.log('📝 Raw request body:', body);
@@ -190,8 +225,17 @@ export async function PUT(
     if (body.address !== undefined) {
       updateData.address = body.address;
     }
+    if (body.description !== undefined) {
+      updateData.description = body.description;
+    }
+    if (body.type && ['basic', 'standard', 'premium'].includes(body.type)) {
+      updateData.type = body.type;
+    }
     if (body.status && ['ACTIVE', 'PENDING', 'SUSPENDED', 'INACTIVE'].includes(body.status)) {
       updateData.status = body.status;
+    }
+    if (body.settings && typeof body.settings === 'object') {
+      updateData.settings = body.settings;
     }
 
     console.log('📋 Safe update data:', updateData);

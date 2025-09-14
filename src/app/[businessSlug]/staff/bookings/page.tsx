@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { format, isToday, isTomorrow, isThisWeek, isThisMonth, startOfDay, endOfDay, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatAppointmentTime, formatTimeOnly, formatDateOnly, formatRelativeDate, formatPortugueseDate, getPortugueseTime } from '@/lib/utils/date';
 import AppointmentDetailsModal from '@/components/AppointmentDetailsModal';
 
 interface Booking {
@@ -258,15 +259,25 @@ export default function StaffBookingsPage() {
   };
 
   const formatDateTime = (dateTimeString: string) => {
-    const date = new Date(dateTimeString);
-    const dateStr = format(date, 'dd/MM/yyyy', { locale: ptBR });
-    const timeStr = format(date, 'HH:mm');
-    const dayStr = format(date, 'EEEE', { locale: ptBR });
+    // Use Portuguese timezone formatting functions
+    const dateStr = formatDateOnly(dateTimeString);
+    const timeStr = formatTimeOnly(dateTimeString);
+    const dayStr = formatPortugueseDate(dateTimeString, 'EEEE');
     
-    // Add relative time indicators
+    // Add relative time indicators using Portuguese timezone
+    const date = new Date(dateTimeString);
+    const portugalNow = getPortugueseTime();
+    
     let relativeStr = '';
-    if (isToday(date)) relativeStr = 'Hoje';
-    else if (isTomorrow(date)) relativeStr = 'Amanhã';
+    // Convert dates to Portuguese timezone for comparison
+    const appointmentDatePT = new Date(date.toLocaleString("en-US", {timeZone: "Europe/Lisbon"}));
+    const currentDatePT = new Date(portugalNow.toLocaleString("en-US", {timeZone: "Europe/Lisbon"}));
+    
+    const diffInDays = Math.floor((appointmentDatePT.getTime() - currentDatePT.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) relativeStr = 'Hoje';
+    else if (diffInDays === 1) relativeStr = 'Amanhã';
+    else if (diffInDays === -1) relativeStr = 'Ontem';
     
     return { dateStr, timeStr, dayStr, relativeStr };
   };

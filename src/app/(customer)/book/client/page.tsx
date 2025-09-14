@@ -37,7 +37,7 @@ export default function BookingClientInfo() {
     setError('');
 
     try {
-      const response = await fetch('/api/client/onboarding', {
+      const response = await fetch('/api/customer/onboarding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { verifyUltraSecureSessionV2 } from '@/lib/ultra-secure-auth-v2';
 import { z } from 'zod';
 
 // 🛡️ Server-side user data validation schema
@@ -48,14 +49,49 @@ function validateAndSanitizeUser(user: any) {
   return parsed.data;
 }
 
+/**
+ * Convert ultra-secure session to user format
+ */
+function convertUltraSecureSessionToUser(session: any) {
+  return {
+    id: session.userId,
+    userId: session.userId,
+    email: session.email,
+    name: session.email.split('@')[0], // Fallback name
+    role: session.role,
+    isAdmin: session.role === 'ADMIN',
+    securityLevel: session.securityLevel
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Verifying auth token...');
+    console.log('🔍 [VERIFY_TOKEN] Verifying auth token...');
     
+    // 🚀 PRIORITY 1: Try Ultra-Secure Admin Session first
+    const ultraSecureSession = verifyUltraSecureSessionV2(request);
+    if (ultraSecureSession && ultraSecureSession.role === 'ADMIN') {
+      console.log('🔑 [VERIFY_TOKEN] Found ULTRA-SECURE admin session');
+      
+      const adminUser = convertUltraSecureSessionToUser(ultraSecureSession);
+      const validatedUser = validateAndSanitizeUser(adminUser);
+      
+      if (validatedUser) {
+        console.log('✅ [VERIFY_TOKEN] Ultra-secure admin validation successful:', validatedUser.email);
+        return NextResponse.json({ 
+          success: true,
+          authenticated: true, 
+          user: validatedUser,
+          security: 'ULTRA_SECURE_ADMIN'
+        });
+      }
+    }
+    
+    // 🔄 FALLBACK: Try regular JWT authentication
     const user = getRequestAuthUser(request);
     
     if (!user) {
-      console.log('❌ No valid token found');
+      console.log('❌ [VERIFY_TOKEN] No valid token found');
       return NextResponse.json({ success: false, authenticated: false }, { status: 401 });
     }
     
@@ -63,19 +99,20 @@ export async function GET(request: NextRequest) {
     const validatedUser = validateAndSanitizeUser(user);
     
     if (!validatedUser) {
-      console.error('🚨 SERVER: User data validation failed, rejecting token');
+      console.error('🚨 [VERIFY_TOKEN] User data validation failed, rejecting token');
       return NextResponse.json({ success: false, authenticated: false, error: 'Invalid user data' }, { status: 401 });
     }
     
-    console.log('✅ Token valid and data validated for user:', validatedUser.name);
+    console.log('✅ [VERIFY_TOKEN] Regular JWT validation successful for user:', validatedUser.name);
     
     return NextResponse.json({ 
       success: true,
       authenticated: true, 
-      user: validatedUser
+      user: validatedUser,
+      security: 'STANDARD_JWT'
     });
   } catch (error) {
-    console.error('🚨 Token verification error:', error);
+    console.error('🚨 [VERIFY_TOKEN] Token verification error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 } 

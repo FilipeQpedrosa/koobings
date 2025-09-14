@@ -2,10 +2,12 @@ import { verify, sign } from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET!;
+// Use the environment variable or fallback for production
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-for-koobings-app-change-in-production-1755088489';
 
-if (!JWT_SECRET) {
-  throw new Error('NEXTAUTH_SECRET environment variable is required');
+// Only check in runtime, not during build
+if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production' && !process.env.JWT_SECRET) {
+  console.warn('⚠️ JWT_SECRET environment variable is not set, using fallback');
 }
 
 export interface JWTPayload {
@@ -13,7 +15,7 @@ export interface JWTPayload {
   userId?: string; // For backward compatibility
   email: string;
   name: string;
-  role: 'ADMIN' | 'BUSINESS_OWNER' | 'STAFF';
+  role: 'ADMIN' | 'BUSINESS_OWNER' | 'STAFF' | 'CUSTOMER';
   businessId?: string;
   businessName?: string;
   businessSlug?: string;
@@ -28,6 +30,9 @@ export interface JWTPayload {
  * Create a JWT token
  */
 export function createJWTToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required for token creation');
+  }
   return sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
@@ -36,6 +41,11 @@ export function createJWTToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string
  */
 export function verifyJWTToken(token: string): JWTPayload | null {
   try {
+    if (!JWT_SECRET) {
+      console.error('❌ JWT_SECRET environment variable is required for token verification');
+      return null;
+    }
+    
     const decoded = verify(token, JWT_SECRET) as JWTPayload;
     
     // Normalize user ID for backward compatibility

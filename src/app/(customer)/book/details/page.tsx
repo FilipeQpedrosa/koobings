@@ -215,6 +215,16 @@ export default function CustomerDetailsPage() {
       // Ensure we have businessSlug (fallback to known value if needed)
       const finalBusinessSlug = businessSlug || 'mari-nails';
 
+      // 🎯 NEW: Check if we should use the slot system
+      const useSlotSystem = new URLSearchParams(window.location.search).get('useSlots') === 'true';
+      
+      if (useSlotSystem) {
+        console.log('🎯 [CUSTOMER_DETAILS] Using slot system - redirecting to slots page');
+        const slotsUrl = `/book/slots?businessSlug=${finalBusinessSlug}&serviceId=${serviceId}&staffId=${staffId}&date=${selectedDate}`;
+        router.push(slotsUrl);
+        return;
+      }
+
       const appointmentData = {
         businessSlug: finalBusinessSlug,
         serviceId: serviceId,
@@ -372,6 +382,30 @@ export default function CustomerDetailsPage() {
               )}
             />
 
+            {/* Slot System Option */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-blue-900">🎯 Novo Sistema de Slots</h3>
+                  <p className="text-sm text-blue-700">
+                    Experimente o nosso novo sistema de reservas com horários fixos de 30 minutos para maior precisão!
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const finalBusinessSlug = businessSlug || 'mari-nails';
+                    const slotsUrl = `/book/slots?businessSlug=${finalBusinessSlug}&serviceId=${serviceId}&staffId=${staffId}`;
+                    router.push(slotsUrl);
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  disabled={isLoading}
+                >
+                  Usar Sistema de Slots
+                </Button>
+              </div>
+            </div>
+
             <div className="flex justify-between pt-6">
               <Button
                 type="button"
@@ -393,7 +427,7 @@ export default function CustomerDetailsPage() {
                     Criando Agendamento...
                   </>
                 ) : (
-                  'Confirmar Agendamento'
+                  'Confirmar Agendamento (Sistema Antigo)'
                 )}
               </Button>
             </div>

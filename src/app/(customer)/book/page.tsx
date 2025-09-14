@@ -15,6 +15,12 @@ interface Service {
   description?: string;
   duration: number;
   price?: number;
+  // Add availability information
+  availableDays?: number[];
+  anyTimeAvailable?: boolean;
+  slots?: any;
+  startTime?: string;
+  endTime?: string;
 }
 
 interface Business {
@@ -51,7 +57,7 @@ export default function ServiceSelectionPage() {
       try {
         console.log('🔍 Fetching services for business:', businessSlug);
         
-        const response = await fetch(`/api/client/services?businessSlug=${businessSlug}`);
+        const response = await fetch(`/api/customer/services?businessSlug=${businessSlug}`);
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -89,26 +95,48 @@ export default function ServiceSelectionPage() {
     }
 
     fetchServices();
-  }, [businessSlug, toast, router]);
+  }, [businessSlug]); // Removed toast and router to prevent infinite loops
 
   const filteredServices = services.filter(service =>
     service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     service.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const formatPrice = (price?: number) => {
-    if (!price) return 'Consultar preço';
-    return `€${price}`;
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h${remainingMinutes > 0 ? ` ${remainingMinutes}min` : ''}`;
+    }
+    return `${minutes}min`;
   };
 
-  const formatDuration = (duration: number) => {
-    if (duration >= 60) {
-      const hours = Math.floor(duration / 60);
-      const minutes = duration % 60;
-      if (minutes === 0) return `${hours}h`;
-      return `${hours}h ${minutes}min`;
+  const formatPrice = (price?: number) => {
+    if (!price || price === 0) return 'Consultar';
+    return `€${price.toFixed(2)}`;
+  };
+
+  // Format availability information
+  const formatAvailabilityInfo = (service: Service) => {
+    const info = [];
+    
+    // Days availability
+    if (service.availableDays && service.availableDays.length > 0) {
+      const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const availableDayNames = service.availableDays.map(day => dayNames[day]);
+      info.push(`📅 ${availableDayNames.join(', ')}`);
     }
-    return `${duration}min`;
+    
+    // Time slots or flexible
+    if (service.slots && !service.anyTimeAvailable) {
+      info.push(`🎯 Horários específicos`);
+    } else if (service.anyTimeAvailable) {
+      info.push(`🕐 Horário flexível`);
+    } else if (service.startTime && service.endTime) {
+      info.push(`🕐 ${service.startTime} - ${service.endTime}`);
+    }
+    
+    return info;
   };
 
   const handleContinue = () => {
@@ -196,6 +224,11 @@ export default function ServiceSelectionPage() {
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="font-medium">⏱️ {formatDuration(service.duration)}</span>
                         <span className="font-medium">💰 {formatPrice(service.price)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-2">
+                        {formatAvailabilityInfo(service).map((info, index) => (
+                          <span key={index}>{info}</span>
+                        ))}
                       </div>
                     </div>
                     <div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-300 flex-shrink-0 ml-4">

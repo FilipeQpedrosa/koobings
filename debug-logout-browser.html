@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Logout</title>
+</head>
+<body>
+    <h1>Debug Logout Issue</h1>
+    <div id="output"></div>
+    
+    <script>
+    function log(message) {
+        const output = document.getElementById('output');
+        output.innerHTML += message + '<br>';
+        console.log(message);
+    }
+    
+    async function testLogoutFlow() {
+        try {
+            log('🧪 TESTING LOGOUT FLOW IN BROWSER...');
+            
+            // Step 1: Check current auth status
+            log('🔍 Step 1: Checking current auth status...');
+            try {
+                const profileResponse = await fetch('/api/customer/profile', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                log(`👤 Profile check: ${profileResponse.status}`);
+                const profileData = await profileResponse.json();
+                log(`📄 Profile data: ${JSON.stringify(profileData)}`);
+                
+                if (profileResponse.status === 401) {
+                    log('❌ User is not logged in - cannot test logout');
+                    return;
+                }
+            } catch (e) {
+                log(`❌ Profile check error: ${e.message}`);
+            }
+            
+            // Step 2: Perform logout
+            log('🚪 Step 2: Performing logout...');
+            try {
+                const logoutResponse = await fetch('/api/auth/client/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                log(`🚪 Logout response: ${logoutResponse.status}`);
+                const logoutData = await logoutResponse.json();
+                log(`📄 Logout data: ${JSON.stringify(logoutData)}`);
+            } catch (e) {
+                log(`❌ Logout error: ${e.message}`);
+            }
+            
+            // Step 3: Wait and check auth status again
+            log('⏱️ Step 3: Waiting 2 seconds and checking auth again...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            try {
+                const postLogoutResponse = await fetch('/api/customer/profile', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                log(`👤 Post-logout profile check: ${postLogoutResponse.status}`);
+                const postLogoutData = await postLogoutResponse.json();
+                log(`📄 Post-logout data: ${JSON.stringify(postLogoutData)}`);
+                
+                if (postLogoutResponse.status === 200) {
+                    log('🚨 PROBLEM: User is still logged in after logout!');
+                } else {
+                    log('✅ SUCCESS: User is properly logged out');
+                }
+            } catch (e) {
+                log(`❌ Post-logout check error: ${e.message}`);
+            }
+            
+            // Step 4: Check cookies
+            log('🍪 Step 4: Checking cookies...');
+            log(`📋 All cookies: ${document.cookie}`);
+            
+            // Step 5: Check localStorage
+            log('�� Step 5: Checking localStorage...');
+            log(`📋 localStorage length: ${localStorage.length}`);
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                log(`📋 localStorage[${key}] = ${localStorage.getItem(key)}`);
+            }
+            
+        } catch (error) {
+            log(`❌ CRITICAL ERROR: ${error.message}`);
+        }
+    }
+    
+    // Run test when page loads
+    window.onload = testLogoutFlow;
+    </script>
+</body>
+</html>

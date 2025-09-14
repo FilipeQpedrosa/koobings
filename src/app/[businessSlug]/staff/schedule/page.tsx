@@ -95,6 +95,100 @@ export default function StaffSchedule() {
     return Object.values(groups);
   }, []);
 
+  // Load appointments for the entire week when in week view
+  const loadWeekAppointments = useCallback(async () => {
+    if (view !== 'week') return;
+    
+    setIsLoading(true);
+    
+    try {
+      const weekStart = getWeekStartDate(selectedDate);
+      const weekDays = getWeekDays(weekStart);
+      
+      console.log('📅 Schedule: Fetching week appointments for:', weekDays.map(d => d.toISOString().split('T')[0]));
+      
+      // Fetch appointments for all days in the week
+      const weekAppointments: { [key: string]: AppointmentEvent[] } = {};
+      
+      for (const day of weekDays) {
+        const timestamp = Date.now();
+        const dayStr = day.toISOString().split('T')[0];
+        const apiUrl = `/api/business/appointments?date=${dayStr}&t=${timestamp}`;
+        
+        const response = await fetch(apiUrl, { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const appointmentsArray = data?.data?.appointments || [];
+          
+          const formattedAppointments: AppointmentEvent[] = appointmentsArray.map((apt: any) => {
+            const startTime = new Date(apt.scheduledFor);
+            const endTime = new Date(startTime.getTime() + (apt.duration || 60) * 60000);
+            
+            return {
+              id: apt.id,
+              clientName: apt.client?.name || 'Cliente Desconhecido',
+              service: apt.services?.[0]?.name || 'Serviço Desconhecido',
+              startTime: startTime.toISOString(),
+              endTime: endTime.toISOString(),
+              duration: apt.duration || 60,
+              status: apt.status?.toLowerCase() === 'pending' ? 'pending' : 
+                     apt.status?.toLowerCase() === 'accepted' ? 'accepted' :
+                     apt.status?.toLowerCase() === 'rejected' ? 'rejected' :
+                     apt.status?.toLowerCase() === 'completed' ? 'completed' : 
+                     apt.status?.toLowerCase() === 'cancelled' ? 'cancelled' : 'confirmed',
+              phone: apt.client?.phone,
+              notes: apt.notes,
+              slotInfo: apt.slotInfo || undefined
+            };
+          });
+          
+          weekAppointments[dayStr] = formattedAppointments;
+        }
+      }
+      
+      console.log('📅 Schedule: Week appointments loaded:', Object.keys(weekAppointments).length, 'days');
+      setWeekAppointments(weekAppointments);
+      
+    } catch (error) {
+      console.error('❌ Schedule: Error fetching week appointments:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedDate, view]);
+
+  // Add state for week appointments
+  const [weekAppointments, setWeekAppointments] = useState<{ [key: string]: AppointmentEvent[] }>({});
+
+  // Add state for business hours
+  const [businessHours, setBusinessHours] = useState<any[]>([]);
+
+  // Load business hours
+  const loadBusinessHours = useCallback(async () => {
+    try {
+      const response = await fetch('/api/business/hours', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setBusinessHours(data.data || []);
+          console.log('📅 Schedule: Business hours loaded:', data.data);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Schedule: Error loading business hours:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (loading) return;
     
@@ -103,8 +197,14 @@ export default function StaffSchedule() {
       return;
     }
     
-    loadAppointments();
-  }, [user, loading, authenticated, router, selectedDate]);
+    loadBusinessHours(); // Load business hours on mount
+
+    if (view === 'week') {
+      loadWeekAppointments();
+    } else {
+      loadAppointments();
+    }
+  }, [user, loading, authenticated, router, selectedDate, view, loadWeekAppointments, loadBusinessHours]);
 
   const loadAppointments = useCallback(async () => {
     setIsLoading(true);
@@ -218,12 +318,54 @@ export default function StaffSchedule() {
 
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 8; hour <= 19; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        slots.push(timeStr);
+    
+    // Get today's day of week (0 = Sunday, 6 = Saturday)
+    const today = selectedDate.getDay();
+    const todayHours = businessHours.find(h => h.day === today);
+    
+    if (!todayHours || !todayHours.isOpen) {
+      console.log('📅 Schedule: Business is closed today');
+      return [];
+    }
+    
+    if (!todayHours.start || !todayHours.end) {
+      console.log('📅 Schedule: No hours defined for today, using default 8-19');
+      // Fallback to default hours
+      for (let hour = 8; hour <= 19; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          slots.push(timeStr);
+        }
+      }
+      return slots;
+    }
+    
+    // Parse business hours
+    const startParts = todayHours.start.split(':');
+    const endParts = todayHours.end.split(':');
+    const startHour = parseInt(startParts[0]);
+    const startMinute = parseInt(startParts[1]);
+    const endHour = parseInt(endParts[0]);
+    const endMinute = parseInt(endParts[1]);
+    
+    console.log(`📅 Schedule: Business hours for today: ${todayHours.start} - ${todayHours.end}`);
+    
+    // Generate slots within business hours
+    let currentHour = startHour;
+    let currentMinute = startMinute;
+    
+    while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+      const timeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+      slots.push(timeStr);
+      
+      // Increment by 30 minutes
+      currentMinute += 30;
+      if (currentMinute >= 60) {
+        currentMinute = 0;
+        currentHour++;
       }
     }
+    
     return slots;
   };
 
@@ -234,6 +376,41 @@ export default function StaffSchedule() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const formatWeekRange = (startDate: Date) => {
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+    
+    const startStr = startDate.toLocaleDateString('pt-PT', {
+      day: 'numeric',
+      month: 'short'
+    });
+    const endStr = endDate.toLocaleDateString('pt-PT', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+    
+    return `${startStr} - ${endStr}`;
+  };
+
+  const getWeekDays = (startDate: Date) => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(startDate);
+      day.setDate(day.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
+  const getWeekStartDate = (date: Date) => {
+    const start = new Date(date);
+    const day = start.getDay();
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday start
+    start.setDate(diff);
+    return start;
   };
 
   const timeSlots = generateTimeSlots();
@@ -275,6 +452,31 @@ export default function StaffSchedule() {
     });
   };
 
+  const getAppointmentForDayAndTime = (day: Date, timeSlot: string) => {
+    const dayStr = day.toISOString().split('T')[0];
+    const dayAppointments = weekAppointments[dayStr] || [];
+    
+    return dayAppointments.find(apt => {
+      const aptTime = new Date(apt.startTime).toLocaleTimeString('pt-PT', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      return aptTime === timeSlot;
+    });
+  };
+
+  const getStatusColorWeek = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 border-green-300 text-green-800';
+      case 'pending': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+      case 'accepted': return 'bg-blue-100 border-blue-300 text-blue-800';
+      case 'rejected': return 'bg-red-100 border-red-300 text-red-800';
+      case 'completed': return 'bg-blue-100 border-blue-300 text-blue-800';
+      case 'cancelled': return 'bg-red-100 border-red-300 text-red-800';
+      default: return 'bg-gray-100 border-gray-300 text-gray-800';
+    }
+  };
+
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -284,137 +486,279 @@ export default function StaffSchedule() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Header with Create Appointment Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center space-x-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
-            <p className="text-gray-600 mt-1">Manage your appointments</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <Button
-            variant={view === 'day' ? 'default' : 'outline'}
-            onClick={() => setView('day')}
-            size="sm"
-          >
-            Day
-          </Button>
-          <Button
-            variant={view === 'week' ? 'default' : 'outline'}
-            onClick={() => setView('week')}
-            size="sm"
-          >
-            Week
-          </Button>
-        </div>
-      </div>
-
-      {/* Date Navigation */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigateDate('prev')}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        
-        <div className="text-center">
-          <h2 className="text-xl font-semibold">{formatDate(selectedDate)}</h2>
-        </div>
-        
-        <Button variant="outline" onClick={() => navigateDate('next')}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Schedule Grid */}
-      <div className="space-y-2">
-        {timeSlots.map((timeSlot) => {
-          const event = getEventForTimeSlot(timeSlot);
-          
-          return (
-            <div
-              key={timeSlot}
-              className="flex items-center border-b border-gray-100 py-2 hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-20 text-sm text-gray-600 font-medium">
-                {timeSlot}
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Modern Header */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Agenda</h1>
+              <p className="text-gray-600">Gerir os seus agendamentos</p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {/* View Toggle */}
+              <div className="bg-gray-100 rounded-lg p-1 flex">
+                <Button
+                  variant={view === 'day' ? 'default' : 'ghost'}
+                  onClick={() => setView('day')}
+                  size="sm"
+                  className={view === 'day' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}
+                >
+                  Dia
+                </Button>
+                <Button
+                  variant={view === 'week' ? 'default' : 'ghost'}
+                  onClick={() => setView('week')}
+                  size="sm"
+                  className={view === 'week' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}
+                >
+                  Semana
+                </Button>
               </div>
               
-              <div className="flex-1 ml-4">
-                {event ? (
+              {/* New Appointment Button */}
+              <Button 
+                onClick={() => setShowBookingModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Marcação
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Modern Date Navigation */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => navigateDate('prev')}
+              className="border-gray-300 hover:bg-gray-50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {view === 'day' ? formatDate(selectedDate) : formatWeekRange(getWeekStartDate(selectedDate))}
+              </h2>
+              {view === 'day' && (
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedDate.toLocaleDateString('pt-PT', { weekday: 'long' })}
+                </p>
+              )}
+            </div>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => navigateDate('next')}
+              className="border-gray-300 hover:bg-gray-50"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Modern Schedule Grid */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {view === 'day' ? (
+            // Modern Day View
+            <div className="divide-y divide-gray-200">
+              {timeSlots.map((timeSlot) => {
+                const event = getEventForTimeSlot(timeSlot);
+                
+                return (
                   <div
-                    className={`p-3 rounded-lg border-l-4 cursor-pointer ${getStatusColor(event.participants[0]?.status || 'confirmed')}`}
-                    onClick={() => handleViewAppointment(event.participants[0])}
+                    key={timeSlot}
+                    className="flex items-center hover:bg-gray-50 transition-colors duration-150"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {event.isSlotBased ? (
-                            <>
-                              {event.serviceName} ({event.startTime} - {event.endTime})
-                              <span className="ml-2 text-sm text-blue-600">
-                                {event.participants.length}{event.capacity ? `/${event.capacity}` : ''} participantes
-                              </span>
-                            </>
-                          ) : (
-                            event.participants[0]?.clientName || 'Cliente Desconhecido'
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {event.isSlotBased ? (
-                            <div className="space-y-1">
-                              {event.participants.map((participant, idx) => (
-                                <div key={participant.id} className="flex items-center">
-                                  <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-                                  {participant.clientName}
-                                </div>
-                              ))}
-                              {event.capacity && event.participants.length < event.capacity && (
-                                <div className="text-gray-400 italic">
-                                  {event.capacity - event.participants.length} vagas disponíveis
+                    <div className="w-24 py-4 px-6 text-sm font-medium text-gray-500 bg-gray-50">
+                      {timeSlot}
+                    </div>
+                    
+                    <div className="flex-1 p-4">
+                      {event ? (
+                        <div
+                          className={`p-4 rounded-lg border-l-4 cursor-pointer transition-all duration-200 hover:shadow-md ${getStatusColor(event.participants[0]?.status || 'confirmed')}`}
+                          onClick={() => handleViewAppointment(event.participants[0])}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900 mb-1">
+                                {event.isSlotBased ? (
+                                  <>
+                                    {event.serviceName}
+                                    <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      {event.participants.length}{event.capacity ? `/${event.capacity}` : ''} pessoas
+                                    </span>
+                                  </>
+                                ) : (
+                                  event.participants[0]?.clientName || 'Cliente Desconhecido'
+                                )}
+                              </div>
+                              
+                              <div className="text-sm text-gray-600 mb-2">
+                                {event.isSlotBased ? (
+                                  <div className="space-y-1">
+                                    {event.participants.map((participant, idx) => (
+                                      <div key={participant.id} className="flex items-center">
+                                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                                        <span>{participant.clientName}</span>
+                                      </div>
+                                    ))}
+                                    {event.capacity && event.participants.length < event.capacity && (
+                                      <div className="text-gray-400 italic">
+                                        {event.capacity - event.participants.length} vagas disponíveis
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center">
+                                    <Clock className="h-4 w-4 mr-1" />
+                                    {event.serviceName} • {event.duration}min
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {!event.isSlotBased && (
+                                <div className="flex items-center">
+                                  <Badge variant={
+                                    event.participants[0]?.status === 'confirmed' ? 'default' :
+                                    event.participants[0]?.status === 'pending' ? 'secondary' :
+                                    event.participants[0]?.status === 'cancelled' ? 'destructive' : 'outline'
+                                  }>
+                                    {getStatusText(event.participants[0]?.status || 'confirmed')}
+                                  </Badge>
                                 </div>
                               )}
                             </div>
-                          ) : (
-                            `${event.serviceName} (${event.duration}min)`
-                          )}
-                        </div>
-                        {!event.isSlotBased && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            {getStatusText(event.participants[0]?.status || 'confirmed')}
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditAppointment(event.participants[0]);
+                              }}
+                              className="ml-4 hover:bg-white hover:shadow-sm"
+                            >
+                              {event.isSlotBased ? 'Gerir' : 'Ver Detalhes'}
+                            </Button>
                           </div>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditAppointment(event.participants[0]);
-                        }}
-                      >
-                        {event.isSlotBased ? 'Gerir' : 'Edit'}
-                      </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-4 rounded-lg border-2 border-dashed border-gray-200"
+                          onClick={() => handleNewBooking(timeSlot)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Horário disponível - Click para agendar
+                        </Button>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-gray-400 hover:text-gray-600"
-                    onClick={() => handleNewBooking(timeSlot)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Available
-                  </Button>
-                )}
+                );
+              })}
+            </div>
+          ) : (
+            // Modern Week View
+            <div className="overflow-x-auto">
+              <div className="min-w-full">
+                {/* Week header with days */}
+                <div className="grid grid-cols-8 gap-px bg-gray-200">
+                  <div className="bg-gray-50 p-4 text-sm font-medium text-gray-900">
+                    Hora
+                  </div>
+                  {getWeekDays(getWeekStartDate(selectedDate)).map((day, index) => {
+                    const isToday = isSameDay(day, new Date());
+                    return (
+                      <div 
+                        key={index} 
+                        className={cn(
+                          "bg-white p-4 text-center border-b-2",
+                          isToday ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                        )}
+                      >
+                        <div className={cn(
+                          "text-sm font-semibold",
+                          isToday ? "text-blue-900" : "text-gray-900"
+                        )}>
+                          {day.toLocaleDateString('pt-PT', { weekday: 'short' })}
+                        </div>
+                        <div className={cn(
+                          "text-lg font-bold mt-1",
+                          isToday ? "text-blue-600" : "text-gray-700"
+                        )}>
+                          {day.getDate()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {day.toLocaleDateString('pt-PT', { month: 'short' })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Week grid with time slots */}
+                <div className="grid grid-cols-8 gap-px bg-gray-200">
+                  {timeSlots.map((timeSlot) => (
+                    <React.Fragment key={timeSlot}>
+                      <div className="bg-gray-50 p-3 text-xs font-medium text-gray-600 border-r border-gray-200">
+                        {timeSlot}
+                      </div>
+                      {getWeekDays(getWeekStartDate(selectedDate)).map((day, dayIndex) => {
+                        const isToday = isSameDay(day, new Date());
+                        const isPast = day < startOfDay(new Date());
+                        const appointment = getAppointmentForDayAndTime(day, timeSlot);
+                        
+                        return (
+                          <div 
+                            key={dayIndex} 
+                            className={cn(
+                              "bg-white min-h-[80px] p-2 cursor-pointer transition-all duration-200 hover:bg-blue-50 border-b border-gray-100",
+                              isToday && "bg-blue-25",
+                              isPast && "bg-gray-50"
+                            )}
+                            onClick={() => {
+                              if (appointment) {
+                                handleViewAppointment(appointment);
+                              } else {
+                                setSelectedDate(day);
+                                setView('day');
+                              }
+                            }}
+                          >
+                            {isToday && (
+                              <div className="text-xs text-blue-600 font-semibold mb-1">Hoje</div>
+                            )}
+                            {appointment ? (
+                              <div className={cn(
+                                "p-2 rounded-md text-xs font-medium",
+                                getStatusColorWeek(appointment.status)
+                              )}>
+                                {appointment.clientName}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-gray-400 text-center mt-4">
+                                Click para ver
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
-      {/* View Appointment Modal */}
+      {/* Modals remain the same */}
       {showViewModal && selectedAppointment && (
         <AppointmentDetailsModal
           isOpen={showViewModal}
@@ -422,10 +766,10 @@ export default function StaffSchedule() {
           appointment={{
             id: selectedAppointment.id,
             clientName: selectedAppointment.clientName,
-            clientEmail: selectedAppointment.phone || '', // Use phone as fallback for email
-            clientId: '', // Not available in AppointmentEvent
+            clientEmail: selectedAppointment.phone || '',
+            clientId: '',
             serviceName: selectedAppointment.service,
-            staffName: 'Staff', // Not available in AppointmentEvent
+            staffName: 'Staff',
             scheduledFor: selectedAppointment.startTime,
             duration: selectedAppointment.duration,
             status: selectedAppointment.status.toUpperCase(),
@@ -433,19 +777,18 @@ export default function StaffSchedule() {
           }}
           onNoteAdded={() => {
             closeModals();
-            loadAppointments(); // Reload appointments after adding note
+            loadAppointments();
           }}
         />
       )}
 
-      {/* New Booking Modal */}
       {showBookingModal && (
         <BookingModal
           isOpen={showBookingModal}
           onClose={() => setShowBookingModal(false)}
           onBookingCreated={() => {
             setShowBookingModal(false);
-            loadAppointments(); // Reload appointments after booking is created
+            loadAppointments();
           }}
         />
       )}

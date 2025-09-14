@@ -3,11 +3,12 @@
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { GlobalCustomerHeader } from '@/components/layout/GlobalCustomerHeader';
 
 const steps = [
   { id: 'service', label: 'Service', path: '/book' },
-  { id: 'datetime', label: 'Date & Time', path: '/book/datetime' },
   { id: 'staff', label: 'Provider', path: '/book/staff' },
+  { id: 'datetime', label: 'Date & Time', path: '/book/datetime' },
   { id: 'details', label: 'Details', path: '/book/details' },
   { id: 'confirm', label: 'Confirm', path: '/book/confirm' }
 ];
@@ -22,6 +23,9 @@ export default function BookingLayout({
 
   return (
     <div className="min-h-screen bg-gray-50/30">
+      {/* Global Customer Header */}
+      <GlobalCustomerHeader />
+      
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
           {/* Progress Steps */}

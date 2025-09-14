@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Logout - Koobings</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .log { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 10px 0; border-radius: 5px; white-space: pre-wrap; font-family: monospace; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Logout - Koobings</h1>
+    
+    <div>
+        <button class="button" onclick="checkProfile()">1. Check Profile</button>
+        <button class="button" onclick="testLogout()">2. Test Logout</button>
+        <button class="button" onclick="checkCookies()">3. Check Cookies</button>
+        <button class="button" onclick="clearAll()">4. Clear All</button>
+    </div>
+    
+    <div class="log" id="logOutput">Ready to test...\n</div>
+
+    <script>
+        const logOutput = document.getElementById('logOutput');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            logOutput.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        function clearLog() {
+            logOutput.innerHTML = '';
+        }
+
+        async function checkProfile() {
+            log('🔍 Checking customer profile...', 'info');
+            
+            try {
+                const response = await fetch('/api/customer/profile', {
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-cache'
+                });
+                
+                log(`📊 Profile response status: ${response.status}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Profile data: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ Profile error: ${errorText}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogout() {
+            log('🚪 Testing logout...', 'info');
+            
+            try {
+                const response = await fetch('/api/auth/client/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                log(`📊 Logout response status: ${response.status}`, 'info');
+                log(`📋 Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Logout success: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ Logout error: ${errorText}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+
+        function checkCookies() {
+            log('🍪 Checking cookies...', 'info');
+            
+            const cookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            
+            if (cookies.length === 0) {
+                log('🔍 No cookies found', 'info');
+            } else {
+                cookies.forEach(cookie => {
+                    log(`🍪 ${cookie}`, 'info');
+                });
+            }
+            
+            // Check localStorage
+            log('📦 Checking localStorage...', 'info');
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                log(`📦 ${key}: ${value}`, 'info');
+            }
+            
+            // Check sessionStorage
+            log('🗂️ Checking sessionStorage...', 'info');
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                const value = sessionStorage.getItem(key);
+                log(`🗂️ ${key}: ${value}`, 'info');
+            }
+        }
+
+        function clearAll() {
+            log('🧹 Clearing all data...', 'info');
+            
+            // Clear localStorage
+            localStorage.clear();
+            log('✅ localStorage cleared', 'success');
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            log('✅ sessionStorage cleared', 'success');
+            
+            // Clear cookies (what we can clear)
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+            log('✅ Client-side cookies cleared', 'success');
+            
+            log('🔄 Now test profile again to confirm logout...', 'info');
+        }
+    </script>
+</body>
+</html> 

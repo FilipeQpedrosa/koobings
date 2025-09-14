@@ -9,30 +9,32 @@ datasource db {
 }
 
 model Business {
-  id                            String                  @id
-  createdAt                     DateTime                @default(now())
+  id                            String                     @id
+  createdAt                     DateTime                   @default(now())
   updatedAt                     DateTime
   name                          String
   ownerName                     String?
-  email                         String                  @unique
+  email                         String                     @unique
   phone                         String?
   address                       String?
   website                       String?
   description                   String?
   logo                          String?
   settings                      Json?
-  type                          BusinessType            @default(HAIR_SALON)
-  status                        BusinessStatus          @default(PENDING)
+  type                          BusinessType               @default(HAIR_SALON)
+  status                        BusinessStatus             @default(PENDING)
   passwordHash                  String
-  allowStaffToViewAllBookings   Boolean                 @default(false)
-  restrictStaffToViewAllClients Boolean                 @default(false)
-  restrictStaffToViewAllNotes   Boolean                 @default(false)
-  requireAdminCancelApproval    Boolean                 @default(false)
-  slug                          String                  @unique
+  allowStaffToViewAllBookings   Boolean                    @default(false)
+  restrictStaffToViewAllClients Boolean                    @default(false)
+  restrictStaffToViewAllNotes   Boolean                    @default(false)
+  requireAdminCancelApproval    Boolean                    @default(false)
+  slug                          String                     @unique
   BusinessHours                 BusinessHours[]
+  BusinessSlotConfiguration     BusinessSlotConfiguration?
   Client                        Client[]
   ClientRelationship            ClientRelationship[]
   Service                       Service[]
+  SlotTemplate                  SlotTemplate[]
   Staff                         Staff[]
   appointments                  appointments[]
   business_verifications        business_verifications?
@@ -43,22 +45,22 @@ model Business {
   service_categories            service_categories[]
   staff_permissions             staff_permissions[]
   visit_history                 visit_history[]
-  system_admins                 system_admins[]         @relation("SystemAdminToBusinesses")
+  system_admins                 system_admins[]            @relation("SystemAdminToBusinesses")
 
   @@index([email])
   @@index([slug])
 }
 
 model BusinessHours {
-  id               String   @id
-  businessId       String
-  dayOfWeek        Int
-  isOpen           Boolean
-  startTime        String?
-  endTime          String?
-  lunchBreakStart  String?
-  lunchBreakEnd    String?
-  Business         Business @relation(fields: [businessId], references: [id])
+  id              String   @id
+  businessId      String
+  dayOfWeek       Int
+  isOpen          Boolean
+  startTime       String?
+  endTime         String?
+  lunchBreakEnd   String?
+  lunchBreakStart String?
+  Business        Business @relation(fields: [businessId], references: [id])
 }
 
 model Client {
@@ -152,34 +154,43 @@ model Provider {
 }
 
 model Service {
-  id                 String              @id
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime
-  name               String
-  description        String?
-  duration           Int
-  price              Float
-  businessId         String
-  categoryId         String?
-  image              String?
-  address            String?
-  anyTimeAvailable   Boolean?            @default(false)
-  availableDays      Int[]               @default([])
-  endTime            String?
-  location           String?
-  maxAdvanceDays     Int                 @default(30)
-  maxCapacity        Int?                @default(1)
-  minAdvanceHours    Int                 @default(24)
-  slots              Json?
-  startTime          String?
-  Business           Business            @relation(fields: [businessId], references: [id])
-  service_categories service_categories? @relation(fields: [categoryId], references: [id])
-  appointments       appointments[]
-  Staff              Staff[]             @relation("StaffServices")
+  id                   String              @id
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime
+  name                 String
+  description          String?
+  duration             Int
+  price                Float
+  businessId           String
+  categoryId           String?
+  image                String?
+  address              String?
+  anyTimeAvailable     Boolean?            @default(false)
+  availableDays        Int[]               @default([])
+  endTime              String?
+  location             String?
+  maxAdvanceDays       Int                 @default(30)
+  maxCapacity          Int?                @default(1)
+  minAdvanceHours      Int                 @default(24)
+  slots                Json?
+  startTime            String?
+  slotConfiguration    Json?
+  slotsNeeded          Int                 @default(1)
+  availabilitySchedule Json?
+  capacity             Int                 @default(1)
+  eventType            EventType           @default(INDIVIDUAL)
+  isActive             Boolean             @default(true)
+  Business             Business            @relation(fields: [businessId], references: [id])
+  service_categories   service_categories? @relation(fields: [categoryId], references: [id])
+  appointments         appointments[]
+  Staff                Staff[]             @relation("StaffServices")
 
   @@index([businessId])
   @@index([categoryId])
   @@index([location])
+  @@index([slotsNeeded])
+  @@index([eventType])
+  @@index([isActive])
 }
 
 model Staff {
@@ -207,12 +218,14 @@ model Staff {
 }
 
 model StaffAvailability {
-  id        String   @id
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-  staffId   String   @unique
-  schedule  Json     @default("{}")
-  Staff     Staff    @relation(fields: [staffId], references: [id])
+  id           String   @id
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+  staffId      String   @unique
+  schedule     Json     @default("{}")
+  slotSchedule Json?
+  workingSlots Json?
+  Staff        Staff    @relation(fields: [staffId], references: [id])
 
   @@index([staffId])
 }
@@ -226,6 +239,42 @@ model StaffUnavailability {
   createdAt DateTime @default(now())
   updatedAt DateTime
   Staff     Staff    @relation(fields: [staffId], references: [id])
+}
+
+model BusinessSlotConfiguration {
+  id                  String   @id
+  businessId          String   @unique
+  slotDurationMinutes Int      @default(30)
+  slotsPerDay         Int      @default(48)
+  startHour           Int      @default(0)
+  endHour             Int      @default(24)
+  timeZone            String   @default("UTC")
+  slotConfiguration   Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime
+  Business            Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+}
+
+model SlotTemplate {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  slotsNeeded Int
+  duration    Int
+  category    String?
+  isDefault   Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  businessId  String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Business    Business? @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([isDefault])
+  @@index([category])
 }
 
 model accounts {
@@ -269,6 +318,10 @@ model appointments {
   businessId             String
   recurringAppointmentId String?
   slotInfo               Json?
+  endSlot                Int?
+  slotDetails            Json?
+  slotsUsed              Int?
+  startSlot              Int?
   Business               Business                @relation(fields: [businessId], references: [id])
   Client                 Client                  @relation(fields: [clientId], references: [id])
   recurring_appointments recurring_appointments? @relation(fields: [recurringAppointmentId], references: [id])
@@ -282,6 +335,8 @@ model appointments {
   @@index([recurringAppointmentId])
   @@index([serviceId])
   @@index([staffId])
+  @@index([startSlot, endSlot])
+  @@index([scheduledFor])
 }
 
 model backup_status {
@@ -648,6 +703,11 @@ enum StaffRole {
   ADMIN
   MANAGER
   STANDARD
+}
+
+enum EventType {
+  INDIVIDUAL
+  GROUP
 }
 
 enum VerificationStatus {

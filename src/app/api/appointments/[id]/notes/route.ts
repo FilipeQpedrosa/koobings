@@ -90,3 +90,64 @@ export async function POST(req: NextRequest, { params }: any) {
     return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create appointment note' } }, { status: 500 });
   }
 } 
+
+// GET /api/appointments/[id]/notes - Get all notes for an appointment
+export async function GET(req: NextRequest, { params }: any) {
+  try {
+    const user = getRequestAuthUser(req);
+    
+    if (!user) {
+      console.error('Unauthorized: No JWT token.');
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
+    }
+
+    const businessId = user.businessId;
+    
+    if (!businessId) {
+      return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing business ID' } }, { status: 400 });
+    }
+
+    const appointmentId = params.id;
+
+    // First, verify the appointment belongs to this business
+    const appointment = await prisma.appointments.findUnique({
+      where: { 
+        id: appointmentId,
+        businessId: businessId 
+      },
+      select: {
+        id: true,
+        clientId: true
+      }
+    });
+
+    if (!appointment) {
+      return NextResponse.json({ success: false, error: { code: 'APPOINTMENT_NOT_FOUND', message: 'Appointment not found' } }, { status: 404 });
+    }
+
+    // Get all notes for this appointment
+    const notes = await prisma.relationship_notes.findMany({
+      where: {
+        appointmentId: appointmentId,
+        businessId: businessId
+      },
+      include: {
+        Staff: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return NextResponse.json({ success: true, data: notes }, { status: 200 });
+    
+  } catch (error) {
+    console.error('GET /appointments/[id]/notes error:', error);
+    return NextResponse.json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch appointment notes' } }, { status: 500 });
+  }
+} 

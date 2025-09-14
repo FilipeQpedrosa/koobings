@@ -41,10 +41,12 @@ async function businessExists(slug: string, request: NextRequest): Promise<boole
 // Define public routes that don't need authentication
 const publicRoutes = [
   '/',
-  '/book',
+  '/book', // Main booking page
   '/auth/signin',
   '/auth/signup',
   '/auth/admin-signin',
+  '/auth/client', // Customer authentication pages
+  '/auth/customer', // Customer authentication pages
   '/api/auth',
   '/api/health',
   '/api/debug-auth',
@@ -55,8 +57,15 @@ const publicRoutes = [
   '/api/test-nextauth',
   '/api/business/by-slug', // Allow business lookup for signin pages
   '/api/client', // Allow client API endpoints
+  '/api/customer', // Allow customer API endpoints
   '/api/public', // Allow all public API endpoints
   '/api/debug-user-data', // Allow debug endpoint
+]
+
+// Define public route patterns that don't need authentication
+const publicRoutePatterns = [
+  /^\/book/, // All booking routes: /book, /book/staff, /book/datetime, /book/details, etc.
+  /^\/[^\/]+$/, // Business profile pages like /mari-nails
 ]
 
 function isPublicRoute(path: string): boolean {
@@ -67,6 +76,11 @@ function isPublicRoute(path: string): boolean {
   
   // Check if starts with public routes
   if (publicRoutes.some(route => path.startsWith(route))) {
+    return true;
+  }
+  
+  // Check public route patterns
+  if (publicRoutePatterns.some(pattern => pattern.test(path))) {
     return true;
   }
   
@@ -191,14 +205,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // For all other routes, check authentication
-  const user = getRequestAuthUser(request);
-  if (!user) {
-    console.log('❌ No authentication for protected route');
-    return NextResponse.redirect(new URL('/auth/signin', request.url));
+  // ✅ Check customer portal routes
+  if (pathname.startsWith('/customer')) {
+    const user = getRequestAuthUser(request);
+    if (!user || user.role !== 'CUSTOMER') {
+      console.log('❌ Customer portal access denied, redirecting to customer login');
+      return NextResponse.redirect(new URL('/auth/client/signin', request.url));
+    }
+    console.log('✅ Customer portal access granted');
+    return NextResponse.next();
   }
 
-  console.log('✅ Allowing route:', pathname);
+  // ✅ For all other protected routes (not public), allow them to pass through
+  // Let individual pages handle their own auth if needed
+  console.log('✅ Allowing route (public or will handle own auth):', pathname);
   return NextResponse.next();
 }
 

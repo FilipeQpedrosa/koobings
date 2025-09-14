@@ -23,13 +23,10 @@ export default function ClientSigninPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string>(''); // Add server error state
   const [showRegisteredMessage, setShowRegisteredMessage] = useState(false);
 
   useEffect(() => {
-    // Clear any existing session data on page load
-    sessionStorage.clear();
-    localStorage.clear();
-    
     // Show success message if coming from registration
     if (searchParams?.get('registered') === 'true') {
       setShowRegisteredMessage(true);
@@ -69,19 +66,8 @@ export default function ClientSigninPage() {
 
     try {
       setIsLoading(true);
+      setServerError(''); // Clear previous server errors
       
-      // Clear any existing session data before login
-      sessionStorage.clear();
-      localStorage.clear();
-      
-      // Clear all cookies
-      document.cookie.split(";").forEach(cookie => {
-        const eqPos = cookie.indexOf("=");
-        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-      });
-
       const response = await fetch('/api/auth/client/signin', {
         method: 'POST',
         headers: {
@@ -102,19 +88,66 @@ export default function ClientSigninPage() {
           description: `Bem-vindo, ${data.user?.name || 'Cliente'}!`,
         });
         
-        // Small delay to ensure cookie is set
+        // 🧹 CLEAR LOGOUT STATE ON SUCCESSFUL LOGIN
+        if (typeof window !== 'undefined') {
+          console.log('🧹 Clearing logout state after successful login...');
+          try {
+            const { clearLogoutState } = await import('@/lib/logout-tracker');
+            clearLogoutState(data.user?.email);
+          } catch (error) {
+            console.warn('⚠️ Failed to clear logout state:', error);
+          }
+        }
+        
+        // Trigger auth refresh for GlobalCustomerHeader
+        console.log('🎉 Login successful, triggering auth refresh...');
+        
+        // Method 1: Custom event
+        const event = new CustomEvent('customer-login-success', { 
+          detail: { user: data.user } 
+        });
+        window.dispatchEvent(event);
+        
+        // Method 2: LocalStorage event (for cross-tab communication)
+        localStorage.setItem('customer-login-success', Date.now().toString());
+        localStorage.removeItem('customer-login-success');
+        
+        // Delay to ensure cookie is set and auth refresh is triggered
         setTimeout(() => {
+          // Check if there's a booking flow to continue
+          const bookingState = sessionStorage.getItem('bookingState');
+          if (bookingState) {
+            try {
+              const booking = JSON.parse(bookingState);
+              console.log('🔄 Continuing booking flow after login:', booking.returnTo);
+              sessionStorage.removeItem('bookingState'); // Clean up
+              router.push(booking.returnTo);
+              return;
+            } catch (error) {
+              console.error('❌ Error parsing booking state:', error);
+            }
+          }
+          
+          console.log('🔄 Redirecting to homepage after login...');
           router.push('/');
-          router.refresh(); // Force refresh to pick up new session
-        }, 100);
+        }, 2000); // Increased from 1000ms to 2000ms for better synchronization
       } else {
-        throw new Error(data.error?.message || 'Credenciais inválidas');
+        // Set server error to display on page
+        const errorMessage = data.error?.message || 'Email ou password incorretos';
+        setServerError(errorMessage);
+        toast({
+          title: "Erro no login",
+          description: errorMessage,
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Login error:', error);
+      const errorMessage = error instanceof Error ? error.message : "Falha no login. Verifique as suas credenciais.";
+      setServerError(errorMessage);
       toast({
         title: "Erro no login",
-        description: error instanceof Error ? error.message : "Falha no login. Verifique as suas credenciais.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -128,6 +161,11 @@ export default function ClientSigninPage() {
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    
+    // Clear server error when user starts typing
+    if (serverError) {
+      setServerError('');
     }
   };
 
@@ -241,6 +279,13 @@ export default function ClientSigninPage() {
                   <p className="text-red-500 text-sm">{errors.password}</p>
                 )}
               </div>
+
+              {/* Server Error Display */}
+              {serverError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-red-600 text-sm font-medium">{serverError}</p>
+                </div>
+              )}
 
               {/* Submit Button */}
               <Button

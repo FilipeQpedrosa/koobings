@@ -1,14 +1,14 @@
 // CACHE BUSTER - 04/08/2025 15:01 - FORCE ENDPOINT CACHE INVALIDATION
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { startOfDay, endOfDay, parseISO } from 'date-fns';
-import { z } from 'zod';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
 // Force Node.js runtime for Prisma compatibility
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     // Debug: Check if Prisma is initialized
     console.log('🔍 Prisma client status:', !!prisma);
     console.log('🔍 Prisma type:', typeof prisma);
-    console.log('🔍 Prisma appointment model:', !!prisma?.appointment);
+    console.log('🔍 Prisma appointments model:', !!prisma?.appointments);
     
     // Get authenticated user
     const user = getRequestAuthUser(request);
@@ -96,6 +96,24 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    // Get date filter from query parameters (for weekly view)
+    const url = new URL(request.url);
+    const dateFilter = url.searchParams.get('date');
+    console.log('🔍 Date filter from query:', dateFilter);
+    
+    // Build date filtering for appointments
+    let dateFilterClause = {};
+    if (dateFilter) {
+      // Filter for specific date (YYYY-MM-DD format)
+      dateFilterClause = {
+        scheduledFor: {
+          gte: new Date(`${dateFilter}T00:00:00.000Z`),
+          lt: new Date(`${dateFilter}T23:59:59.999Z`)
+        }
+      };
+      console.log('🔍 Using date filter clause:', dateFilterClause);
+    }
+    
     // Query with proper relationships
     console.log('🔍 Querying appointments for businessId:', businessId);
     
@@ -103,7 +121,7 @@ export async function GET(request: NextRequest) {
     try {
       // @ts-ignore - Schema uses 'appointments' model, TypeScript is incorrect
       appointments = await prisma.appointments.findMany({
-        where: { businessId },
+        where: { businessId, ...dateFilterClause },
         include: {
           Client: {
             select: {
@@ -248,6 +266,9 @@ export async function POST(request: NextRequest) {
     
     const { clientId, serviceIds, scheduledFor, notes, staffId, slotInfo } = parsed;
     console.log('[POST /api/business/appointments] body:', parsed);
+    console.log('[POST /api/business/appointments] notes received:', notes);
+    console.log('[POST /api/business/appointments] notes type:', typeof notes);
+    console.log('[POST /api/business/appointments] notes length:', notes?.length);
     console.log('[POST /api/business/appointments] slotInfo:', slotInfo);
 
     // For now, we'll just use the first service ID (can be enhanced later for multiple services)
@@ -284,6 +305,64 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(), // Add explicit updatedAt
     };
 
+    console.log('📝 [NOTES DEBUG] Final notes value being stored:', appointmentData.notes);
+    console.log('📝 [NOTES DEBUG] Full appointment data:', appointmentData);
+
+    // 🔧 MANDATORY CONFLICT CHECK - Prevent duplicate appointments
+    console.log('🔍 Checking for appointment conflicts before creation...');
+    const appointmentEnd = new Date(scheduledDateTime.getTime() + service.duration * 60000);
+    
+    // Use same date filtering as check-availability endpoint
+    const dateStr = scheduledDateTime.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const conflictingAppointments = await prisma.appointments.findMany({
+      where: {
+        staffId: staffId,
+        businessId: businessId,
+        status: { 
+          in: ['PENDING', 'CONFIRMED'] // Use same status filter as availability check
+        },
+        scheduledFor: {
+          gte: new Date(`${dateStr}T00:00:00.000Z`),
+          lt: new Date(`${dateStr}T23:59:59.999Z`)
+        }
+      }
+    });
+
+    console.log('📋 Found', conflictingAppointments.length, 'existing appointments for conflict check');
+
+    // Check for time overlap using same logic as check-availability
+    const hasConflict = conflictingAppointments.some((existingApt: any) => {
+      const existingStart = new Date(existingApt.scheduledFor);
+      const existingEnd = new Date(existingStart.getTime() + existingApt.duration * 60000);
+      
+      // Use exact same overlap logic as check-availability endpoint
+      const overlaps = (
+        (scheduledDateTime >= existingStart && scheduledDateTime < existingEnd) ||
+        (appointmentEnd > existingStart && appointmentEnd <= existingEnd) ||
+        (scheduledDateTime <= existingStart && appointmentEnd >= existingEnd)
+      );
+      
+      if (overlaps) {
+        console.log(`⚠️ CONFLICT DETECTED: Existing appointment ${existingApt.id} from ${existingStart.toISOString()} to ${existingEnd.toISOString()}`);
+        console.log(`⚠️ New appointment would be from ${scheduledDateTime.toISOString()} to ${appointmentEnd.toISOString()}`);
+      }
+      
+      return overlaps;
+    });
+
+    if (hasConflict) {
+      console.log('❌ Appointment creation blocked due to conflict');
+      return NextResponse.json({ 
+        success: false, 
+        error: { 
+          code: 'APPOINTMENT_CONFLICT', 
+          message: 'Este horário já está ocupado para este funcionário. Por favor, escolha outro horário.' 
+        } 
+      }, { status: 409 });
+    }
+
+    console.log('✅ No conflicts found, proceeding with appointment creation...');
+
     // If this is a slot-based booking, store slot information
     if (slotInfo) {
       appointmentData.slotInfo = slotInfo;
@@ -319,6 +398,48 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('[POST /api/business/appointments] Appointment created successfully:', appointment.id);
+
+    // 📝 CREATE RELATIONSHIP NOTE if appointment has notes
+    if (notes && notes.trim()) {
+      try {
+        console.log('📝 Creating relationship note for appointment with notes...');
+        
+        // Format the appointment context for the note
+        const appointmentDate = scheduledDateTime.toLocaleDateString('pt-PT');
+        const appointmentTime = scheduledDateTime.toLocaleTimeString('pt-PT', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        
+        const contextualNote = `📅 Agendamento ${appointmentDate} às ${appointmentTime}\n🔹 Serviço: ${service.name}\n📝 Nota: ${notes}\n🔗 ID Marcação: ${appointment.id}`;
+        
+        // Get staff ID for the note
+        let noteStaffId = staffId;
+        if (user.role === 'BUSINESS_OWNER') {
+          // If business owner created it, try to find a staff member or use the selected staff
+          noteStaffId = staffId;
+        }
+        
+        // Create the relationship note
+        await prisma.relationship_notes.create({
+          data: {
+            id: randomUUID(),
+            clientId: clientId,
+            content: contextualNote,
+            createdById: noteStaffId,
+            businessId: businessId,
+            noteType: 'GENERAL', // Add required noteType field (valid enum value)
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        });
+        
+        console.log('✅ Relationship note created successfully');
+      } catch (noteError) {
+        console.error('⚠️ Failed to create relationship note (non-blocking):', noteError);
+        // Don't fail the appointment creation if note creation fails
+      }
+    }
 
     // 🔔 SEND AUTOMATIC NOTIFICATIONS FOR NEW APPOINTMENT
     try {
