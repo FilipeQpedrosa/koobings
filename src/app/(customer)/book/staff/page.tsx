@@ -49,7 +49,7 @@ export default function StaffSelectionPage() {
       try {
         console.log('👥 Fetching staff for business:', businessSlug);
         
-        const response = await fetch(`/api/client/staff?businessSlug=${businessSlug}`);
+        const response = await fetch(`/api/customer/staff?businessSlug=${businessSlug}`);
         
         if (!response.ok) {
           if (response.status === 404) {

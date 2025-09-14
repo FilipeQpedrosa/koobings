@@ -1,55 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getUltraSecureCookieOptions, createEmergencyClearResponse } from '@/lib/ultra-secure-auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[CLIENT_LOGOUT] Starting logout...');
+    console.log('[SIMPLE_LOGOUT] 🚪 Simple customer logout...');
     
-    // Create response
+    // 🚀 Simple and effective logout response
     const response = NextResponse.json({
-      success: true,
-      message: 'Logout realizado com sucesso'
+      ...createEmergencyClearResponse(),
+      message: 'Logout realizado com sucesso',
+      timestamp: new Date().toISOString()
     });
 
-    // Clear the authentication cookie
-    response.cookies.set('auth-token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 0, // Expire immediately
-      path: '/'
+    // Clear ONLY the main authentication cookies (avoid problematic ones)
+    const mainAuthCookies = [
+      'auth-token',           // Our main cookie
+      'customer-auth',        // Backup customer cookie
+      'session',              // Generic session
+      'sessionid',            // Alternative session
+      'jwt',                  // JWT token
+      'token'                 // Generic token
+    ];
+
+    // Strategy 1: Clear main cookies with proper options
+    mainAuthCookies.forEach(cookieName => {
+      response.cookies.set(cookieName, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: -1,
+        expires: new Date(0),
+        path: '/'
+      });
     });
 
-    // Also clear any other potential auth cookies
-    response.cookies.set('next-auth.session-token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 0,
-      path: '/'
+    // Strategy 2: Delete cookies explicitly
+    mainAuthCookies.forEach(cookieName => {
+      response.cookies.delete(cookieName);
     });
 
-    response.cookies.set('__Secure-next-auth.session-token', '', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: 0,
-      path: '/'
-    });
+    // Add cache prevention headers
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate, private');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
 
-    console.log('[CLIENT_LOGOUT] ✅ Logout successful');
+    console.log('[SIMPLE_LOGOUT] ✅ Simple logout completed - cookies cleared');
 
     return response;
 
   } catch (error) {
-    console.error('[CLIENT_LOGOUT] ❌ Logout error:', error);
+    console.error('[SIMPLE_LOGOUT] ❌ Error:', error);
     
     return NextResponse.json(
       { 
         success: false, 
-        error: { 
-          code: 'LOGOUT_ERROR', 
-          message: 'Erro interno do servidor' 
-        } 
+        error: 'Logout failed',
+        message: 'Erro no logout'
       },
       { status: 500 }
     );

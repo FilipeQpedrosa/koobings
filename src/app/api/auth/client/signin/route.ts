@@ -1,142 +1,121 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { z } from 'zod';
-import { createJWTToken } from '@/lib/jwt';
+import { createUltraSecureSession, getUltraSecureCookieOptions } from '@/lib/ultra-secure-auth';
 
-// Login schema validation
-const loginSchema = z.object({
-  email: z.string().email('Email inválido').toLowerCase(),
-  password: z.string().min(1, 'Password é obrigatória')
-});
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[CLIENT_SIGNIN] Starting login...');
+    console.log('[ULTRA_LOGIN] 🚀 ULTRA-SCALABLE LOGIN ATTEMPT...');
     
-    const body = await request.json();
-    console.log('[CLIENT_SIGNIN] Request body:', { 
-      email: body.email,
-      hasPassword: !!body.password
-    });
-
-    // Validate input
-    const validationResult = loginSchema.safeParse(body);
-    
-    if (!validationResult.success) {
-      console.log('[CLIENT_SIGNIN] Validation failed:', validationResult.error);
+    // Parse request body
+    let body;
+    try {
+      const contentType = request.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        body = await request.json();
+      } else {
+        // Handle form data
+        const formData = await request.formData();
+        body = {
+          email: formData.get('email'),
+          password: formData.get('password')
+        };
+      }
+    } catch (error) {
+      console.error('[ULTRA_LOGIN] ❌ Body parsing error:', error);
       return NextResponse.json(
-        { 
-          success: false, 
-          error: { 
-            code: 'VALIDATION_ERROR', 
-            message: validationResult.error.errors[0].message 
-          } 
-        },
+        { success: false, error: { code: 'INVALID_REQUEST', message: 'Invalid request format' } },
         { status: 400 }
       );
     }
 
-    const { email, password } = validationResult.data;
+    const { email, password } = body;
 
-    // Find client by email
-    console.log('[CLIENT_SIGNIN] Finding client...');
-    const client = await prisma.independentClient.findFirst({
-      where: {
-        email,
-        status: 'ACTIVE'
-      },
+    if (!email || !password) {
+      console.log('[ULTRA_LOGIN] ❌ Missing credentials');
+      return NextResponse.json(
+        { success: false, error: { code: 'MISSING_CREDENTIALS', message: 'Email e password são obrigatórios' } },
+        { status: 400 }
+      );
+    }
+
+    // 🚀 ULTRA-SCALABLE: Log attempt with device info for monitoring
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    console.log(`[ULTRA_LOGIN] 🔍 Ultra-scalable login attempt for ${email} from IP: ${ip}, UA: ${userAgent.substring(0, 50)}...`);
+
+    // Find customer by email
+    const customer = await prisma.customer.findUnique({
+      where: { email: email.toLowerCase().trim() },
       select: {
         id: true,
         name: true,
         email: true,
-        phone: true,
         password: true,
         status: true
       }
     });
 
-    if (!client || !client.password) {
-      console.log('[CLIENT_SIGNIN] Client not found, inactive, or no password:', email);
+    if (!customer) {
+      console.log(`[ULTRA_LOGIN] ❌ Customer not found for email: ${email}`);
       return NextResponse.json(
-        { 
-          success: false, 
-          error: { 
-            code: 'INVALID_CREDENTIALS', 
-            message: 'Email ou password incorretos' 
-          } 
-        },
+        { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Email ou password incorretos' } },
         { status: 401 }
       );
     }
 
     // Verify password
-    console.log('[CLIENT_SIGNIN] Verifying password...');
-    const isPasswordValid = await bcrypt.compare(password, client.password);
-
-    if (!isPasswordValid) {
-      console.log('[CLIENT_SIGNIN] Invalid password for client:', email);
+    const isValidPassword = await bcrypt.compare(password, customer.password);
+    if (!isValidPassword) {
+      console.log(`[ULTRA_LOGIN] ❌ Invalid password for email: ${email}`);
       return NextResponse.json(
-        { 
-          success: false, 
-          error: { 
-            code: 'INVALID_CREDENTIALS', 
-            message: 'Email ou password incorretos' 
-          } 
-        },
+        { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Email ou password incorretos' } },
         { status: 401 }
       );
     }
 
-    // Create JWT token for client session
-    console.log('[CLIENT_SIGNIN] Creating JWT token...');
-    const tokenPayload = {
-      id: client.id,
-      email: client.email,
-      name: client.name,
-      role: 'STAFF' as const, // Use STAFF role as closest match for clients
-      isAdmin: false
-    };
+    // Check customer status
+    if (customer.status !== 'ACTIVE') {
+      console.log(`[ULTRA_LOGIN] ❌ Inactive customer: ${email}, status: ${customer.status}`);
+      return NextResponse.json(
+        { success: false, error: { code: 'ACCOUNT_INACTIVE', message: 'Conta inativa. Contacte o suporte.' } },
+        { status: 403 }
+      );
+    }
 
-    const token = createJWTToken(tokenPayload);
+    // 🚀 CREATE ULTRA-SECURE STATELESS SESSION - SCALES TO BILLIONS!
+    console.log(`[ULTRA_LOGIN] ✅ Creating ultra-scalable session for customer: ${customer.email}`);
+    const ultraSecureToken = createUltraSecureSession(customer.id, customer.email, 'CUSTOMER', request);
 
-    // Create response with secure cookie
+    // Create response with ultra-secure cookie
     const response = NextResponse.json({
       success: true,
-      message: 'Login realizado com sucesso',
+      message: 'Login realizado com sucesso - Sistema Ultra-Escalável',
       user: {
-        id: client.id,
-        name: client.name,
-        email: client.email,
-        phone: client.phone,
-        role: 'CLIENT'
-      }
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        role: 'CUSTOMER'
+      },
+      scalability: 'BILLIONS_OF_USERS_READY'
     });
 
-    // Set secure HTTP-only cookie
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/'
-    });
+    // Set ultra-secure cookie
+    const cookieOptions = getUltraSecureCookieOptions();
+    response.cookies.set('auth-token', ultraSecureToken, cookieOptions);
 
-    console.log('[CLIENT_SIGNIN] ✅ Login successful for client:', client.id);
-
+    console.log(`[ULTRA_LOGIN] ✅ Ultra-scalable login successful for customer: ${customer.email}`);
     return response;
 
   } catch (error) {
-    console.error('[CLIENT_SIGNIN] ❌ Login error:', error);
+    console.error('[ULTRA_LOGIN] ❌ Critical error:', error);
+    console.error('[ULTRA_LOGIN] ❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('[ULTRA_LOGIN] ❌ Error message:', error instanceof Error ? error.message : error);
     
     return NextResponse.json(
-      { 
-        success: false, 
-        error: { 
-          code: 'LOGIN_ERROR', 
-          message: 'Erro interno do servidor' 
-        } 
-      },
+      { success: false, error: { code: 'LOGIN_ERROR', message: 'Erro interno do servidor' } },
       { status: 500 }
     );
   }

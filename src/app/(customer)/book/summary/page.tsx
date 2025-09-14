@@ -67,8 +67,8 @@ export default function BookingSummaryPage() {
       try {
         // Fetch service and staff details
         const [serviceResponse, staffResponse] = await Promise.all([
-          fetch(`/api/client/services/${serviceId}`),
-          fetch(`/api/client/staff/${storedStaffId}`),
+          fetch(`/api/customer/services/${serviceId}`),
+          fetch(`/api/customer/staff/${storedStaffId}`),
         ]);
 
         if (!serviceResponse.ok || !staffResponse.ok) {
@@ -115,7 +115,7 @@ export default function BookingSummaryPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/client/bookings', {
+      const response = await fetch('/api/customer/bookings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

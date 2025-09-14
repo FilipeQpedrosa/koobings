@@ -38,7 +38,9 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
   const fetchBusinessInfo = async () => {
     try {
       console.log('🔍 [BusinessBrandingCard] Fetching business info...');
-      const response = await fetch('/api/business/info');
+      const response = await fetch('/api/business/logo', {
+        credentials: 'include'
+      });
       console.log('🔍 [BusinessBrandingCard] Response status:', response.status);
       
       if (response.ok) {
@@ -158,13 +160,14 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
     console.log('💾 Saving logo URL to business:', logoUrl);
     setSaving(true);
     try {
-      const response = await fetch('/api/business/info', {
+      const response = await fetch('/api/business/logo', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // ✅ Ensure auth cookies are sent
         body: JSON.stringify({
-          logo: logoUrl
+          logoUrl: logoUrl
         }),
       });
 
@@ -172,9 +175,16 @@ export default function BusinessBrandingCard({ businessSlug }: BusinessBrandingC
       if (!response.ok) {
         const errorData = await response.json();
         console.error('💾 Save error:', errorData);
-        throw new Error('Erro ao salvar logo');
+        throw new Error(errorData.error || 'Erro ao salvar logo');
       }
-      console.log('✅ Logo saved successfully');
+      
+      const result = await response.json();
+      console.log('✅ Logo saved successfully:', result);
+      
+      toast({
+        title: "Sucesso",
+        description: "Logo atualizado com sucesso!",
+      });
     } catch (error: any) {
       console.error('❌ Save error:', error);
       toast({

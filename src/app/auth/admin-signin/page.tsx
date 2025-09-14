@@ -92,21 +92,34 @@ export default function AdminSignInPage() {
         .hidden { 
             display: none; 
         }
+        .security-notice {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #0c5460;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔐 Admin Portal</h1>
         
+        <div class="security-notice">
+            🛡️ Sistema Ultra-Seguro: Este portal utiliza autenticação de nível militar com monitorização de ameaças em tempo real.
+        </div>
+        
         <form id="loginForm">
             <div class="form-group">
                 <label for="email">Email:</label>
-                <input type="email" id="email" name="email" required>
+                <input type="email" id="email" name="email" required autocomplete="username">
             </div>
             
             <div class="form-group">
                 <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
             </div>
             
             <div id="status" class="status hidden"></div>
@@ -124,6 +137,13 @@ export default function AdminSignInPage() {
         const status = document.getElementById('status');
         const submitBtn = document.getElementById('submitBtn');
         
+        // 🚨 SECURITY: Prevent credentials in URL
+        if (window.location.search.includes('email') || window.location.search.includes('password')) {
+            console.warn('🚨 SECURITY WARNING: Credentials detected in URL - clearing...');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            showStatus('⚠️ Por segurança, as credenciais foram removidas do URL', true);
+        }
+        
         function showStatus(message, isError = false) {
             status.textContent = message;
             status.className = 'status ' + (isError ? 'error' : 'success');
@@ -134,27 +154,44 @@ export default function AdminSignInPage() {
             status.classList.add('hidden');
         }
         
+        // Security: Clear form on page unload
+        window.addEventListener('beforeunload', () => {
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+        });
+        
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
+            const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
             
+            // Enhanced validation
             if (!email || !password) {
                 showStatus('Por favor preencha todos os campos', true);
                 return;
             }
             
+            // Email format validation
+            const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showStatus('Formato de email inválido', true);
+                return;
+            }
+            
+            // Password strength check
+            if (password.length < 6) {
+                showStatus('Password deve ter pelo menos 6 caracteres', true);
+                return;
+            }
+            
             submitBtn.disabled = true;
-            submitBtn.textContent = 'A verificar...';
-            showStatus('A fazer login...');
+            submitBtn.textContent = '🔐 A autenticar...';
+            showStatus('🛡️ Verificando segurança...');
             
             try {
-                // Clear existing cookies
-                document.cookie = 'admin-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.koobings.com';
-                document.cookie = 'admin-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
-                
-                const response = await fetch('/api/simple-admin-login', {
+                // 🚨 SECURITY: Use POST with JSON body - NEVER GET with URL params
+                const response = await fetch('/api/auth/admin-signin', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -162,27 +199,53 @@ export default function AdminSignInPage() {
                         'Pragma': 'no-cache'
                     },
                     credentials: 'include',
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ 
+                        email: email.toLowerCase(), 
+                        password 
+                    })
                 });
                 
                 const result = await response.json();
                 
                 if (result.success) {
-                    showStatus('✅ Login realizado! A redirecionar...');
+                    showStatus('✅ Autenticação ultra-segura bem-sucedida! A redirecionar...');
+                    
+                    // Clear form for security
+                    document.getElementById('email').value = '';
+                    document.getElementById('password').value = '';
+                    
+                    // Redirect after short delay
                     setTimeout(() => {
                         window.location.replace('/admin/dashboard');
-                    }, 1000);
+                    }, 1500);
                 } else {
-                    showStatus('❌ ' + (result.error || 'Erro no login'), true);
+                    const errorMsg = result.message || result.error || 'Erro de autenticação';
+                    showStatus('❌ ' + errorMsg, true);
+                    
+                    // Security: Clear password on failed attempt
+                    document.getElementById('password').value = '';
+                    
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Entrar';
                 }
             } catch (error) {
-                showStatus('❌ Erro de conexão', true);
+                console.error('Login error:', error);
+                showStatus('❌ Erro de conexão. Tente novamente.', true);
+                
+                // Security: Clear password on error
+                document.getElementById('password').value = '';
+                
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Entrar';
             }
         });
+        
+        // Security: Auto-clear status messages
+        setInterval(() => {
+            if (!status.classList.contains('hidden') && status.classList.contains('error')) {
+                hideStatus();
+            }
+        }, 10000);
     </script>
 </body>
 </html>

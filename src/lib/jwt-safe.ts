@@ -13,7 +13,7 @@ export interface JWTPayload {
   userId?: string; // For backward compatibility
   email: string;
   name: string;
-  role: 'ADMIN' | 'BUSINESS_OWNER' | 'STAFF';
+  role: 'ADMIN' | 'BUSINESS_OWNER' | 'STAFF' | 'CUSTOMER';
   businessId?: string;
   businessName?: string;
   businessSlug?: string;

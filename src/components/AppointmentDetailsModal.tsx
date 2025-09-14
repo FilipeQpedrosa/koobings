@@ -1,12 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, X, Plus } from 'lucide-react';
+import { Calendar, Clock, User, X, Plus, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+interface AppointmentNote {
+  id: string;
+  content: string;
+  createdAt: string;
+  Staff: {
+    name: string;
+  };
+}
 
 interface AppointmentDetailsModalProps {
   isOpen: boolean;
@@ -35,7 +44,36 @@ export default function AppointmentDetailsModal({
   const [newNote, setNewNote] = useState('');
   const [addingNote, setAddingNote] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [appointmentNotes, setAppointmentNotes] = useState<AppointmentNote[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
   const { toast } = useToast();
+
+  // Fetch appointment notes when modal opens
+  useEffect(() => {
+    if (isOpen && appointment.id) {
+      fetchAppointmentNotes();
+    }
+  }, [isOpen, appointment.id]);
+
+  const fetchAppointmentNotes = async () => {
+    try {
+      setLoadingNotes(true);
+      const response = await fetch(`/api/appointments/${appointment.id}/notes`, {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setAppointmentNotes(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching appointment notes:', error);
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
 
   const addNote = async () => {
     if (!newNote.trim()) return;
@@ -59,6 +97,8 @@ export default function AppointmentDetailsModal({
             title: "Sucesso",
             description: "Nota adicionada ao histórico do cliente"
           });
+          // Refresh the notes list
+          await fetchAppointmentNotes();
           onNoteAdded?.();
         }
       } else {
@@ -185,13 +225,48 @@ export default function AppointmentDetailsModal({
             </div>
           </div>
 
-          {/* Existing Notes */}
-          {appointment.notes && (
-            <div>
-              <h4 className="text-sm font-medium text-gray-500 mb-2">Notas do Agendamento</h4>
-              <p className="text-sm bg-gray-50 p-3 rounded-lg">{appointment.notes}</p>
-            </div>
-          )}
+          {/* Unified Notes Repository */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-2 flex items-center">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Repositório de Notas ({(appointment.notes ? 1 : 0) + appointmentNotes.length})
+            </h4>
+            
+            {loadingNotes ? (
+              <div className="text-sm text-gray-500 p-3">A carregar notas...</div>
+            ) : (
+              <div className="space-y-3 max-h-40 overflow-y-auto">
+                {/* Original appointment note (if exists) */}
+                {appointment.notes && (
+                  <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg">
+                    <p className="text-sm text-gray-800 mb-2">{appointment.notes}</p>
+                    <div className="text-xs text-gray-500 flex justify-between">
+                      <span>Nota original do agendamento</span>
+                      <span>{new Date(appointment.scheduledFor).toLocaleDateString('pt-PT')} às {new Date(appointment.scheduledFor).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Additional notes from staff */}
+                {appointmentNotes.map((note) => (
+                  <div key={note.id} className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                    <p className="text-sm text-gray-800 mb-2">{note.content}</p>
+                    <div className="text-xs text-gray-500 flex justify-between">
+                      <span>Por: {note.Staff.name}</span>
+                      <span>{new Date(note.createdAt).toLocaleDateString('pt-PT')} às {new Date(note.createdAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Show message if no notes at all */}
+                {!appointment.notes && appointmentNotes.length === 0 && (
+                  <div className="text-sm text-gray-500 p-3 text-center italic">
+                    Nenhuma nota ainda. Adicione a primeira nota abaixo.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Add New Note */}
           <div className="border-t pt-4">
@@ -248,6 +323,15 @@ export default function AppointmentDetailsModal({
               {appointment.status === 'CONFIRMED' && (
                 <>
                   <Button 
+                    onClick={() => updateStatus('PENDING')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="outline"
+                    className="text-orange-600 border-orange-300 hover:bg-orange-50 text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '⏳ Pendente'}
+                  </Button>
+                  <Button 
                     onClick={() => updateStatus('COMPLETED')}
                     size="sm"
                     disabled={updatingStatus}
@@ -269,6 +353,23 @@ export default function AppointmentDetailsModal({
               {appointment.status === 'ACCEPTED' && (
                 <>
                   <Button 
+                    onClick={() => updateStatus('PENDING')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="outline"
+                    className="text-orange-600 border-orange-300 hover:bg-orange-50 text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '⏳ Pendente'}
+                  </Button>
+                  <Button 
+                    onClick={() => updateStatus('CONFIRMED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✓ Confirmar'}
+                  </Button>
+                  <Button 
                     onClick={() => updateStatus('COMPLETED')}
                     size="sm"
                     disabled={updatingStatus}
@@ -287,16 +388,56 @@ export default function AppointmentDetailsModal({
                   </Button>
                 </>
               )}
-              {(appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED') && (
-                <Button 
-                  onClick={() => updateStatus('CONFIRMED')}
-                  size="sm"
-                  disabled={updatingStatus}
-                  variant="outline" 
-                  className="text-xs px-3 py-2"
-                >
-                  {updatingStatus ? '...' : '↻ Reativar'}
-                </Button>
+              {appointment.status === 'COMPLETED' && (
+                <>
+                  <Button 
+                    onClick={() => updateStatus('PENDING')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="outline"
+                    className="text-orange-600 border-orange-300 hover:bg-orange-50 text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '⏳ Pendente'}
+                  </Button>
+                  <Button 
+                    onClick={() => updateStatus('CONFIRMED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✓ Confirmar'}
+                  </Button>
+                  <Button 
+                    onClick={() => updateStatus('CANCELLED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="destructive" 
+                    className="text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✗ Cancelar'}
+                  </Button>
+                </>
+              )}
+              {appointment.status === 'CANCELLED' && (
+                <>
+                  <Button 
+                    onClick={() => updateStatus('PENDING')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    variant="outline"
+                    className="text-orange-600 border-orange-300 hover:bg-orange-50 text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '⏳ Pendente'}
+                  </Button>
+                  <Button 
+                    onClick={() => updateStatus('CONFIRMED')}
+                    size="sm"
+                    disabled={updatingStatus}
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2"
+                  >
+                    {updatingStatus ? '...' : '✓ Confirmar'}
+                  </Button>
+                </>
               )}
             </div>
           </div>

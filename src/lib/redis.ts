@@ -12,25 +12,42 @@ const redisConfig = {
     return delay
   },
   maxRetriesPerRequest: 3,
+  // Disable Redis during build time
+  lazyConnect: true,
+  enableOfflineQueue: false,
 }
 
-const redisClient = new Redis(redisConfig)
+// Only create Redis client if not in build environment
+let redisClient: Redis | null = null
 
-redisClient.on('error', (err) => {
-  console.error('Redis Client Error:', err)
-})
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV) {
+  redisClient = new Redis(redisConfig)
+  
+  redisClient.on('error', (err) => {
+    console.error('Redis Client Error:', err)
+  })
 
-redisClient.on('connect', () => {
-  console.log('Redis Client Connected')
-})
+  redisClient.on('connect', () => {
+    console.log('Redis Client Connected')
+  })
+}
+
+// In-memory cache fallback
+const memoryCache = new Map<string, { value: any; expires: number }>()
 
 export class RedisClient {
-  private static instance: Redis
+  private static instance: Redis | null = null
   private static isConnecting: boolean = false
+  private static isAvailable: boolean = false
 
   private constructor() {}
 
-  public static async getInstance(): Promise<Redis> {
+  public static async getInstance(): Promise<Redis | null> {
+    // Return null if Redis is not available (during build)
+    if (!redisClient) {
+      return null
+    }
+
     if (!RedisClient.instance && !RedisClient.isConnecting) {
       RedisClient.isConnecting = true
       try {
@@ -39,25 +56,35 @@ export class RedisClient {
         // Connection events
         client.on('connect', () => {
           logger.info('Redis client connected')
+          RedisClient.isAvailable = true
         })
 
         client.on('error', (error) => {
           logger.error('Redis client error:', error)
+          RedisClient.isAvailable = false
         })
 
         client.on('close', () => {
           logger.warn('Redis connection closed')
+          RedisClient.isAvailable = false
         })
 
-        // Wait for ready event
-        await new Promise((resolve) => {
-          client.once('ready', resolve)
-        })
+        // Wait for ready event with timeout
+        await Promise.race([
+          new Promise((resolve) => {
+            client.once('ready', resolve)
+          }),
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
+          })
+        ])
 
         RedisClient.instance = client
+        RedisClient.isAvailable = true
       } catch (error) {
         logger.error('Failed to create Redis client:', error)
-        throw error
+        RedisClient.isAvailable = false
+        RedisClient.instance = null
       } finally {
         RedisClient.isConnecting = false
       }
@@ -70,15 +97,28 @@ export class RedisClient {
   public static async get<T>(key: string): Promise<T | null> {
     try {
       const client = await RedisClient.getInstance()
-      const value = await client.get(key)
-      if (value) {
-        cacheHitTotal.inc({ cache_type: 'redis' })
-        return JSON.parse(value)
+      
+      if (client && RedisClient.isAvailable) {
+        const value = await client.get(key)
+        if (value) {
+          cacheHitTotal.inc({ cache_type: 'redis' })
+          return JSON.parse(value)
+        }
+        cacheMissTotal.inc({ cache_type: 'redis' })
+        return null
+      } else {
+        // Fallback to memory cache
+        const cached = memoryCache.get(key)
+        if (cached && cached.expires > Date.now()) {
+          cacheHitTotal.inc({ cache_type: 'memory' })
+          return cached.value
+        }
+        memoryCache.delete(key)
+        cacheMissTotal.inc({ cache_type: 'memory' })
+        return null
       }
-      cacheMissTotal.inc({ cache_type: 'redis' })
-      return null
     } catch (error) {
-      logger.error('Redis get error:', error)
+      logger.error('Cache get error:', error)
       return null
     }
   }
@@ -90,24 +130,46 @@ export class RedisClient {
   ): Promise<void> {
     try {
       const client = await RedisClient.getInstance()
-      const stringValue = JSON.stringify(value)
       
-      if (expireSeconds) {
-        await client.setex(key, expireSeconds, stringValue)
+      if (client && RedisClient.isAvailable) {
+        const stringValue = JSON.stringify(value)
+        
+        if (expireSeconds) {
+          await client.setex(key, expireSeconds, stringValue)
+        } else {
+          await client.set(key, stringValue)
+        }
       } else {
-        await client.set(key, stringValue)
+        // Fallback to memory cache
+        const expires = expireSeconds ? Date.now() + (expireSeconds * 1000) : Date.now() + (24 * 60 * 60 * 1000) // 24h default
+        memoryCache.set(key, { value, expires })
+        
+        // Clean up expired entries periodically
+        if (memoryCache.size > 1000) {
+          for (const [k, v] of memoryCache.entries()) {
+            if (v.expires <= Date.now()) {
+              memoryCache.delete(k)
+            }
+          }
+        }
       }
     } catch (error) {
-      logger.error('Redis set error:', error)
+      logger.error('Cache set error:', error)
     }
   }
 
   public static async del(key: string): Promise<void> {
     try {
       const client = await RedisClient.getInstance()
-      await client.del(key)
+      
+      if (client && RedisClient.isAvailable) {
+        await client.del(key)
+      } else {
+        // Fallback to memory cache
+        memoryCache.delete(key)
+      }
     } catch (error) {
-      logger.error('Redis del error:', error)
+      logger.error('Cache del error:', error)
     }
   }
 

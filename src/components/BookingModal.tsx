@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Plus, X } from 'lucide-react';
+import SlotPicker from '@/components/SlotPicker';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -21,15 +22,18 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
   const [localClients, setLocalClients] = useState<any[]>([]);
   const [selectedServices, setServicesState] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<{
+    startSlot: number;
+    endSlot: number;
     startTime: string;
     endTime: string;
-    capacity?: number;
-    slotIndex?: number;
+    slotsNeeded: number;
+    duration: number;
   } | null>(null);
   const [staff, setStaff] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(0);
+  const [usingSlotSystem, setUsingSlotSystem] = useState(true);
   const [status, setStatus] = useState('PENDING');
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -41,6 +45,8 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
   const [loading, setLoading] = useState(false);
   const [slotAvailability, setSlotAvailability] = useState<any[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [conflictCheck, setConflictCheck] = useState<{[key: string]: boolean}>({});
+  const [checkingConflicts, setCheckingConflicts] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -81,6 +87,25 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
     console.log('📋 BookingModal: Updating localClients, count:', clients.length);
     setLocalClients(clients); 
   }, [clients]);
+
+  // Reset time selection when staff changes to ensure fresh availability check
+  useEffect(() => {
+    if (staff) {
+      console.log('👤 Staff changed, resetting time selections for:', staff);
+      setTime("");
+      setSelectedSlot(null);
+      // Clear any previous conflict checks
+      setConflictCheck({});
+    }
+  }, [staff]);
+
+  // Update time when slot is selected
+  useEffect(() => {
+    if (selectedSlot && usingSlotSystem) {
+      setTime(selectedSlot.startTime);
+      setDuration(selectedSlot.duration);
+    }
+  }, [selectedSlot, usingSlotSystem]);
 
   // Fetch slot availability when service, date, or staff changes
   useEffect(() => {
@@ -146,6 +171,133 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
     fetchSlotAvailability();
   }, [selectedServices, date, staff, services]);
 
+  // Check for appointment conflicts when staff, date, or services change
+  useEffect(() => {
+    const checkAppointmentConflicts = async () => {
+      // More rigorous validation - ALL fields must be present
+      if (!staff || !date || selectedServices.length === 0 || !services.length) {
+        console.log('⚠️ Missing required data for conflict check:', { 
+          staff: !!staff, 
+          date: !!date, 
+          selectedServices: selectedServices.length, 
+          services: services.length 
+        });
+        setConflictCheck({});
+        setCheckingConflicts(false);
+        return;
+      }
+
+      console.log('🔄 Starting RIGOROUS appointment conflict check for:', { staff, date, selectedServices });
+      setCheckingConflicts(true);
+
+      try {
+        // Get the selected service to calculate duration
+        const selectedService = services.find((s: any) => selectedServices.includes(s.id));
+        if (!selectedService) {
+          console.error('❌ Selected service not found in services list');
+          setConflictCheck({});
+          setCheckingConflicts(false);
+          return;
+        }
+
+        // Generate time slots for business hours only (8 AM to 8 PM)
+        const timeSlots = [];
+        for (let h = 8; h <= 20; h++) {
+          for (let m = 0; m < 60; m += 30) {
+            const hour = h.toString().padStart(2, '0');
+            const min = m.toString().padStart(2, '0');
+            const timeValue = `${hour}:${min}`;
+            timeSlots.push(timeValue);
+          }
+        }
+
+        console.log('🚀 Making BULK availability check for', timeSlots.length, 'time slots for staff:', staff);
+        
+        // Make a single bulk API call with better error handling
+        const response = await fetch('/api/business/appointments/check-availability', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            staffId: staff,
+            date: date,
+            duration: selectedService.duration,
+            timeSlots: timeSlots  // Send all time slots at once
+          })
+        });
+
+        console.log('📊 API Response status:', response.status, response.statusText);
+
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('📋 API Response data:', result);
+        
+        if (result.success && result.data && result.data.type === 'bulk' && result.data.results) {
+          // Convert bulk results to conflict format
+          const conflicts: {[key: string]: boolean} = {};
+          let availableCount = 0;
+          let occupiedCount = 0;
+          
+          for (const [timeSlot, slotData] of Object.entries(result.data.results)) {
+            const isOccupied = !(slotData as any).available;
+            conflicts[timeSlot] = isOccupied;
+            
+            if (isOccupied) {
+              occupiedCount++;
+            } else {
+              availableCount++;
+            }
+          }
+          
+          console.log('✅ Bulk check completed successfully!');
+          console.log('📊 Availability summary:', { 
+            total: timeSlots.length, 
+            available: availableCount, 
+            occupied: occupiedCount,
+            conflicts: Object.keys(conflicts).filter(k => conflicts[k]).length
+          });
+          
+          setConflictCheck(conflicts);
+        } else {
+          console.error('❌ Bulk availability check failed - invalid response format:', result);
+          // Set all as unavailable if API fails
+          const fallbackConflicts: {[key: string]: boolean} = {};
+          timeSlots.forEach(slot => {
+            fallbackConflicts[slot] = true; // Mark as occupied if uncertain
+          });
+          setConflictCheck(fallbackConflicts);
+        }
+      } catch (error) {
+        console.error('❌ Error in bulk conflict checking:', error);
+        // Set all as unavailable if there's an error
+        const timeSlots = [];
+        for (let h = 8; h <= 20; h++) {
+          for (let m = 0; m < 60; m += 30) {
+            const hour = h.toString().padStart(2, '0');
+            const min = m.toString().padStart(2, '0');
+            const timeValue = `${hour}:${min}`;
+            timeSlots.push(timeValue);
+          }
+        }
+        const errorConflicts: {[key: string]: boolean} = {};
+        timeSlots.forEach(slot => {
+          errorConflicts[slot] = true; // Mark as occupied if error occurs
+        });
+        setConflictCheck(errorConflicts);
+      } finally {
+        setCheckingConflicts(false);
+      }
+    };
+
+    checkAppointmentConflicts();
+  }, [staff, date, selectedServices, services]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -178,9 +330,16 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
       }
 
       try {
-        const servicesRes = await fetch('/api/business/services');
+        const servicesRes = await fetch('/api/business/services', {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         if (servicesRes.ok) {
           const servicesData = await servicesRes.json();
+          console.log('📋 BookingModal: Services fetched:', servicesData);
           setServices(servicesData.data || []);
         } else {
           console.error('Failed to fetch services:', servicesRes.status, servicesRes.statusText);
@@ -260,22 +419,106 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
     e.preventDefault();
     console.log('Submitting booking...', { client, staff, date, time, selectedServices, selectedSlot });
     if (!client || !staff || !date || !time || selectedServices.length === 0) return;
+    
     setSaving(true);
     setSaveError('');
+    
     try {
+      // 🔧 FINAL CONFLICT CHECK - Mandatory validation before creating appointment
+      console.log('🔍 Final conflict check before creating appointment...');
+      
+      const selectedService = services.find((s: any) => selectedServices.includes(s.id));
+      if (!selectedService) {
+        throw new Error('Serviço selecionado não encontrado');
+      }
+      
+      const finalConflictResponse = await fetch('/api/business/appointments/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          staffId: staff,
+          date: date,
+          time: time.split('-')[0] || time, // Use just the start time
+          duration: selectedService.duration
+        })
+      });
+
+      const finalConflictResult = await finalConflictResponse.json();
+      console.log('🎯 Final conflict check result:', finalConflictResult);
+      
+      if (!finalConflictResult.success) {
+        throw new Error('Erro ao verificar disponibilidade: ' + (finalConflictResult.error?.message || 'Erro desconhecido'));
+      }
+      
+      if (!finalConflictResult.data.available) {
+        throw new Error(`⚠️ Este horário não está mais disponível para este funcionário. Motivo: ${finalConflictResult.data.reason}`);
+      }
+      
+      console.log('✅ Final conflict check passed, proceeding with appointment creation...');
+
+      // 🔧 FIX: Simplified timezone handling - let JavaScript handle it naturally
+      const selectedTime = time.split('-')[0] || time;
+      const selectedDateTime = `${date}T${selectedTime}:00`;
+      
+      // Create the date object and let JavaScript handle the local timezone conversion
+      const scheduledForDate = new Date(selectedDateTime);
+      
+      console.log('📅 Staff Portal - Selected date/time:', selectedDateTime);
+      console.log('📅 Staff Portal - JavaScript Date object:', scheduledForDate);
+      console.log('📅 Staff Portal - ISO string for database:', scheduledForDate.toISOString());
+      
+      // Use slots-v2 API if slot system is enabled and slot is selected
+      if (usingSlotSystem && selectedSlot) {
+        console.log('🎯 [BOOKING_MODAL] Using slots-v2 API');
+        
+        const slotPayload = {
+          clientId: client.id,
+          serviceId: selectedServices[0], // Use first service for slots (can be enhanced for multiple services)
+          staffId: staff,
+          date: date,
+          startSlot: selectedSlot.startSlot,
+          slotsNeeded: selectedSlot.slotsNeeded,
+          notes: notes || ''
+        };
+
+        console.log('📤 [BOOKING_MODAL] Slot payload:', slotPayload);
+
+        const res = await fetch('/api/appointments/slots-v2', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(slotPayload),
+        });
+
+        const result = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(result.error?.message || `HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        if (!result.success) {
+          throw new Error(result.error?.message || 'Failed to create appointment');
+        }
+
+        console.log('✅ [BOOKING_MODAL] Slot appointment created successfully!');
+        onBookingCreated();
+        handleClose();
+        return;
+      }
+
+      // Fallback to old API for non-slot bookings
       const payload = {
         clientId: client.id,
         serviceIds: selectedServices, // Changed from serviceId to serviceIds array
-        scheduledFor: `${date}T${time.split('-')[0] || time}:00`, // Use start time for slot-based services
+        scheduledFor: scheduledForDate.toISOString(),
         notes,
         staffId: staff,
         // Add slot information if this is a slot-based booking
         ...(selectedSlot && {
           slotInfo: {
             startTime: selectedSlot.startTime,
-            endTime: selectedSlot.endTime,
-            slotIndex: selectedSlot.slotIndex,
-            capacity: selectedSlot.capacity
+            endTime: selectedSlot.endTime
           }
         })
       };
@@ -296,6 +539,7 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
         throw new Error(result.error?.message || 'Failed to create appointment');
       }
       
+      console.log('✅ Appointment created successfully!');
       onBookingCreated();
       handleClose();
     } catch (err: any) {
@@ -315,7 +559,9 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
       selectedService: selectedService ? { id: selectedService.id, name: selectedService.name, slots: selectedService.slots } : null,
       hasSlots: selectedService?.slots && Array.isArray(selectedService.slots) && selectedService.slots.length > 0,
       slotAvailability: slotAvailability.length,
-      loadingSlots
+      loadingSlots,
+      conflictCheck: Object.keys(conflictCheck).length,
+      checkingConflicts
     });
     
     if (selectedService?.slots && Array.isArray(selectedService.slots) && selectedService.slots.length > 0) {
@@ -339,19 +585,23 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
         
         let availabilityText = '';
         if (loadingSlots) {
-          availabilityText = ' (...)';
+          availabilityText = ' ⏳ (verificando...)';
         } else if (availabilityData) {
           const { capacity, available, booked } = availabilityData;
           if (capacity > 1) {
             // Multi-pax event: show "X de Y vagas"
-            availabilityText = ` (${available} de ${capacity} vagas)`;
+            if (available > 0) {
+              availabilityText = ` ✅ (${available} de ${capacity} vagas)`;
+            } else {
+              availabilityText = ` ❌ (esgotado)`;
+            }
           } else {
             // Single person: show "Disponível" or "Ocupado"
-            availabilityText = available > 0 ? ' (Disponível)' : ' (Ocupado)';
+            availabilityText = available > 0 ? ' ✅ (disponível)' : ' ❌ (ocupado)';
           }
         } else if (slot.capacity && slot.capacity > 1) {
           // Fallback for multi-pax when no availability data
-          availabilityText = ` (${slot.capacity} vagas)`;
+          availabilityText = ` ✅ (${slot.capacity} vagas)`;
         }
 
         return {
@@ -364,31 +614,80 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
     }
     
     // Traditional time slots (30min intervals from 8AM to 8PM)
-    console.log('⏰ Using traditional time slots');
+    console.log('⏰ Using traditional time slots with conflict checking');
     const slots = [];
     for (let h = 8; h <= 20; h++) {
       for (let m = 0; m < 60; m += 30) {
         const hour = h.toString().padStart(2, '0');
         const min = m.toString().padStart(2, '0');
         const timeValue = `${hour}:${min}`;
+        
+        // Check if this time slot has a conflict
+        const hasConflict = conflictCheck[timeValue] === true;
+        const isCheckingThisSlot = checkingConflicts;
+        
+        let label = timeValue;
+        let disabled = false;
+        
+        if (!staff || !date || selectedServices.length === 0) {
+          // If no staff/date/service selected, show neutral state
+          label = `${timeValue}`;
+          disabled = true;
+        } else if (isCheckingThisSlot) {
+          // While checking conflicts, show loading state
+          label = `${timeValue} ⏳ (verificando...)`;
+          disabled = false; // Allow selection while checking
+        } else if (hasConflict) {
+          // Conflict detected - show as occupied
+          label = `${timeValue} ❌ (ocupado)`;
+          disabled = true;
+        } else {
+          // No conflict - show as available
+          label = `${timeValue} ✅ (disponível)`;
+          disabled = false;
+        }
+        
         slots.push({
           value: timeValue,
-          label: timeValue,
-          slot: null
+          label: label,
+          slot: null,
+          disabled: disabled
         });
       }
     }
     
     // Filter out past times if today
+    let filteredSlots = slots;
     if (date === new Date().toISOString().split('T')[0]) {
       const now = new Date();
-      return slots.filter((t) => {
+      filteredSlots = slots.filter((t) => {
         const [h, m] = t.value.split(':').map(Number);
         return h > now.getHours() || (h === now.getHours() && m > now.getMinutes());
       });
     }
     
-    return slots;
+    // If no staff is selected yet, show message to select staff first
+    if (!staff) {
+      return [{
+        value: '',
+        label: 'Selecione um funcionário primeiro',
+        slot: null,
+        disabled: true
+      }];
+    }
+    
+    // If no slots are available due to conflicts, show a message
+    const availableSlots = filteredSlots.filter(slot => !slot.disabled);
+    if (staff && date && selectedServices.length > 0 && !checkingConflicts && availableSlots.length === 0) {
+      return [{
+        value: '',
+        label: 'Nenhum horário disponível para este funcionário neste dia',
+        slot: null,
+        disabled: true
+      }];
+    }
+    
+    return filteredSlots;
   }
 
   const handleClose = () => {
@@ -397,6 +696,8 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
     setClientSearch("");
     setSelectedSlot(null);
     setSlotAvailability([]); // Reset slot availability
+    setConflictCheck({}); // Reset conflict checking
+    setCheckingConflicts(false);
     setServicesState([]);
     setStaff("");
     setDate("");
@@ -411,9 +712,9 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
   if (!isOpen) return null;
 
   // Stepper progress bar logic
-  const totalSteps = 3;
-  const progressPercent = ((step - 1) / (totalSteps - 1)) * 100;
-  const stepLabels = ['Cliente', 'Serviço', 'Agendamento'];
+  const stepLabels = ['Cliente', 'Serviço', 'Staff', 'Agendamento'];
+  const stepCount = stepLabels.length;
+  const progressPercent = ((step - 1) / (stepCount - 1)) * 100;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
@@ -556,23 +857,103 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
                 )}
                 {step === 3 && (
                   <div className="space-y-4">
-                    <div className="mb-2 font-medium text-gray-700">Agendamento</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Funcionário *</label>
-                        <select className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" value={staff} onChange={e => setStaff(e.target.value)}>
-                          <option value="">Selecionar funcionário</option>
-                          {staffList.map((s: any) => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
+                    <div className="mb-2 font-medium text-gray-700">Selecionar Funcionário</div>
+                    <div className="divide-y divide-gray-200">
+                      {staffList.map((s: any) => (
+                        <button 
+                          type="button" 
+                          key={s.id} 
+                          className={`flex items-center gap-3 p-3 w-full text-left ${staff === s.id ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50 transition`} 
+                          onClick={() => {
+                            setStaff(s.id);
+                            // Reset time and slot availability when staff changes
+                            setTime("");
+                            setSelectedSlot(null);
+                            setSlotAvailability([]);
+                          }}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-lg">
+                            {s.name?.[0]?.toUpperCase() || '?'}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-semibold text-base">{s.name}</div>
+                            <div className="text-xs text-gray-500">{s.email || 'Staff Member'}</div>
+                          </div>
+                          {staff === s.id && (
+                            <span className="text-blue-600 font-bold">✔</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {step === 4 && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="font-medium text-gray-700">Agendamento</div>
+                      <div className="flex items-center space-x-2">
+                        <label className="text-sm text-gray-600">Sistema de slots</label>
+                        <input 
+                          type="checkbox"
+                          checked={usingSlotSystem}
+                          onChange={(e) => {
+                            setUsingSlotSystem(e.target.checked);
+                            setSelectedSlot(null);
+                            setTime("");
+                          }}
+                          className="toggle-checkbox"
+                        />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
-                        <input type="date" className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" value={date} min={new Date().toISOString().split('T')[0]} onChange={e => setDate(e.target.value)} />
+                    </div>
+                    
+                    {/* Show selected staff info */}
+                    {staff && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <div className="text-sm text-blue-800">
+                          <strong>Funcionário selecionado:</strong> {staffList.find(s => s.id === staff)?.name || 'Desconhecido'}
+                        </div>
                       </div>
+                    )}
+
+                    {/* Date Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                      <input 
+                        type="date" 
+                        className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
+                        value={date} 
+                        min={new Date().toISOString().split('T')[0]} 
+                        onChange={e => setDate(e.target.value)} 
+                      />
+                    </div>
+
+                    {/* Slot System vs Old System */}
+                    {usingSlotSystem ? (
+                      /* New Slot Picker */
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Hora *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Horários Disponíveis (Sistema de Slots)</label>
+                        {selectedServices.length > 0 && staff && date ? (
+                          <SlotPicker
+                            serviceId={selectedServices[0]}
+                            staffId={staff}
+                            date={date}
+                            onSlotSelect={(slot) => {
+                              console.log('🎯 [BOOKING_MODAL] Slot selected:', slot);
+                              setSelectedSlot(slot);
+                            }}
+                            selectedSlot={selectedSlot}
+                            className="border border-gray-200 rounded-lg p-4"
+                          />
+                        ) : (
+                          <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg">
+                            <p>Selecione um serviço, funcionário e data para ver os horários disponíveis</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Old Time Selection */
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Hora * (Sistema Antigo)</label>
                         <select 
                           className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" 
                           value={time} 
@@ -590,11 +971,28 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
                         >
                           <option value="">Selecionar hora</option>
                           {getTimeSlots().map((t: any) => (
-                            <option key={t.value} value={t.value} disabled={t.disabled}>{t.label}</option>
+                            <option 
+                              key={t.value} 
+                              value={t.value} 
+                              disabled={t.disabled}
+                              style={{
+                                color: t.disabled ? '#9CA3AF' : 
+                                       t.label.includes('(ocupado)') ? '#DC2626' : 
+                                       t.label.includes('(disponível)') ? '#059669' : 
+                                       t.label.includes('(verificando...)') ? '#D97706' : '#374151',
+                                fontWeight: t.label.includes('(ocupado)') ? 'bold' : 'normal',
+                                backgroundColor: t.label.includes('(ocupado)') ? '#FEE2E2' : 
+                                                 t.label.includes('(disponível)') ? '#F0FDF4' : 
+                                                 t.label.includes('(verificando...)') ? '#FEF3C7' : 'transparent'
+                              }}
+                            >
+                              {t.label}
+                            </option>
                           ))}
                         </select>
                       </div>
-                    </div>
+                    )}
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
                       <textarea placeholder="Notas adicionais..." className="w-full border border-gray-300 rounded-lg p-2 h-16 resize-none bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" value={notes} onChange={e => setNotes(e.target.value)} />
@@ -606,9 +1004,33 @@ export default function BookingModal({ isOpen, onClose, onBookingCreated, defaul
             {/* Action buttons inside the form */}
             <div className="sticky bottom-0 left-0 right-0 bg-white border-t flex flex-col sm:flex-row justify-end gap-2 p-2 sm:p-4 z-10">
               {step > 1 && <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setStep(step - 1)}>Voltar</Button>}
-              {step < 3 && <Button type="button" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setStep(step + 1)} disabled={step === 1 ? !client : selectedServices.length === 0}>Continuar</Button>}
-              {step === 3 && (
-                <Button type="submit" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" disabled={saving || !client || !staff || !date || !time || selectedServices.length === 0}>
+              {step < stepCount && (
+                <Button 
+                  type="button" 
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" 
+                  onClick={() => setStep(step + 1)} 
+                  disabled={
+                    (step === 1 && !client) || 
+                    (step === 2 && selectedServices.length === 0) ||
+                    (step === 3 && !staff)
+                  }
+                >
+                  Continuar
+                </Button>
+              )}
+              {step === stepCount && (
+                <Button 
+                  type="submit" 
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" 
+                  disabled={
+                    saving || 
+                    !client || 
+                    !staff || 
+                    !date || 
+                    selectedServices.length === 0 || 
+                    (usingSlotSystem ? !selectedSlot : !time)
+                  }
+                >
                   {saving ? (
                     <span className="flex items-center justify-center">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
 
     const { name, email, phone, password } = validationResult.data;
 
-    // Check if client already exists with this email
+    // Check if client already exists
     console.log('[CLIENT_REGISTER] Checking for existing client...');
-    const existingClient = await prisma.independentClient.findFirst({
+    const existingClient = await prisma.customer.findFirst({
       where: { email }
     });
 
@@ -67,19 +67,18 @@ export async function POST(request: NextRequest) {
     console.log('[CLIENT_REGISTER] Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create client account
-    console.log('[CLIENT_REGISTER] Creating client account...');
-    const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const client = await prisma.independentClient.create({
+    // Create the new client
+    const client = await prisma.customer.create({
       data: {
-        id: clientId,
+        id: `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: name.trim(),
-        email: email,
+        email,
         phone: phone || null,
         password: hashedPassword,
         status: 'ACTIVE',
-        updatedAt: new Date()
+        emailVerified: false,
+        onboardingCompleted: false,
+        marketingConsent: false
       },
       select: {
         id: true,

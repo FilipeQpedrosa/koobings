@@ -19,9 +19,11 @@ import {
   Award,
   CheckCircle,
   Heart,
-  Share2
+  Share2,
+  ChevronRight
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GlobalCustomerHeader } from '@/components/layout/GlobalCustomerHeader';
 
 interface Business {
   id: string;
@@ -87,6 +89,70 @@ export default function BusinessProfilePage() {
     }
   }, [businessSlug]);
 
+  // Check if business is favorited when business data is loaded
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (!business?.id) return;
+      
+      try {
+        const response = await fetch(`/api/customer/favorites/${business.id}`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setIsFavorite(data.data.isFavorite);
+            console.log('✅ [BusinessProfile] Favorite status:', data.data.isFavorite);
+          }
+        } else if (response.status === 401) {
+          // Expected when not logged in, just ignore
+          console.log('ℹ️ [BusinessProfile] Not logged in for favorite check (expected)');
+        }
+      } catch (error) {
+        console.log('❌ [BusinessProfile] Could not check favorite status:', error);
+        // Not critical, just continue
+      }
+    };
+
+    // Only check once when business ID is available
+    if (business?.id && !loading) {
+      checkFavoriteStatus();
+    }
+  }, [business?.id, loading]); // Added loading to ensure it only runs after business is loaded
+
+  const handleToggleFavorite = async () => {
+    if (!business?.id) return;
+
+    try {
+      const action = isFavorite ? 'remove' : 'add';
+      
+      const response = await fetch('/api/customer/favorites', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          businessId: business.id,
+          action: action
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setIsFavorite(!isFavorite);
+          console.log(`✅ [BusinessProfile] ${action === 'add' ? 'Added to' : 'Removed from'} favorites`);
+        }
+      } else {
+        console.error('❌ [BusinessProfile] Failed to toggle favorite');
+      }
+    } catch (error) {
+      console.error('❌ [BusinessProfile] Error toggling favorite:', error);
+    }
+  };
+
   const handleBookService = (serviceId?: string) => {
     const url = serviceId 
       ? `/book?businessSlug=${business?.slug}&serviceId=${serviceId}`
@@ -98,36 +164,54 @@ export default function BusinessProfilePage() {
     if (duration >= 60) {
       const hours = Math.floor(duration / 60);
       const minutes = duration % 60;
-      if (minutes === 0) return `${hours}h`;
-      return `${hours}h ${minutes}min`;
+      return minutes > 0 ? `${hours}h ${minutes}min` : `${hours}h`;
     }
     return `${duration}min`;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-2 border-amber-500 border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-stone-600 font-light">A carregar informações...</p>
+      <div className="min-h-screen bg-gray-50">
+        <GlobalCustomerHeader />
+        
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-2 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">A carregar negócio...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (error || !business) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto px-4">
-          <div className="text-stone-300 text-6xl mb-6">🏢</div>
-          <h1 className="text-2xl font-light text-stone-800 mb-3">Negócio Não Encontrado</h1>
-          <p className="text-stone-600 mb-6">O negócio que procura não existe ou não está disponível.</p>
-          <Button 
-            onClick={() => router.push('/')}
-            className="bg-amber-500 hover:bg-amber-600 text-black font-medium rounded-full px-8"
-          >
-            Voltar ao Marketplace
-          </Button>
+      <div className="min-h-screen bg-gray-50">
+        <GlobalCustomerHeader />
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="text-red-500 text-6xl mb-6">⚠️</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-3">Negócio não encontrado</h1>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <Button onClick={() => router.push('/')}>
+              Voltar à página inicial
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <GlobalCustomerHeader />
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <p className="text-gray-500">Negócio não encontrado</p>
+          </div>
         </div>
       </div>
     );
@@ -153,6 +237,69 @@ export default function BusinessProfilePage() {
     sunday: 'Domingo'
   };
 
+  const dayNamesShort = {
+    monday: 'Seg',
+    tuesday: 'Ter',
+    wednesday: 'Qua',
+    thursday: 'Qui',
+    friday: 'Sex',
+    saturday: 'Sáb',
+    sunday: 'Dom'
+  };
+
+  // Function to group consecutive days with same hours
+  const groupBusinessHours = (hours: BusinessHours) => {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const groups: Array<{
+      days: string[];
+      hours: { open: string; close: string; closed: boolean };
+    }> = [];
+
+    let currentGroup: {
+      days: string[];
+      hours: { open: string; close: string; closed: boolean };
+    } | null = null;
+
+    days.forEach(day => {
+      const dayHours = hours[day];
+      const hoursKey = dayHours.closed ? 'CLOSED' : `${dayHours.open}-${dayHours.close}`;
+
+      if (!currentGroup || 
+          (currentGroup.hours.closed !== dayHours.closed) ||
+          (!dayHours.closed && (currentGroup.hours.open !== dayHours.open || currentGroup.hours.close !== dayHours.close))) {
+        // Start new group
+        if (currentGroup) {
+          groups.push(currentGroup);
+        }
+        currentGroup = {
+          days: [day],
+          hours: dayHours
+        };
+      } else {
+        // Add to current group
+        currentGroup.days.push(day);
+      }
+    });
+
+    if (currentGroup) {
+      groups.push(currentGroup);
+    }
+
+    return groups;
+  };
+
+  const formatDayRange = (days: string[]) => {
+    if (days.length === 1) {
+      return dayNamesShort[days[0] as keyof typeof dayNamesShort];
+    } else if (days.length === 2) {
+      return `${dayNamesShort[days[0] as keyof typeof dayNamesShort]}-${dayNamesShort[days[1] as keyof typeof dayNamesShort]}`;
+    } else {
+      return `${dayNamesShort[days[0] as keyof typeof dayNamesShort]}-${dayNamesShort[days[days.length - 1] as keyof typeof dayNamesShort]}`;
+    }
+  };
+
+  const groupedHours = groupBusinessHours(businessHours as BusinessHours);
+
   type BusinessHours = {
     [key: string]: {
       open: string;
@@ -162,360 +309,291 @@ export default function BusinessProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-stone-900 via-stone-800 to-neutral-900 overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-72 h-72 bg-stone-500/10 rounded-full blur-3xl"></div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <GlobalCustomerHeader />
 
-        <div className="relative container mx-auto px-4 py-16">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
+      {/* Hero Section - Clean & Discrete Layout */}
+      <section className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Main Business Info & Team Layout */}
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
+            
+            {/* LEFT SIDE - Business Information */}
             <motion.div
-              initial={{ opacity: 0, x: -50 }}
+              initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+              transition={{ duration: 0.6 }}
               className="text-white"
             >
-              <div className="flex items-center gap-4 mb-6">
+              {/* Business Header */}
+              <div className="flex items-center space-x-4 mb-6">
                 {business.logo ? (
                   <img
                     src={business.logo}
                     alt={business.name}
-                    className="w-24 h-24 rounded-2xl object-cover border-2 border-white/20 shadow-lg"
+                    className="w-16 h-16 rounded-lg object-cover border border-white/20"
+                    onError={(e) => {
+                      console.error('Logo failed to load:', business.logo);
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg">
-                    <span className="text-white font-bold text-3xl">
+                  <div className="w-16 h-16 rounded-lg bg-white/20 flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">
                       {business.name.charAt(0)}
                     </span>
                   </div>
                 )}
+                
                 <div>
-                  <Badge className="bg-white/20 text-white border-white/30 mb-2">
+                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30 mb-2 text-xs">
                     {business.type}
                   </Badge>
-                  <div className="flex items-center gap-2">
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <span className="text-sm">5.0 • 127 avaliações</span>
+                  <div className="flex items-center space-x-2">
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    <span className="text-xs text-white/80">5.0 • 127 avaliações</span>
                   </div>
                 </div>
               </div>
 
-              <h1 className="text-4xl lg:text-5xl font-light leading-tight mb-6">
+              <h1 className="text-3xl lg:text-4xl font-bold mb-4">
                 {business.name}
               </h1>
               
-              <p className="text-xl text-stone-300 leading-relaxed mb-8 max-w-lg">
+              <p className="text-lg text-white/90 mb-6 leading-relaxed">
                 {business.description}
               </p>
 
               {/* Contact Info */}
               <div className="space-y-3 mb-8">
                 {business.address && (
-                  <div className="flex items-center gap-3 text-stone-300">
-                    <MapPin className="h-5 w-5 flex-shrink-0" />
-                    <span>{business.address}</span>
+                  <div className="flex items-center space-x-3 text-white/90">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-sm">{business.address}</span>
                   </div>
                 )}
                 {business.phone && (
-                  <div className="flex items-center gap-3 text-stone-300">
-                    <Phone className="h-5 w-5 flex-shrink-0" />
-                    <span>{business.phone}</span>
+                  <div className="flex items-center space-x-3 text-white/90">
+                    <Phone className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-sm">{business.phone}</span>
                   </div>
                 )}
-                {business.website && (
-                  <div className="flex items-center gap-3 text-stone-300">
-                    <Globe className="h-5 w-5 flex-shrink-0" />
-                    <a 
-                      href={business.website} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-amber-400 hover:text-amber-300 transition-colors"
-                    >
-                      Visitar Website
-                    </a>
+                {business.email && (
+                  <div className="flex items-center space-x-3 text-white/90">
+                    <Mail className="h-4 w-4 flex-shrink-0" />
+                    <span className="text-sm">{business.email}</span>
                   </div>
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
+              {/* CTA Buttons */}
+              <div className="flex flex-wrap gap-3">
                 <Button 
-                  size="lg" 
-                  className="bg-amber-500 hover:bg-amber-600 text-black font-medium px-8 py-4 rounded-full h-auto"
+                  size="lg"
+                  className="bg-white text-blue-600 hover:bg-gray-100 px-6 py-2 font-semibold"
                   onClick={() => handleBookService()}
                 >
-                  <Calendar className="mr-2 h-5 w-5" />
+                  <Calendar className="mr-2 h-4 w-4" />
                   Agendar Agora
                 </Button>
                 
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="lg"
-                    className="border-white/30 text-white hover:bg-white/10 rounded-full h-auto p-4"
-                    onClick={() => setIsFavorite(!isFavorite)}
-                  >
-                    <Heart className={`h-5 w-5 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="lg"
-                    className="border-white/30 text-white hover:bg-white/10 rounded-full h-auto p-4"
-                  >
-                    <Share2 className="h-5 w-5" />
-                  </Button>
-                </div>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  className={`border px-4 py-2 font-medium transition-all duration-300 ${
+                    isFavorite 
+                      ? 'border-red-400 bg-red-500 text-white hover:bg-red-600' 
+                      : 'border-white/50 bg-white/10 text-white hover:bg-white hover:text-red-500'
+                  }`}
+                  onClick={() => handleToggleFavorite()}
+                >
+                  <Heart className={`mr-2 h-4 w-4 ${
+                    isFavorite ? 'fill-white' : ''
+                  }`} />
+                  {isFavorite ? 'Favorito' : 'Favoritar'}
+                </Button>
               </div>
             </motion.div>
 
-            {/* Right Visual - Team Preview */}
+            {/* RIGHT SIDE - Team & Hours */}
             <motion.div
-              initial={{ opacity: 0, x: 50 }}
+              initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="relative"
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="space-y-6"
             >
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <Award className="h-6 w-6 text-amber-500" />
-                  <h3 className="font-semibold text-stone-800">Equipa Profissional</h3>
+              {/* Team Section */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-5 border border-white/20">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-5 w-5 text-white" />
+                    <h3 className="text-lg font-semibold text-white">Equipa Profissional</h3>
+                  </div>
+                  {business.staff.length > 3 && (
+                    <button 
+                      className="text-white/70 hover:text-white text-xs flex items-center space-x-1"
+                      onClick={() => {
+                        const element = document.getElementById('team-expanded');
+                        if (element) {
+                          element.style.display = element.style.display === 'none' ? 'block' : 'none';
+                        }
+                      }}
+                    >
+                      <span>Ver todos</span>
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
                 
                 {business.staff.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
+                    {/* Show first 3 team members */}
                     {business.staff.slice(0, 3).map((member) => (
-                      <div key={member.id} className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-stone-400 to-stone-600 flex items-center justify-center">
-                          <span className="text-white font-medium">
+                      <div key={member.id} className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-white font-medium text-sm">
                             {member.name.charAt(0)}
                           </span>
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-stone-800">{member.name}</p>
-                          <p className="text-sm text-stone-600">{member.role}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white text-sm truncate">{member.name}</p>
+                          <p className="text-white/70 text-xs">{member.role}</p>
                         </div>
-                        <CheckCircle className="h-5 w-5 text-emerald-500" />
+                        <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
                       </div>
                     ))}
+                    
+                    {/* Expandable section for remaining team members */}
                     {business.staff.length > 3 && (
-                      <p className="text-sm text-stone-500 text-center pt-2">
-                        +{business.staff.length - 3} outros profissionais
-                      </p>
+                      <div id="team-expanded" style={{ display: 'none' }} className="space-y-3 pt-2 border-t border-white/20">
+                        {business.staff.slice(3).map((member) => (
+                          <div key={member.id} className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                              <span className="text-white font-medium text-sm">
+                                {member.name.charAt(0)}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-white text-sm truncate">{member.name}</p>
+                              <p className="text-white/70 text-xs">{member.role}</p>
+                            </div>
+                            <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-stone-500 text-center py-4">
-                    Informações da equipa em breve
+                  <p className="text-white/70 text-center py-4 text-sm">
+                    Equipa em breve
                   </p>
                 )}
+              </div>
+
+              {/* Business Hours - Below Team */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-5 border border-white/20">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Clock className="h-5 w-5 text-white" />
+                  <h3 className="text-lg font-semibold text-white">Horário de Funcionamento</h3>
+                </div>
+                
+                <div className="space-y-2">
+                  {groupedHours.map((group, index) => (
+                    <div key={index} className="flex justify-between items-center py-1">
+                      <span className="text-white/90 text-sm font-medium">
+                        {formatDayRange(group.days)}
+                      </span>
+                      <span className="text-sm">
+                        {group.hours.closed ? (
+                          <span className="text-red-300">Fechado</span>
+                        ) : (
+                          <span className="text-green-300">{group.hours.open} - {group.hours.close}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </motion.div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Services Section */}
-      <div className="py-16 bg-stone-50/50">
-        <div className="container mx-auto px-4">
+      {/* Services Section - Compact & Focused */}
+      <section className="py-8 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            className="text-center mb-8"
           >
-            <h2 className="text-3xl font-light text-stone-800 mb-4">
-              Nossos Serviços
-            </h2>
-            <p className="text-lg text-stone-600 max-w-2xl mx-auto">
-              Descubra a nossa gama completa de serviços profissionais
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Descubra os nossos serviços</h2>
+            
+            {/* MAIN BOOKING BUTTON - More Prominent */}
+            <Button 
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg font-bold shadow-lg hover:shadow-xl transition-all duration-300 mb-6"
+              onClick={() => handleBookService()}
+            >
+              <Calendar className="mr-2 h-5 w-5" />
+              🎯 AGENDAR AGORA
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <p className="text-sm text-gray-500 mb-4">
+              ⚡ Escolha o serviço e profissional durante o agendamento
             </p>
           </motion.div>
 
+          {/* Services Display - Compact Grid */}
           {business.services.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {business.services.map((service, index) => (
-                <motion.div
-                  key={service.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Card className="h-full hover:shadow-xl transition-all duration-500 group bg-white border-stone-200/60 rounded-2xl overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-xl font-light group-hover:text-stone-600 transition-colors leading-tight">
-                          {service.name}
-                        </h3>
-                        <div className="text-right">
-                          <div className="flex items-center gap-1 text-amber-600 font-semibold text-lg">
-                            <Euro className="h-4 w-4" />
-                            {service.price}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+              <AnimatePresence>
+                {business.services.map((service, index) => (
+                  <motion.div
+                    key={service.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ delay: index * 0.1, duration: 0.4 }}
+                  >
+                    <Card className="h-full border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-300 bg-white">
+                      <CardContent className="p-4">
+                        <div className="text-center">
+                          <h3 className="text-lg font-bold text-gray-900 mb-2">{service.name}</h3>
+                          
+                          {/* Price and Duration - Prominent */}
+                          <div className="flex items-center justify-center space-x-4 mb-3">
+                            <div className="flex items-center space-x-1 text-blue-600 font-bold text-lg">
+                              <Euro className="h-5 w-5" />
+                              <span>{service.price}</span>
+                            </div>
+                            <div className="flex items-center space-x-1 text-gray-600">
+                              <Clock className="h-4 w-4" />
+                              <span className="text-sm">{formatDuration(service.duration)}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 text-stone-500 text-sm">
-                            <Clock className="h-3 w-3" />
-                            {formatDuration(service.duration)}
-                          </div>
+                          
+                          {/* Description - Compact */}
+                          {service.description && (
+                            <p className="text-gray-600 text-xs leading-tight">{service.description}</p>
+                          )}
                         </div>
-                      </div>
-                      
-                      {service.description && (
-                        <p className="text-stone-600 mb-6 line-clamp-3 leading-relaxed">
-                          {service.description}
-                        </p>
-                      )}
-                      
-                      <Button 
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-black font-medium rounded-full transition-all duration-300"
-                        onClick={() => handleBookService(service.id)}
-                      >
-                        Agendar Serviço
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           ) : (
-            <div className="text-center py-20">
-              <div className="text-stone-300 text-5xl mb-6">🎯</div>
-              <h3 className="text-xl font-light text-stone-600 mb-3">
-                Serviços em Preparação
-              </h3>
-              <p className="text-stone-500">
-                Novos serviços serão adicionados em breve
-              </p>
+            <div className="text-center py-8">
+              <div className="text-gray-400 text-4xl mb-4">📋</div>
+              <h3 className="text-lg font-medium text-gray-600 mb-2">Serviços em breve</h3>
+              <p className="text-gray-500 text-sm">Este negócio está a adicionar os seus serviços.</p>
             </div>
           )}
         </div>
-      </div>
-
-      {/* Info Section */}
-      <div className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Business Hours */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card className="h-full border-stone-200/60 rounded-2xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-stone-800">
-                    <Clock className="h-6 w-6 text-emerald-500" />
-                    Horário de Funcionamento
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {Object.entries(businessHours as BusinessHours).map(([day, hours]) => (
-                      <div key={day} className="flex justify-between items-center py-2 border-b border-stone-100 last:border-0">
-                        <span className="font-medium text-stone-700">
-                          {dayNames[day as keyof typeof dayNames]}
-                        </span>
-                        <span className={`text-sm ${hours.closed ? 'text-stone-400' : 'text-stone-600'}`}>
-                          {hours.closed ? 'Fechado' : `${hours.open} - ${hours.close}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Contact & Team */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              className="space-y-6"
-            >
-              {/* Contact Info */}
-              <Card className="border-stone-200/60 rounded-2xl">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3 text-stone-800">
-                    <Mail className="h-6 w-6 text-blue-500" />
-                    Contactos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {business.phone && (
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center">
-                        <Phone className="h-5 w-5 text-stone-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-stone-800">Telefone</p>
-                        <p className="text-stone-600">{business.phone}</p>
-                      </div>
-                    </div>
-                  )}
-                  {business.email && (
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center">
-                        <Mail className="h-5 w-5 text-stone-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-stone-800">Email</p>
-                        <p className="text-stone-600">{business.email}</p>
-                      </div>
-                    </div>
-                  )}
-                  {business.address && (
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center">
-                        <MapPin className="h-5 w-5 text-stone-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-stone-800">Morada</p>
-                        <p className="text-stone-600">{business.address}</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Team */}
-              {business.staff.length > 0 && (
-                <Card className="border-stone-200/60 rounded-2xl">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3 text-stone-800">
-                      <Users className="h-6 w-6 text-purple-500" />
-                      Nossa Equipa
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {business.staff.map((member) => (
-                        <div key={member.id} className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
-                            <span className="text-white font-medium">
-                              {member.name.charAt(0)}
-                            </span>
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-stone-800">{member.name}</p>
-                            <Badge variant="secondary" className="text-xs">
-                              {member.role}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </motion.div>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
-} 
+}

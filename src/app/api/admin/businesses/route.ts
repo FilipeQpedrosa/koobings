@@ -3,6 +3,7 @@ import { verify } from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { verifyUltraSecureSessionV2 } from '@/lib/ultra-secure-auth-v2'; // Add this import
 
 // Function to generate slug from business name
 function generateSlug(name: string): string {
@@ -128,50 +129,79 @@ async function verifyAdminJWT(request: NextRequest): Promise<any | null> {
 // GET /api/admin/businesses - List all businesses
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Admin businesses API called - SIMPLIFIED VERSION');
+    console.log('🔍 GET /api/admin/businesses - Listing businesses for admin');
     
-    // 🔧 SUPER SIMPLE TEST: Just count businesses
-    const testCount = await prisma.business.count();
-    console.log(`🔧 [DEBUG] Total businesses in database: ${testCount}`);
+    // 🚀 PRIORITY 1: Try Ultra-Secure Session first
+    console.log('🔍 Checking Ultra-Secure session for GET...');
+    let user = null;
+    const ultraSecureSession = verifyUltraSecureSessionV2(request);
     
-    // 🔧 SUPER SIMPLE TEST: Just fetch basic business data
+    if (ultraSecureSession && ultraSecureSession.role === 'ADMIN') {
+      console.log('✅ Ultra-Secure admin session verified for GET:', ultraSecureSession.email);
+      user = {
+        id: ultraSecureSession.userId,
+        email: ultraSecureSession.email,
+        role: 'ADMIN',
+        isAdmin: true
+      };
+    } else {
+      // 🔄 FALLBACK: Try JWT token
+      console.log('🔍 Fallback to JWT verification for GET...');
+      user = await verifyAdminJWT(request);
+    }
+    
+    if (!user) {
+      console.log('❌ Both Ultra-Secure and JWT verification failed for GET');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    console.log('✅ Authentication verified for GET, admin user:', { id: user.id, email: user.email, role: user.role });
+
+    // Get businesses with proper relations
     const businesses = await prisma.business.findMany({
       select: {
         id: true,
         name: true,
         email: true,
         ownerName: true,
+        phone: true,
+        address: true,
+        description: true,
+        slug: true,
         status: true,
+        settings: true,
         createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            Staff: true,
+            Service: true,
+            Client: true
+          }
+        }
       },
-      take: 20, // Limit to 20 results for testing
       orderBy: {
-        createdAt: 'desc',
-      },
+        createdAt: 'desc'
+      }
     });
 
-    console.log(`🔧 [DEBUG] Found ${businesses.length} businesses in simplified query`);
-    console.log('🔧 [DEBUG] First business:', businesses[0] ? JSON.stringify(businesses[0], null, 2) : 'None');
+    console.log(`✅ Found ${businesses.length} businesses for admin dashboard`);
 
     return NextResponse.json({ 
-      businesses, 
-      count: testCount,
-      debug: true, 
-      message: 'Simplified query - no JWT required' 
+      businesses: businesses.map(business => ({
+        ...business,
+        plan: (business.settings as any)?.plan || 'standard',
+        features: (business.settings as any)?.features || {}
+      })),
+      count: businesses.length,
+      success: true
     });
     
   } catch (error) {
-    console.error('❌ Error in simplified businesses query:', error);
-    console.error('❌ Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace'
-    });
-    
+    console.error('❌ Error listing businesses:', error);
     return NextResponse.json({ 
-      error: 'Simplified query failed', 
-      details: error instanceof Error ? error.message : 'Unknown error',
-      debug: true 
+      error: 'Failed to fetch businesses', 
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
@@ -187,16 +217,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server configuration error: NEXTAUTH_SECRET missing' }, { status: 500 });
     }
     
-    // Verify JWT token
-    console.log('🔍 Verifying JWT token...');
-    const user = await verifyAdminJWT(request);
+    // 🚀 PRIORITY 1: Try Ultra-Secure Session first
+    console.log('🔍 Checking Ultra-Secure session...');
+    let user = null;
+    const ultraSecureSession = verifyUltraSecureSessionV2(request);
+    
+    if (ultraSecureSession && ultraSecureSession.role === 'ADMIN') {
+      console.log('✅ Ultra-Secure admin session verified:', ultraSecureSession.email);
+      user = {
+        id: ultraSecureSession.userId,
+        email: ultraSecureSession.email,
+        role: 'ADMIN',
+        isAdmin: true
+      };
+    } else {
+      // 🔄 FALLBACK: Try JWT token
+      console.log('🔍 Fallback to JWT verification...');
+      user = await verifyAdminJWT(request);
+    }
     
     if (!user) {
-      console.log('❌ JWT verification failed or user not admin');
+      console.log('❌ Both Ultra-Secure and JWT verification failed');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    console.log('✅ JWT verified, admin user:', { id: user.id, email: user.email, role: user.role });
+    console.log('✅ Authentication verified, admin user:', { id: user.id, email: user.email, role: user.role });
 
     console.log('📦 Parsing request body...');
     const body = await request.json();

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, isToday, isTomorrow, isThisWeek, isThisMonth, startOfDay, endOfDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatAppointmentTime, formatTimeOnly, formatDateOnly, formatRelativeDate, formatPortugueseDate, getPortugueseTime } from '@/lib/utils/date';
 import { Loader2, Plus, X, Search, Filter, CalendarDays, User, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -154,13 +155,13 @@ const EventCard = React.memo(({ event, onStatusChange, updatingId, onClick }: {
             ) : isTomorrow(eventDate) ? (
               <span className="text-blue-600 font-medium">Amanhã</span>
             ) : (
-              format(eventDate, 'dd/MM', { locale: ptBR })
+              formatPortugueseDate(eventDate, 'dd/MM')
             )}
           </div>
           <div className="text-xs text-gray-500">
             {event.isSlotBased && event.participants[0]?.slotInfo ? 
               `${event.participants[0].slotInfo.startTime} - ${event.participants[0].slotInfo.endTime}` : 
-              format(eventDate, 'HH:mm', { locale: ptBR })
+              formatTimeOnly(eventDate)
             }
           </div>
           <div className="text-xs text-gray-500 mt-1">{event.duration}min</div>
@@ -195,9 +196,10 @@ EventCard.displayName = 'EventCard';
 
 interface RecentAppointmentsProps {
   businessSlug?: string | null;
+  refreshStats?: () => Promise<void>;
 }
 
-export default function RecentAppointments({ businessSlug }: RecentAppointmentsProps = {}) {
+export default function RecentAppointments({ businessSlug, refreshStats }: RecentAppointmentsProps = {}) {
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
@@ -369,7 +371,16 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
   // Fetch appointments and staff from API
   useEffect(() => {
     fetchData();
-  }, [businessSlug, fetchData]);
+    
+    // Set up periodic refresh to catch new appointments created from customer portal
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing appointments and stats...');
+      fetchData();
+      refreshStats?.(); // Also refresh dashboard stats
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [businessSlug, fetchData, refreshStats]);
 
   // Enhanced filtering and sorting logic
   const filteredAndSortedAppointments = useMemo(() => {
@@ -601,6 +612,7 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
     };
     
     fetchAppointmentsAsync();
+    refreshStats?.(); // Call refreshStats if provided
   }
 
   const getStatsForFilter = () => {
@@ -866,11 +878,11 @@ export default function RecentAppointments({ businessSlug }: RecentAppointmentsP
                                 ) : isTomorrow(groupDate) ? (
                                   <span className="text-blue-600">Amanhã</span>
                                 ) : (
-                                  format(groupDate, 'dd/MM/yy', { locale: ptBR })
+                                  formatPortugueseDate(groupDate, 'dd/MM/yy')
                                 )}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {format(groupDate, 'HH:mm', { locale: ptBR })}
+                                {formatTimeOnly(groupDate)}
                               </div>
                             </td>
                             <td className="px-3 py-3 text-sm text-gray-600 font-medium">

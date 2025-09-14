@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Calendar, MapPin, Star, ChevronRight, User, LogIn, LogOut, UserPlus } from 'lucide-react';
+import { Search, Calendar, MapPin, Star, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { GlobalCustomerHeader } from '@/components/layout/GlobalCustomerHeader';
 
 interface Business {
   id: string;
@@ -31,13 +32,6 @@ interface Business {
   reviewCount?: number;
 }
 
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
 export default function HomePage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [filteredBusinesses, setFilteredBusinesses] = useState<Business[]>([]);
@@ -45,29 +39,21 @@ export default function HomePage() {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     fetchBusinesses();
-    checkAuthStatus();
   }, []);
 
   useEffect(() => {
     filterBusinesses();
   }, [businesses, searchQuery, selectedType]);
 
-  const checkAuthStatus = async () => {
+  const fetchBusinesses = async () => {
     try {
-      // Only check auth status if we have session cookies
-      const hasCookies = document.cookie.includes('authToken') || document.cookie.includes('next-auth');
+      setLoading(true);
+      console.log('🔍 [Homepage] Fetching businesses...');
       
-      if (!hasCookies) {
-        setAuthLoading(false);
-        return;
-      }
-
-      const response = await fetch('/api/client/profile', {
+      const response = await fetch('/api/customer/marketplace/businesses', {
         method: 'GET',
         credentials: 'include'
       });
@@ -75,73 +61,19 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setAuthUser({
-            id: data.data.id,
-            name: data.data.name,
-            email: data.data.email,
-            role: 'CLIENT'
-          });
+          setBusinesses(data.data || []);
+          console.log('✅ [Homepage] Loaded businesses:', data.data?.length || 0);
+        } else {
+          console.error('❌ [Homepage] API returned error:', data);
+          setError('Falha ao carregar negócios');
         }
-      }
-    } catch (error) {
-      console.log('User not authenticated or error checking auth status');
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      // Clear all session data
-      sessionStorage.clear();
-      localStorage.clear();
-      
-      // Clear cookies
-      document.cookie.split(";").forEach(cookie => {
-        const eqPos = cookie.indexOf("=");
-        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-      });
-      
-      // Call logout API
-      await fetch('/api/auth/client/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
-      // Update state
-      setAuthUser(null);
-      
-      // Force page reload to ensure clean state
-      window.location.reload();
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Force reload even if API call fails
-      window.location.reload();
-    }
-  };
-
-  const fetchBusinesses = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/client/marketplace/businesses');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && Array.isArray(data.data)) {
-        setBusinesses(data.data);
-        console.log(`✅ Loaded ${data.data.length} businesses`);
       } else {
-        throw new Error(data.error || 'Invalid response format');
+        console.error('❌ [Homepage] HTTP error:', response.status);
+        setError('Falha ao carregar negócios');
       }
     } catch (error) {
-      console.error('❌ Error fetching businesses:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load businesses');
+      console.error('❌ [Homepage] Network error fetching businesses:', error);
+      setError('Erro de rede ao carregar negócios');
     } finally {
       setLoading(false);
     }
@@ -193,7 +125,7 @@ export default function HomePage() {
     }
   };
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -221,48 +153,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Koobings</h1>
-              <p className="text-gray-600 text-sm">Marca. Segue. Está feito.</p>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {authUser ? (
-                // Logged in state
-                <>
-                  <Link href="/client/profile">
-                    <Button variant="outline" className="flex items-center space-x-2">
-                      <User className="h-4 w-4" />
-                      <span>Meu Perfil</span>
-                    </Button>
-                  </Link>
-                  
-                  <Button 
-                    variant="ghost"
-                    onClick={handleLogout}
-                    className="flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Sair</span>
-                  </Button>
-                </>
-              ) : (
-                // Not logged in state - only show "Entrar" button
-                <Link href="/auth/client/signin">
-                  <Button className="flex items-center space-x-2">
-                    <LogIn className="h-4 w-4" />
-                    <span>Entrar</span>
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Global Customer Header */}
+      <GlobalCustomerHeader />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-purple-800 text-white py-16">

@@ -116,6 +116,31 @@ export default function StaffDashboard() {
     }
   };
 
+  // 🔧 NEW: Function to refresh stats when appointments are created/updated
+  const refreshDashboardStats = async () => {
+    try {
+      console.log('🔄 Dashboard: Refreshing stats...');
+      const statsRes = await fetch('/api/staff/dashboard/stats', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        console.log('📊 Dashboard: Updated stats received:', statsData);
+        setStats({
+          totalAppointments: statsData.totalAppointments || 0,
+          upcomingAppointments: statsData.upcomingAppointments || 0,
+          totalClients: statsData.totalClients || 0,
+          completionRate: statsData.completionRate || 0,
+        });
+        console.log('✅ Dashboard: Stats refreshed successfully');
+      }
+    } catch (error) {
+      console.error('❌ Dashboard: Error refreshing stats:', error);
+    }
+  };
+
   // Only use API data, never fallback to potentially hardcoded user.businessName
   const companyName = business?.name || 'Loading...';
   const logo = business?.logo;
@@ -218,7 +243,7 @@ export default function StaffDashboard() {
             />
           </div>
           <div className="w-full max-w-4xl mx-auto">
-            <RecentAppointments businessSlug={businessSlug} />
+            <RecentAppointments businessSlug={businessSlug} refreshStats={refreshDashboardStats} />
           </div>
         </>
       )}

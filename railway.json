@@ -1,0 +1,14 @@
+{
+  "name": "service-scheduler",
+  "version": "1.0.0",
+  "description": "Service Scheduler Application",
+  "main": "index.js",
+  "scripts": {
+    "build": "next build",
+    "start": "next start",
+    "dev": "next dev"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

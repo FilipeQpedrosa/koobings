@@ -40,7 +40,7 @@ export default function BookingDateTime() {
       router.push('/');
       return;
     }
-  }, [serviceId, staffId, businessSlug, router, toast]);
+  }, []); // Removed dependencies to prevent loops
 
   useEffect(() => {
     if (selectedDate && serviceId && staffId) {
@@ -60,7 +60,7 @@ export default function BookingDateTime() {
       });
 
       const response = await fetch(
-        `/api/client/availability?serviceId=${serviceId}&staffId=${staffId}&date=${format(selectedDate, 'yyyy-MM-dd')}`
+        `/api/customer/availability?serviceId=${serviceId}&staffId=${staffId}&date=${format(selectedDate, 'yyyy-MM-dd')}`
       );
       
       if (!response.ok) {
@@ -127,10 +127,10 @@ export default function BookingDateTime() {
   };
 
   const isDateDisabled = (date: Date) => {
-    // Disable past dates and weekends for simplicity
+    // Disable past dates and only Sundays (not Saturdays)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return date < today || date.getDay() === 0 || date.getDay() === 6;
+    return date < today || date.getDay() === 0; // Only block Sundays (0), allow Saturdays (6)
   };
 
   const formatDateForDisplay = (date: Date) => {

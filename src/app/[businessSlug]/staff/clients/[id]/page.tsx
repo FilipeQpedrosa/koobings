@@ -69,27 +69,42 @@ export default function ClientDetailsPage() {
   const fetchClientDetails = async () => {
     try {
       setLoading(true);
+      console.log('🔧 DEBUG: Fetching client data for:', params.id);
       
-      // Fetch client details
-      const clientResponse = await fetch(`/api/staff/clients/${params.id}`, {
-        credentials: 'include'
-      });
-      
-      if (clientResponse.ok) {
-        const clientData = await clientResponse.json();
-        if (clientData.success) {
-          setClient(clientData.data.client);
-          setAppointments(clientData.data.appointments || []);
-          setNotes(clientData.data.notes || []);
+      // Add timestamp to prevent cache
+      const timestamp = Date.now();
+      const response = await fetch(`/api/staff/clients/${params.id}?t=${timestamp}`, {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
+      });
+
+      console.log('🔧 DEBUG: Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🔧 DEBUG: Response data received:', {
+          clientExists: !!data.data?.client,
+          appointmentsCount: data.data?.appointments?.length || 0,
+          notesCount: data.data?.notes?.length || 0,
+          notes: data.data?.notes?.map((note: any) => ({ id: note.id, content: note.content.substring(0, 50) + '...' }))
+        });
+        
+        if (data.success && data.data) {
+          setClient(data.data.client);
+          setAppointments(data.data.appointments || []);
+          setNotes(data.data.notes || []);
+          console.log('🔧 DEBUG: State updated - notes count:', data.data.notes?.length || 0);
+        }
+      } else {
+        console.error('🔧 DEBUG: Failed to fetch client data:', response.status);
       }
     } catch (error) {
-      console.error('Error fetching client details:', error);
-      toast({
-        title: "Erro",
-        description: "Falha ao carregar detalhes do cliente",
-        variant: "destructive"
-      });
+      console.error('🔧 DEBUG: Error fetching client data:', error);
     } finally {
       setLoading(false);
     }
@@ -100,6 +115,9 @@ export default function ClientDetailsPage() {
 
     try {
       setAddingNote(true);
+      console.log('🔧 DEBUG: Adding note for client:', params.id);
+      console.log('🔧 DEBUG: Note content:', newNote);
+      
       const response = await fetch(`/api/staff/clients/${params.id}/notes`, {
         method: 'POST',
         headers: {
@@ -109,19 +127,34 @@ export default function ClientDetailsPage() {
         body: JSON.stringify({ content: newNote })
       });
 
+      console.log('🔧 DEBUG: Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('🔧 DEBUG: Response data:', data);
+        
         if (data.success) {
-          setNotes(prev => [data.data, ...prev]);
+          console.log('🔧 DEBUG: Adding note to local state:', data.data);
+          setNotes(prev => {
+            const updated = [data.data, ...prev];
+            console.log('🔧 DEBUG: Updated notes array length:', updated.length);
+            return updated;
+          });
           setNewNote('');
           toast({
             title: "Sucesso",
             description: "Nota adicionada com sucesso"
           });
+        } else {
+          console.error('🔧 DEBUG: API returned success: false');
         }
+      } else {
+        console.error('🔧 DEBUG: Response not OK, status:', response.status);
+        const errorData = await response.text();
+        console.error('🔧 DEBUG: Error response:', errorData);
       }
     } catch (error) {
-      console.error('Error adding note:', error);
+      console.error('🔧 DEBUG: Exception in addNote:', error);
       toast({
         title: "Erro",
         description: "Falha ao adicionar nota",
@@ -270,7 +303,7 @@ export default function ClientDetailsPage() {
               ) : (
                 <div className="space-y-4">
                   {appointments.map((appointment) => (
-                    <div key={appointment.id} className="border rounded-lg p-4">
+                    <div key={appointment.id} className="border rounded-lg p-4" data-appointment-id={appointment.id}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           <Clock className="h-4 w-4 text-gray-500" />
@@ -359,20 +392,121 @@ export default function ClientDetailsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {notes.map((note) => (
-                    <div key={note.id} className="border rounded-lg p-4 bg-white">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <User className="h-4 w-4" />
-                          <span>{note.Staff.name}</span>
+                  {notes.map((note) => {
+                    // Check if this is an appointment note by looking at the content format
+                    const isAppointmentNote = note.content.includes('📅 Agendamento') && note.content.includes('🔹 Serviço:');
+                    
+                    return (
+                      <div key={note.id} className={`border rounded-lg p-4 ${isAppointmentNote ? 'bg-blue-50 border-blue-200' : 'bg-white'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            {isAppointmentNote ? (
+                              <>
+                                <Calendar className="h-4 w-4 text-blue-600" />
+                                <span className="text-blue-800 font-medium">Nota de Marcação</span>
+                                <span className="text-gray-400">•</span>
+                                <span>{note.Staff.name}</span>
+                              </>
+                            ) : (
+                              <>
+                                <User className="h-4 w-4" />
+                                <span>Nota Geral</span>
+                                <span className="text-gray-400">•</span>
+                                <span>{note.Staff.name}</span>
+                              </>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(note.createdAt)}
+                          </span>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {formatDate(note.createdAt)}
-                        </span>
+                        
+                        {isAppointmentNote ? (
+                          <div className="space-y-2">
+                            {/* Parse and format appointment note content */}
+                            {note.content.split('\n').map((line, index) => {
+                              if (line.startsWith('📅')) {
+                                return (
+                                  <div key={index} className="flex items-center space-x-2 text-sm">
+                                    <Calendar className="h-4 w-4 text-blue-600" />
+                                    <span className="font-medium text-blue-800">{line.replace('📅 ', '')}</span>
+                                  </div>
+                                );
+                              } else if (line.startsWith('🔹')) {
+                                return (
+                                  <div key={index} className="flex items-center space-x-2 text-sm">
+                                    <span className="text-blue-600">🔹</span>
+                                    <span className="text-gray-700">{line.replace('🔹 ', '')}</span>
+                                  </div>
+                                );
+                              } else if (line.startsWith('📝')) {
+                                return (
+                                  <div key={index} className="mt-3 p-3 bg-white rounded-md border border-blue-200">
+                                    <div className="flex items-start space-x-2">
+                                      <span className="text-blue-600 mt-0.5">📝</span>
+                                      <div>
+                                        <div className="text-xs text-blue-600 font-medium mb-1">Nota da Marcação:</div>
+                                        <p className="text-gray-900">{line.replace('📝 Nota: ', '')}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              } else if (line.startsWith('🔗')) {
+                                // Extract appointment ID and create a clickable link
+                                const appointmentId = line.replace('🔗 ID Marcação: ', '');
+                                const matchingAppointment = appointments.find(apt => apt.id === appointmentId);
+                                
+                                return (
+                                  <div key={index} className="mt-2 p-2 bg-blue-100 rounded-md border border-blue-300">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-2 text-sm">
+                                        <span className="text-blue-600">🔗</span>
+                                        <span className="text-blue-700 font-medium">Referência:</span>
+                                        {matchingAppointment ? (
+                                          <span className="text-blue-800">
+                                            Marcação de {formatDate(matchingAppointment.scheduledFor)}
+                                          </span>
+                                        ) : (
+                                          <span className="text-blue-800">Marcação #{appointmentId.slice(-8)}</span>
+                                        )}
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-xs h-6 px-2 text-blue-600 border-blue-300 hover:bg-blue-50"
+                                        onClick={() => {
+                                          // Scroll to appointments tab and highlight the specific appointment
+                                          const tabTrigger = document.querySelector('[value="appointments"]') as HTMLElement;
+                                          if (tabTrigger) {
+                                            tabTrigger.click();
+                                            setTimeout(() => {
+                                              const appointmentElement = document.querySelector(`[data-appointment-id="${appointmentId}"]`);
+                                              if (appointmentElement) {
+                                                appointmentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                appointmentElement.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-75');
+                                                setTimeout(() => {
+                                                  appointmentElement.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-75');
+                                                }, 3000);
+                                              }
+                                            }, 100);
+                                          }
+                                        }}
+                                      >
+                                        Ver Marcação
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-gray-900">{note.content}</p>
+                        )}
                       </div>
-                      <p className="text-gray-900">{note.content}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
