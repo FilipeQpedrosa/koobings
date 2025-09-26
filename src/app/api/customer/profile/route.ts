@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
 
     console.log(`[SECURE_PROFILE] ✅ Secure access for customer: ${customerEmail} (Type: ${isUltraSecure ? 'ULTRA-SECURE' : 'JWT'})`);
 
-    // Find customer by email - using correct model name
-    const client = await prisma.customer.findFirst({
+    // Find customer by email - try both customer and client tables
+    let client = await prisma.customer.findFirst({
       where: { email: customerEmail },
       select: {
         id: true,
@@ -67,6 +67,21 @@ export async function GET(request: NextRequest) {
         status: true
       }
     });
+
+    // If not found in customer table, try client table
+    if (!client) {
+      client = await prisma.client.findFirst({
+        where: { email: customerEmail },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          createdAt: true,
+          status: true
+        }
+      });
+    }
 
     if (!client) {
       console.log(`[SECURE_PROFILE] ❌ Customer not found for email: ${customerEmail}`);

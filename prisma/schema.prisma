@@ -76,6 +76,7 @@ model Client {
   notes              String?
   lastVisit          DateTime?
   isDeleted          Boolean              @default(false)
+  isEligible         Boolean              @default(true) // ✅ NEW: Cliente apto para aulas
   Business           Business             @relation(fields: [businessId], references: [id])
   ClientRelationship ClientRelationship[]
   appointments       appointments[]
@@ -89,6 +90,7 @@ model Client {
   @@index([isDeleted])
   @@index([lastVisit])
   @@index([status])
+  @@index([isEligible]) // ✅ NEW: Index para filtros rápidos
 }
 
 model Customer {
@@ -174,11 +176,11 @@ model Service {
   minAdvanceHours      Int                 @default(24)
   slots                Json?
   startTime            String?
-  slotConfiguration    Json?
-  slotsNeeded          Int                 @default(1)
-  availabilitySchedule Json?
-  capacity             Int                 @default(1)
-  eventType            EventType           @default(INDIVIDUAL)
+  // slotConfiguration    Json? // ❌ Column doesn't exist in database
+  // slotsNeeded          Int                 @default(1) // ❌ Column doesn't exist in database
+  // availabilitySchedule Json? // ❌ Column doesn't exist in database
+  // capacity             Int                 @default(1) // ❌ Column doesn't exist in database
+  // eventType            EventType           @default(INDIVIDUAL) // ❌ Column doesn't exist in database
   isActive             Boolean             @default(true)
   Business             Business            @relation(fields: [businessId], references: [id])
   service_categories   service_categories? @relation(fields: [categoryId], references: [id])
@@ -188,9 +190,9 @@ model Service {
   @@index([businessId])
   @@index([categoryId])
   @@index([location])
-  @@index([slotsNeeded])
-  @@index([eventType])
   @@index([isActive])
+  // @@index([slotsNeeded]) // ❌ Column doesn't exist in database
+  // @@index([eventType]) // ❌ Column doesn't exist in database
 }
 
 model Staff {
@@ -261,7 +263,7 @@ model SlotTemplate {
   id          String    @id @default(cuid())
   name        String
   description String?
-  slotsNeeded Int
+  // slotsNeeded Int // ❌ Column doesn't exist in database
   duration    Int
   category    String?
   isDefault   Boolean   @default(false)
@@ -318,10 +320,10 @@ model appointments {
   businessId             String
   recurringAppointmentId String?
   slotInfo               Json?
-  endSlot                Int?
-  slotDetails            Json?
-  slotsUsed              Int?
-  startSlot              Int?
+  // endSlot                Int? // Commented out - doesn't exist in DB
+  // slotDetails            Json? // ❌ Column doesn't exist in database
+  // slotsUsed              Int?
+  // startSlot              Int?
   Business               Business                @relation(fields: [businessId], references: [id])
   Client                 Client                  @relation(fields: [clientId], references: [id])
   recurring_appointments recurring_appointments? @relation(fields: [recurringAppointmentId], references: [id])
@@ -335,7 +337,7 @@ model appointments {
   @@index([recurringAppointmentId])
   @@index([serviceId])
   @@index([staffId])
-  @@index([startSlot, endSlot])
+  // @@index([startSlot, endSlot]) // Commented out - endSlot doesn't exist in DB
   @@index([scheduledFor])
 }
 

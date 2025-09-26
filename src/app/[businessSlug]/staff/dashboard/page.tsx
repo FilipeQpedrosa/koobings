@@ -1,7 +1,8 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import DashboardStats from '@/components/Staff/dashboard/DashboardStats';
-import RecentAppointments from '@/components/Staff/dashboard/RecentAppointments';
+import RegyBoxCalendar from '@/components/Calendar/RegyBoxCalendar';
+import DaySlotsList from '@/components/Calendar/DaySlotsList';
+import ServiceManagement from '@/components/Staff/dashboard/ServiceManagement';
 import { useAuth } from '@/hooks/useAuth';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
@@ -21,6 +22,10 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [business, setBusiness] = useState<{ name: string; logo?: string | null } | null>(null);
+  
+  // Calendar state
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedDaySlots, setSelectedDaySlots] = useState<any[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -141,6 +146,23 @@ export default function StaffDashboard() {
     }
   };
 
+  // Handle date selection from calendar
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
+    console.log('📅 Date selected:', date);
+  };
+
+  // Handle slot selection from calendar
+  const handleSlotSelect = (slot: any) => {
+    console.log('⏰ Slot selected:', slot);
+  };
+
+  // Handle slots change from calendar
+  const handleSlotsChange = (slots: any[]) => {
+    setSelectedDaySlots(slots);
+    console.log('📅 Day slots updated:', slots.length, 'slots');
+  };
+
   // Only use API data, never fallback to potentially hardcoded user.businessName
   const companyName = business?.name || 'Loading...';
   const logo = business?.logo;
@@ -234,16 +256,33 @@ export default function StaffDashboard() {
       
       {stats && (
         <>
-          <div className="w-full mb-6 sm:mb-8 max-w-4xl mx-auto">
-            <DashboardStats
-              totalAppointments={stats.totalAppointments}
-              upcomingAppointments={stats.upcomingAppointments}
-              totalClients={stats.totalClients}
-              completionRate={stats.completionRate}
+          {/* Regy Box Calendar */}
+          <div className="w-full mb-6 sm:mb-8">
+            <RegyBoxCalendar
+              onDateSelect={handleDateSelect}
+              onSlotSelect={handleSlotSelect}
+              selectedDate={selectedDate}
+              businessSlug={businessSlug}
+              onSlotsChange={handleSlotsChange}
             />
           </div>
-          <div className="w-full max-w-4xl mx-auto">
-            <RecentAppointments businessSlug={businessSlug} refreshStats={refreshDashboardStats} />
+
+          {/* Day Slots List */}
+          <div className="w-full mb-6 sm:mb-8">
+            <DaySlotsList
+              selectedDate={selectedDate}
+              slots={selectedDaySlots}
+              businessSlug={businessSlug}
+              onSlotSelect={handleSlotSelect}
+            />
+          </div>
+
+          {/* Service Management */}
+          <div className="w-full mb-6 sm:mb-8">
+            <ServiceManagement
+              selectedDate={selectedDate}
+              businessSlug={businessSlug}
+            />
           </div>
         </>
       )}

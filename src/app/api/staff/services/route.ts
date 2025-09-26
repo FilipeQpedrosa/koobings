@@ -44,7 +44,10 @@ export async function GET(request: Request) {
         return NextResponse.json({ success: false, error: { code: 'MISSING_BUSINESS_ID', message: 'Missing businessId' } }, { status: 400 });
       }
       const services = await prisma.service.findMany({
-        where: { businessId },
+        where: { 
+          businessId,
+          isActive: true, // Only get active services
+        },
         include: { category: true },
         orderBy: { createdAt: 'desc' },
       });

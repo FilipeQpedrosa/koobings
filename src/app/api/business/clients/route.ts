@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
       totalVisits: 0,
       totalAppointments: 0,
       status: client.status,
-      notes: client.notes
+      notes: client.notes,
+      isEligible: client.isEligible // ✅ NEW: Campo apto/não apto
     }));
 
     // Simple metrics
@@ -164,6 +165,7 @@ export async function POST(request: NextRequest) {
         status: 'ACTIVE',
         businessId,
         isDeleted: false,
+        isEligible: true, // ✅ NEW: Por defeito, cliente é apto
         updatedAt: new Date()
       },
     });

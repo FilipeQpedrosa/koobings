@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
         
         // Use business-specific cookie name
         response.cookies.set('business-auth-token', token, {
-          httpOnly: true,
+          httpOnly: false, // Allow frontend to read the token
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 7 * 24 * 60 * 60, // 7 days
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         
         // Use business-specific cookie name
         response.cookies.set('business-auth-token', token, {
-          httpOnly: true,
+          httpOnly: false, // Allow frontend to read the token
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 7 * 24 * 60 * 60, // 7 days
