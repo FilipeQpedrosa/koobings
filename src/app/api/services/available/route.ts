@@ -11,7 +11,7 @@ export async function GET() {
     // Fetch all services with their categories
     const services = await prisma.service.findMany({
       where: {
-        // isActive: true, // Removed, does not exist
+        isActive: true, // Only get active services
       },
       include: {
         category: true,

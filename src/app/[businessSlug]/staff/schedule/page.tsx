@@ -790,6 +790,7 @@ export default function StaffSchedule() {
             setShowBookingModal(false);
             loadAppointments();
           }}
+          businessSlug={businessSlug}
         />
       )}
     </div>

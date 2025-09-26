@@ -3,41 +3,21 @@ import { prisma } from '@/lib/prisma';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { z } from 'zod';
 
-// Force Node.js runtime for Prisma compatibility
-export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// GET method - return error explaining only POST is allowed
+/**
+ * GET /api/business/services/slots/availability
+ * 
+ * Retorna disponibilidade de slots para um mês específico
+ * 
+ * Query params:
+ * - year: Ano (ex: 2025)
+ * - month: Mês (ex: 9)
+ * - businessSlug: Slug do negócio
+ */
 export async function GET(request: NextRequest) {
-  return NextResponse.json({
-    success: false,
-    error: {
-      code: 'METHOD_NOT_ALLOWED',
-      message: 'This endpoint only accepts POST requests. Use POST with serviceId, date, and optional staffId in the request body.'
-    }
-  }, { status: 405 });
-}
-
-export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 /api/business/services/slots/availability POST - Starting...');
-    
-    // Debug: Check Prisma initialization
-    console.log('🔍 Prisma client status:', !!prisma);
-    console.log('🔍 Prisma type:', typeof prisma);
-    // @ts-ignore - Schema model names are correct
-    console.log('🔍 Prisma Service model:', !!prisma?.Service);
-    // @ts-ignore - Schema model names are correct
-    console.log('🔍 Prisma appointments model:', !!prisma?.appointments);
-    
-    // Test Prisma connection
-    try {
-      await prisma.$connect();
-      console.log('🔍 Prisma connection successful');
-    } catch (dbError) {
-      console.error('🔍 Prisma connection failed:', dbError);
-      throw new Error(`Database connection failed: ${dbError}`);
-    }
+    console.log('📅 [CALENDAR-SLOTS] Starting month slots fetch...');
 
     // Authentication check
     const user = getRequestAuthUser(request);
@@ -56,190 +36,157 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Input validation
-    const schema = z.object({
-      serviceId: z.string().min(1),
-      date: z.string().min(1), // YYYY-MM-DD format
-      staffId: z.string().min(1).optional(),
-    });
+    // Get query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
+    const businessSlug = searchParams.get('businessSlug');
 
-    const body = await request.json();
-    const parsed = schema.parse(body);
-    const { serviceId, date, staffId } = parsed;
-
-    console.log('📅 Checking slot availability:', { serviceId, date, staffId });
-
-    // Get the service with slots - Use exact schema model name
-    // @ts-ignore - Schema uses Service model (singular, capitalized)
-    const service = await prisma.Service.findUnique({
-      where: { 
-        id: serviceId,
-        businessId // Ensure service belongs to the business
-      }
-    });
-
-    if (!service) {
+    if (!year || !month) {
       return NextResponse.json({ 
         success: false, 
-        error: { code: 'SERVICE_NOT_FOUND', message: 'Service not found' } 
-      }, { status: 404 });
+        error: { code: 'MISSING_PARAMS', message: 'Year and month are required' } 
+      }, { status: 400 });
     }
 
-    // Parse the target date
-    const targetDate = new Date(date + 'T00:00:00.000Z');
-    const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
-    // Map day numbers to day names for slot lookup
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[dayOfWeek];
+    console.log('📅 [CALENDAR-SLOTS] Request params:', { year, month, businessSlug });
 
-    console.log('🗓️ Day filtering debug:', {
-      date,
-      targetDate: targetDate.toISOString(),
-      dayOfWeek,
-      dayName,
-      serviceAvailableDays: (service as any).availableDays,
-      includes: (service as any).availableDays?.includes(dayOfWeek),
-      serviceId,
-      serviceName: service.name,
-      hasSlots: !!(service as any).slots,
-      slotsData: (service as any).slots,
-      timestamp: new Date().toISOString()
-    });
-
-    console.log('🗓️ Looking for slots for day:', dayName);
-    
-    // NEW HYBRID APPROACH: Check for day-specific slots first, then fallback to general
-    let dailySlots: any[] = [];
-    let slotsSource = 'none';
-    
-    if ((service as any).slots) {
-      const slotsData = (service as any).slots;
-      
-      // Try day-specific slots first (new format)
-      if (typeof slotsData === 'object' && !Array.isArray(slotsData) && slotsData[dayName]) {
-        dailySlots = slotsData[dayName];
-        slotsSource = 'day-specific';
-        console.log(`✅ Found ${dailySlots.length} day-specific slots for ${dayName}`);
-      }
-      // Fallback to general slots (old format or 'general' key)
-      else if (Array.isArray(slotsData)) {
-        // Old format: array of slots applies to all days (but respect availableDays)
-        const hasAvailableDaysRestriction = (service as any).availableDays && Array.isArray((service as any).availableDays) && (service as any).availableDays.length > 0;
-        
-        if (!hasAvailableDaysRestriction || (service as any).availableDays.includes(dayOfWeek)) {
-          dailySlots = slotsData;
-          slotsSource = 'general-legacy';
-          console.log(`✅ Using ${dailySlots.length} general slots (legacy format) for ${dayName}`);
-        } else {
-          console.log(`❌ Service not available on ${dayName} (availableDays restriction)`);
-        }
-      }
-      // Check for 'general' key in new format
-      else if (typeof slotsData === 'object' && slotsData['general']) {
-        // Check availableDays restriction for general slots
-        const hasAvailableDaysRestriction = (service as any).availableDays && Array.isArray((service as any).availableDays) && (service as any).availableDays.length > 0;
-        
-        if (!hasAvailableDaysRestriction || (service as any).availableDays.includes(dayOfWeek)) {
-          dailySlots = slotsData['general'];
-          slotsSource = 'general-new';
-          console.log(`✅ Using ${dailySlots.length} general slots (new format) for ${dayName}`);
-        } else {
-          console.log(`❌ Service not available on ${dayName} (availableDays restriction)`);
-        }
-      }
-    }
-
-    console.log('🎯 Slots decision:', {
-      dayName,
-      dayOfWeek,
-      slotsSource,
-      slotsCount: dailySlots.length,
-      availableDays: (service as any).availableDays
-    });
-
-    if (dailySlots.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          serviceType: 'slots',
-          availableSlots: [],
-          message: slotsSource === 'none' ? 'Service has no slots configured' : 'Service not available on this day'
-        }
-      });
-    }
-
-    // Get existing appointments for this service/date to check slot capacity
-    const startOfDay = new Date(date + 'T00:00:00.000Z');
-    const endOfDay = new Date(date + 'T23:59:59.999Z');
-
-    // @ts-ignore - Schema uses appointments model (plural)
-    const existingAppointments = await prisma.appointments.findMany({
-      where: {
-        serviceId,
-        scheduledFor: { gte: startOfDay, lte: endOfDay },
-        ...(staffId && { staffId }),
-        status: { not: 'CANCELLED' }
+    // Get all services for this business
+    const services = await prisma.service.findMany({
+      where: { 
+        businessId,
+        isActive: true, // Only get active services
       },
-      include: {
-        Client: {
-          select: {
-            isDeleted: true
+      select: {
+        id: true,
+        name: true,
+        duration: true,
+        price: true,
+        slots: true,
+        startTime: true,
+        endTime: true,
+        maxCapacity: true,
+        availableDays: true,
+      }
+    });
+
+    console.log('📅 [CALENDAR-SLOTS] Found services:', services.length);
+
+    // Generate month data
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+    
+    const monthData: { [key: string]: any[] } = {};
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(yearNum, monthNum - 1, day);
+      const dayOfWeek = date.getDay();
+      const dateString = date.toISOString().split('T')[0];
+      
+      // Get slots for this day
+      const daySlots: any[] = [];
+      
+      for (const service of services) {
+        // Check if service is available on this day
+        const availableDays = service.availableDays as number[] || [];
+        
+        console.log(`📅 [CALENDAR-SLOTS] Day ${day} (${dateString}): dayOfWeek=${dayOfWeek}, availableDays=${JSON.stringify(availableDays)}, includes=${availableDays.includes(dayOfWeek)}`);
+        
+        if (availableDays.includes(dayOfWeek)) {
+          // Generate slots for this service on this day
+          const slots = service.slots as any;
+          
+          if (slots && typeof slots === 'object' && !Array.isArray(slots)) {
+            // New format: object with day names as keys
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const dayName = dayNames[dayOfWeek];
+            
+            if (slots[dayName] && Array.isArray(slots[dayName]) && slots[dayName].length > 0) {
+              console.log(`📅 [CALENDAR-SLOTS] Found slots for ${dayName}: ${slots[dayName].length} slots`);
+              slots[dayName].forEach((slot: any) => {
+                daySlots.push({
+                  id: `${service.id}-${dayOfWeek}-${slot.startTime}`,
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  serviceName: service.name,
+                  staffName: 'Staff Member', // Default for now
+                  capacity: slot.capacity || service.maxCapacity || 1,
+                  booked: 0, // TODO: Get actual bookings
+                  available: true,
+                  serviceId: service.id,
+                  price: service.price,
+                  duration: service.duration
+                });
+              });
+            } else {
+              console.log(`📅 [CALENDAR-SLOTS] No slots found for ${dayName}`);
+            }
+          } else {
+            // No slots defined, generate slots based on service configuration
+            const startTime = service.startTime || '09:00';
+            const endTime = service.endTime || '18:00';
+            const serviceDuration = service.duration || 60; // Use actual service duration
+            
+            // Generate slots based on service duration, not fixed 30-minute intervals
+            const startHour = parseInt(startTime.split(':')[0]);
+            const startMinute = parseInt(startTime.split(':')[1]);
+            const endHour = parseInt(endTime.split(':')[0]);
+            const endMinute = parseInt(endTime.split(':')[1]);
+            
+            const startMinutes = startHour * 60 + startMinute;
+            const endMinutes = endHour * 60 + endMinute;
+            
+            for (let minutes = startMinutes; minutes < endMinutes; minutes += serviceDuration) {
+              const slotHour = Math.floor(minutes / 60);
+              const slotMinute = minutes % 60;
+              const slotStartTime = `${slotHour.toString().padStart(2, '0')}:${slotMinute.toString().padStart(2, '0')}`;
+              const slotEndMinutes = minutes + serviceDuration;
+              const slotEndHour = Math.floor(slotEndMinutes / 60);
+              const slotEndMinute = slotEndMinutes % 60;
+              const slotEndTime = `${slotEndHour.toString().padStart(2, '0')}:${slotEndMinute.toString().padStart(2, '0')}`;
+              
+              // Only add slot if it fits within the end time
+              if (slotEndMinutes <= endMinutes) {
+                daySlots.push({
+                  id: `${service.id}-${dayOfWeek}-${slotStartTime}`,
+                  startTime: slotStartTime,
+                  endTime: slotEndTime,
+                  serviceName: service.name,
+                  staffName: 'Staff Member',
+                  capacity: service.maxCapacity || 1,
+                  booked: 0,
+                  available: true,
+                  serviceId: service.id,
+                  price: service.price,
+                  duration: serviceDuration
+                });
+              }
+            }
           }
         }
       }
-    });
 
-    // Filter out appointments for deleted clients
-    const validAppointments = existingAppointments.filter((apt: any) => !apt.Client?.isDeleted);
+      // Sort slots by start time
+      daySlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-    // Check availability for each slot
-    const slotsWithAvailability = dailySlots.map((slot: any, index: number) => {
-      const slotCapacity = slot.capacity || (service as any).maxCapacity || 1;
-      
-      // Count bookings for this specific slot
-      const slotBookings = validAppointments.filter((apt: any) => {
-        if (apt.slotInfo && typeof apt.slotInfo === 'object') {
-          const slotData = apt.slotInfo as any;
-          return slotData.slotIndex === index;
-        }
-        return false;
-      });
+      console.log(`📅 [CALENDAR-SLOTS] Final result for ${dateString}: ${daySlots.length} slots`);
+      monthData[dateString] = daySlots;
+    }
 
-      const bookedCount = slotBookings.length;
-      const availableSpots = slotCapacity - bookedCount;
-
-      return {
-        slotIndex: index,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        capacity: slotCapacity,
-        booked: bookedCount,
-        available: availableSpots,
-        isAvailable: availableSpots > 0
-      };
-    });
-
-    console.log('🎯 Slot availability calculated:', slotsWithAvailability);
+    console.log('📅 [CALENDAR-SLOTS] Generated month data:', Object.keys(monthData).length, 'days');
 
     return NextResponse.json({
       success: true,
-      data: {
-        serviceType: 'slots',
-        serviceName: service.name,
-        date,
-        dayOfWeek,
-        availableSlots: slotsWithAvailability.filter(slot => slot.isAvailable),
-        allSlots: slotsWithAvailability
-      }
+      data: monthData
     });
 
   } catch (error: any) {
-    console.error('❌ Error in slot availability check:', error);
+    console.error('❌ [CALENDAR-SLOTS] Error:', error);
     return NextResponse.json({ 
       success: false, 
       error: { 
-        code: 'AVAILABILITY_CHECK_ERROR', 
+        code: 'CALENDAR_SLOTS_ERROR', 
         message: error.message || 'Internal Server Error' 
       } 
     }, { status: 500 });

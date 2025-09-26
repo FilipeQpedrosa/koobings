@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
     const services = await prisma.service.findMany({
       where: {
         businessId,
+        isActive: true, // Only get active services
         OR: search ? [
           { name: { contains: search, mode: 'insensitive' } },
           { description: { contains: search, mode: 'insensitive' } }

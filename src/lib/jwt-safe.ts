@@ -110,9 +110,33 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
   try {
     const pathname = request.nextUrl.pathname;
     
+    // Helper function to get token from cookies or Authorization header
+    const getToken = (cookieName: string) => {
+      // First try cookie
+      const cookieToken = request.cookies.get(cookieName)?.value;
+      if (cookieToken) return cookieToken;
+      
+      // Then try Authorization header (only if no cookie found)
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.substring(7);
+      }
+      
+      return null;
+    };
+    
+    // Helper function to get any token from Authorization header
+    const getAuthToken = () => {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.substring(7);
+      }
+      return null;
+    };
+    
     // 🚨 For admin routes, ONLY check admin token
     if (pathname.startsWith('/admin')) {
-      const adminToken = request.cookies.get('admin-auth-token')?.value;
+      const adminToken = getToken('admin-auth-token');
       const user = safeVerifyToken(adminToken);
       if (user && user.role === 'ADMIN') {
         return user;
@@ -125,10 +149,19 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
     if (businessSlugMatch) {
       const businessSlug = businessSlugMatch[1];
       
-      // Try business and auth tokens first (for normal users)
+      // First try Authorization header token
+      const authToken = getAuthToken();
+      if (authToken) {
+        const user = safeVerifyToken(authToken);
+        if (user && (user.businessSlug === businessSlug || user.businessId)) {
+          return user;
+        }
+      }
+      
+      // Then try business and auth tokens from cookies
       const businessTokens = [
-        request.cookies.get('business-auth-token')?.value,
-        request.cookies.get('auth-token')?.value
+        getToken('business-auth-token'),
+        getToken('auth-token')
       ];
       
       for (const token of businessTokens) {
@@ -139,7 +172,7 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
       }
       
       // Only if no business token works, check admin access
-      const adminToken = request.cookies.get('admin-auth-token')?.value;
+      const adminToken = getToken('admin-auth-token');
       const adminUser = safeVerifyToken(adminToken);
       if (adminUser && adminUser.role === 'ADMIN' && adminUser.isAdmin) {
         // Admin accessing business route - clear business data to prevent contamination
@@ -155,8 +188,17 @@ export function getRequestAuthUser(request: NextRequest): JWTPayload | null {
     }
     
     // For API routes and other paths, try ALL tokens including admin
+    // First try Authorization header
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const authToken = authHeader.substring(7);
+      const user = safeVerifyToken(authToken);
+      if (user) return user;
+    }
+    
+    // Then try cookies
     const tokens = [
-      request.cookies.get('admin-auth-token')?.value,  // 🔧 FIX: Added admin token check for API routes
+      request.cookies.get('admin-auth-token')?.value,
       request.cookies.get('business-auth-token')?.value,
       request.cookies.get('auth-token')?.value
     ];

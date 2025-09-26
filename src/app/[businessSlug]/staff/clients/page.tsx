@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Search, Plus, User, Phone, Mail, Calendar, Edit, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -16,6 +17,7 @@ interface Client {
   email: string;
   phone?: string;
   createdAt: string;
+  isEligible: boolean;
   _count?: {
     appointments: number;
   };
@@ -63,6 +65,46 @@ export default function StaffClientsPage() {
 
     fetchClients();
   }, []);
+
+  // Function to toggle client eligibility
+  const toggleClientEligibility = async (clientId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/business/clients/${clientId}/eligibility`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ isEligible: !currentStatus })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Update the client in the local state
+          setClients(prevClients => 
+            prevClients.map(client => 
+              client.id === clientId 
+                ? { ...client, isEligible: !currentStatus }
+                : client
+            )
+          );
+          setFilteredClients(prevClients => 
+            prevClients.map(client => 
+              client.id === clientId 
+                ? { ...client, isEligible: !currentStatus }
+                : client
+            )
+          );
+          console.log('✅ Client eligibility updated successfully');
+        }
+      } else {
+        console.error('❌ Failed to update client eligibility');
+      }
+    } catch (error) {
+      console.error('❌ Error updating client eligibility:', error);
+    }
+  };
 
   // Filter clients based on search term
   useEffect(() => {
@@ -146,73 +188,34 @@ export default function StaffClientsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-600 mt-1">Manage your client database</p>
+          <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
+          <p className="text-gray-600">Gerir a lista de clientes</p>
         </div>
         <Link href={`/${user?.businessSlug || 'business'}/staff/clients/new`}>
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Add Client
+            Adicionar Cliente
           </Button>
         </Link>
       </div>
 
       {/* Search */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search clients by name, email, or phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{clients.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Search Results</CardTitle>
-            <Search className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{filteredClients.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {clients.filter(c => c._count && c._count.appointments > 0).length}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Input
+          placeholder="Buscar clientes..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
       {/* Clients List */}
       <Card>
         <CardHeader>
-          <CardTitle>Client List</CardTitle>
+          <CardTitle>Lista de Clientes</CardTitle>
           <CardDescription>
-            {filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''} found
+            {filteredClients.length} cliente{filteredClients.length !== 1 ? 's' : ''} encontrado{filteredClients.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -220,12 +223,12 @@ export default function StaffClientsPage() {
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No clients yet</h3>
-                <p className="text-gray-500 mb-4">Get started by adding your first client</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum cliente ainda</h3>
+                <p className="text-gray-500 mb-4">Comece por adicionar o seu primeiro cliente</p>
                 <Link href={`/${user?.businessSlug || 'business'}/staff/clients/new`}>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Client
+                    Adicionar Cliente
                   </Button>
                 </Link>
               </div>
@@ -261,34 +264,48 @@ export default function StaffClientsPage() {
                       
                       <div className="flex items-center space-x-2">
                         <Badge variant="secondary">
-                          {client._count?.appointments || 0} appointments
+                          {client._count?.appointments || 0} marcações
                         </Badge>
                       </div>
                     </div>
                   </Link>
                   
-                  {/* Edit button outside the main link to prevent conflicts */}
-                  <div className="px-4 pb-4 flex justify-end">
-                    <Link href={`/${user?.businessSlug || 'business'}/staff/clients/${client.id}/edit`}>
-                      <Button size="sm" variant="outline" className="flex items-center">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
+                  {/* Controls section */}
+                  <div className="px-4 pb-4 flex justify-between items-center">
+                    {/* Eligibility toggle */}
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={client.isEligible}
+                        onCheckedChange={() => toggleClientEligibility(client.id, client.isEligible)}
+                      />
+                      <span className={`text-sm font-medium ${client.isEligible ? 'text-green-600' : 'text-red-600'}`}>
+                        {client.isEligible ? 'Apto' : 'Não Apto'}
+                      </span>
+                    </div>
+                    
+                    {/* Action buttons */}
+                    <div className="flex items-center space-x-2">
+                      <Link href={`/${user?.businessSlug || 'business'}/staff/clients/${client.id}/edit`}>
+                        <Button size="sm" variant="outline" className="flex items-center">
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                      </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center"
+                        onClick={() => handleDeleteClient(client.id, client.name)}
+                        disabled={deletingClient === client.id}
+                      >
+                        {deletingClient === client.id ? (
+                          <div className="animate-spin h-4 w-4 border-b-2 border-red-600"></div>
+                        ) : (
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        )}
+                        Apagar
                       </Button>
-                    </Link>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex items-center ml-2"
-                      onClick={() => handleDeleteClient(client.id, client.name)}
-                      disabled={deletingClient === client.id}
-                    >
-                      {deletingClient === client.id ? (
-                        <div className="animate-spin h-4 w-4 border-b-2 border-red-600"></div>
-                      ) : (
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      )}
-                      Delete
-                    </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -298,4 +315,4 @@ export default function StaffClientsPage() {
       </Card>
     </div>
   );
-} 
+}

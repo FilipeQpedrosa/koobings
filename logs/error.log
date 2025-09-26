@@ -1,0 +1,195 @@
+2025-09-14T20:19:43.464Z [error]: Error fetching backup status Dynamic server usage: Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+Metadata: {
+  "description": "Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  "digest": "DYNAMIC_SERVER_USAGE",
+  "stack": "Error: Dynamic server usage: Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error\n    at l (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/9380.js:1:61295)\n    at c (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/5183.js:1:1441)\n    at s (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/5609.js:25:19236)\n    at p (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/admin/backup/status/route.js:1:1808)\n    at /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417\n    at /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/server/lib/trace/tracer.js:140:36\n    at NoopContextManager.with (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)\n    at ContextAPI.with (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)\n    at NoopTracer.startActiveSpan (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31)\n    at ProxyTracer.startActiveSpan (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:36:24)"
+}
+2025-09-14T20:19:44.730Z [error]: Database health check failed
+Error: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:8
+   | 
+ 7 |   provider = "postgresql"
+ 8 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+Stack: PrismaClientInitializationError: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:8
+   | 
+ 7 |   provider = "postgresql"
+ 8 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at Xn.handleRequestError (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:7759)
+    at Xn.handleAndLogRequestError (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:6784)
+    at Xn.request (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:6491)
+    at async l (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:130:9812)
+    at async g (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:4191)
+    at async /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:175:20)
+Metadata: {
+  "error": {
+    "clientVersion": "6.11.1",
+    "name": "PrismaClientInitializationError"
+  }
+}
+2025-09-14T20:19:49.733Z [error]: Failed to create Redis client: Redis connection timeout
+Metadata: {
+  "stack": "Error: Redis connection timeout\n    at Timeout._onTimeout (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:2625)\n    at listOnTimeout (node:internal/timers:608:17)\n    at process.processTimers (node:internal/timers:543:7)"
+}
+2025-09-14T20:19:49.736Z [error]: Redis health check failed
+Error: Cannot read properties of null (reading 'ping')
+Stack: TypeError: Cannot read properties of null (reading 'ping')
+    at g (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:4442)
+    at async /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:175:20)
+    at async Span.traceAsyncFn (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/trace/trace.js:154:20)
+    at async Object.exportPage (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:237:20)
+Metadata: {
+  "error": {}
+}
+2025-09-25T06:53:37.566Z [error]: Error fetching backup status Dynamic server usage: Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+Metadata: {
+  "description": "Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  "digest": "DYNAMIC_SERVER_USAGE",
+  "stack": "Error: Dynamic server usage: Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error\n    at l (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/9380.js:1:61295)\n    at c (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/5183.js:1:1441)\n    at s (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/5609.js:25:19236)\n    at p (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/admin/backup/status/route.js:1:1808)\n    at /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417\n    at /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/server/lib/trace/tracer.js:140:36\n    at NoopContextManager.with (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)\n    at ContextAPI.with (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)\n    at NoopTracer.startActiveSpan (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31)\n    at ProxyTracer.startActiveSpan (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:36:24)"
+}
+2025-09-25T06:53:39.639Z [error]: Database health check failed
+Error: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:8
+   | 
+ 7 |   provider = "postgresql"
+ 8 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+Stack: PrismaClientInitializationError: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:8
+   | 
+ 7 |   provider = "postgresql"
+ 8 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at Xn.handleRequestError (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:7759)
+    at Xn.handleAndLogRequestError (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:6784)
+    at Xn.request (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:6491)
+    at async l (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:130:9812)
+    at async g (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:4191)
+    at async /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:175:20)
+Metadata: {
+  "error": {
+    "clientVersion": "6.11.1",
+    "name": "PrismaClientInitializationError"
+  }
+}
+2025-09-25T06:53:44.642Z [error]: Failed to create Redis client: Redis connection timeout
+Metadata: {
+  "stack": "Error: Redis connection timeout\n    at Timeout._onTimeout (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:2625)\n    at listOnTimeout (node:internal/timers:608:17)\n    at process.processTimers (node:internal/timers:543:7)"
+}
+2025-09-25T06:53:44.642Z [error]: Redis health check failed
+Error: Cannot read properties of null (reading 'ping')
+Stack: TypeError: Cannot read properties of null (reading 'ping')
+    at g (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:4442)
+    at async /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:175:20)
+    at async Span.traceAsyncFn (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/trace/trace.js:154:20)
+    at async Object.exportPage (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:237:20)
+Metadata: {
+  "error": {}
+}
+2025-09-25T08:23:21.646Z [error]: Error fetching backup status Dynamic server usage: Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+Metadata: {
+  "description": "Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  "digest": "DYNAMIC_SERVER_USAGE",
+  "stack": "Error: Dynamic server usage: Route /api/admin/backup/status couldn't be rendered statically because it used `headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error\n    at l (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/9380.js:1:61295)\n    at c (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/5183.js:1:1441)\n    at s (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/chunks/5609.js:25:19236)\n    at p (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/admin/backup/status/route.js:1:1808)\n    at /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417\n    at /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/server/lib/trace/tracer.js:140:36\n    at NoopContextManager.with (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)\n    at ContextAPI.with (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)\n    at NoopTracer.startActiveSpan (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31)\n    at ProxyTracer.startActiveSpan (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:36:24)"
+}
+2025-09-25T08:23:22.933Z [error]: Database health check failed
+Error: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:8
+   | 
+ 7 |   provider = "postgresql"
+ 8 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+Stack: PrismaClientInitializationError: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:8
+   | 
+ 7 |   provider = "postgresql"
+ 8 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at Xn.handleRequestError (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:7759)
+    at Xn.handleAndLogRequestError (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:6784)
+    at Xn.request (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:121:6491)
+    at async l (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/@prisma/client/runtime/library.js:130:9812)
+    at async g (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:4191)
+    at async /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:175:20)
+Metadata: {
+  "error": {
+    "clientVersion": "6.11.1",
+    "name": "PrismaClientInitializationError"
+  }
+}
+2025-09-25T08:23:27.937Z [error]: Failed to create Redis client: Redis connection timeout
+Metadata: {
+  "stack": "Error: Redis connection timeout\n    at Timeout._onTimeout (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:2625)\n    at listOnTimeout (node:internal/timers:608:17)\n    at process.processTimers (node:internal/timers:543:7)"
+}
+2025-09-25T08:23:27.938Z [error]: Redis health check failed
+Error: Cannot read properties of null (reading 'ping')
+Stack: TypeError: Cannot read properties of null (reading 'ping')
+    at g (/Users/ext.filipe.pedrosa/service-scheduler/.next/server/app/api/health/route.js:1:4442)
+    at async /Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:175:20)
+    at async Span.traceAsyncFn (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/trace/trace.js:154:20)
+    at async Object.exportPage (/Users/ext.filipe.pedrosa/service-scheduler/node_modules/next/dist/export/worker.js:237:20)
+Metadata: {
+  "error": {}
+}
