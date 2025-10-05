@@ -22,10 +22,10 @@ type EditBusinessData = {
   phone: string;
   address: string;
   description: string;
-  type: 'basic' | 'standard' | 'premium';  // Use specific types instead of generic string
+  type: 'HAIR_SALON' | 'NAIL_SALON' | 'BARBERSHOP' | 'SPA' | 'MASSAGE' | 'FITNESS' | 'MEDICAL' | 'DENTAL' | 'PSYCHOLOGY' | 'OTHER';
   status: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'INACTIVE';
-  password?: string; // Make password optional
-  settings: {  // Use 'settings' instead of 'features'
+  password?: string;
+  settings: {
     multipleStaff: boolean;
     advancedReports: boolean;
     smsNotifications: boolean;
@@ -38,7 +38,7 @@ type EditBusinessData = {
     requireApproval?: boolean;
     autoConfirmBookings?: boolean;
     paymentsEnabled?: boolean;
-    maxClients?: number;  // Fix: number instead of boolean
+    maxClients?: number;
   };
 };
 
@@ -57,8 +57,7 @@ export default function EditBusinessPage() {
     phone: '',
     address: '',
     description: '',
-    type: 'standard',
-    // slug: '', // REMOVED - column doesn't exist in database
+    type: 'HAIR_SALON',
     status: 'ACTIVE',
     password: '',
     settings: {
@@ -225,23 +224,55 @@ export default function EditBusinessPage() {
   };
 
   const planFeatures = {
-    basic: {
-      name: 'Básico',
-      description: 'Ideal para negócios pequenos',
-      price: 'Gratuito',
-      color: 'bg-gray-50 border-gray-200'
+    HAIR_SALON: {
+      name: 'Salão de Cabelo',
+      description: 'Salão de beleza especializado em cabelo',
+      color: 'bg-pink-50 border-pink-200'
     },
-    standard: {
-      name: 'Standard',
-      description: 'Perfeito para negócios em crescimento',
-      price: '€29/mês',
+    NAIL_SALON: {
+      name: 'Salão de Unhas',
+      description: 'Salão especializado em manicure e pedicure',
+      color: 'bg-purple-50 border-purple-200'
+    },
+    BARBERSHOP: {
+      name: 'Barbearia',
+      description: 'Barbearia tradicional',
       color: 'bg-blue-50 border-blue-200'
     },
-    premium: {
-      name: 'Premium',
-      description: 'Funcionalidades completas',
-      price: '€59/mês',
-      color: 'bg-purple-50 border-purple-200'
+    SPA: {
+      name: 'Spa',
+      description: 'Centro de bem-estar e relaxamento',
+      color: 'bg-green-50 border-green-200'
+    },
+    MASSAGE: {
+      name: 'Massagem',
+      description: 'Serviços de massagem terapêutica',
+      color: 'bg-orange-50 border-orange-200'
+    },
+    FITNESS: {
+      name: 'Fitness',
+      description: 'Centro de fitness e treino',
+      color: 'bg-red-50 border-red-200'
+    },
+    MEDICAL: {
+      name: 'Médico',
+      description: 'Consultório médico',
+      color: 'bg-teal-50 border-teal-200'
+    },
+    DENTAL: {
+      name: 'Dentista',
+      description: 'Consultório dentário',
+      color: 'bg-cyan-50 border-cyan-200'
+    },
+    PSYCHOLOGY: {
+      name: 'Psicologia',
+      description: 'Consultório de psicologia',
+      color: 'bg-indigo-50 border-indigo-200'
+    },
+    OTHER: {
+      name: 'Outro',
+      description: 'Outro tipo de negócio',
+      color: 'bg-gray-50 border-gray-200'
     }
   };
 
@@ -506,7 +537,7 @@ export default function EditBusinessPage() {
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg">{plan.name}</CardTitle>
                           <Badge variant={formData.type === key ? "default" : "secondary"}>
-                            {plan.price}
+                            {plan.name}
                           </Badge>
                         </div>
                         <CardDescription>{plan.description}</CardDescription>

@@ -228,7 +228,7 @@ export async function PUT(
     if (body.description !== undefined) {
       updateData.description = body.description;
     }
-    if (body.type && ['basic', 'standard', 'premium'].includes(body.type)) {
+    if (body.type && ['HAIR_SALON', 'NAIL_SALON', 'BARBERSHOP', 'SPA', 'MASSAGE', 'FITNESS', 'MEDICAL', 'DENTAL', 'PSYCHOLOGY', 'OTHER'].includes(body.type)) {
       updateData.type = body.type;
     }
     if (body.status && ['ACTIVE', 'PENDING', 'SUSPENDED', 'INACTIVE'].includes(body.status)) {
