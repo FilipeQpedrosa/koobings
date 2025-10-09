@@ -7,7 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar } from '@/components/ui/Calendar';
 import { ChevronLeft } from 'lucide-react';
 
 interface TimeSlot {
