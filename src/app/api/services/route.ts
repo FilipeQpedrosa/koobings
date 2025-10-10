@@ -124,11 +124,13 @@ export async function POST(request: NextRequest) {
     }
     const service = await prisma.service.create({
       data: {
+        id: 'service-' + Date.now(),
         name,
         duration,
         price,
         description,
         businessId,
+        updatedAt: new Date(),
         ...(categoryId ? { categoryId } : {}),
       },
     });

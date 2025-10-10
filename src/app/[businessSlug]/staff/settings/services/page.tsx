@@ -140,10 +140,10 @@ export default function StaffSettingsServicesPage({ params }: { params: { busine
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || formData.price <= 0) {
+    if (!formData.name) {
       toast({
         title: "Erro",
-        description: "Nome e preço são obrigatórios",
+        description: "Nome é obrigatório",
         variant: "destructive"
       });
       return;
@@ -725,14 +725,13 @@ export default function StaffSettingsServicesPage({ params }: { params: { busine
               />
             </div>
                 <div>
-                  <Label htmlFor="price">Preço (€) *</Label>
+                  <Label htmlFor="price">Preço (€)</Label>
                 <Input
                   id="price"
                   type="number"
                   step="0.01"
                   value={formData.price}
                     onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                  required
                 />
               </div>
             </div>
@@ -990,7 +989,7 @@ export default function StaffSettingsServicesPage({ params }: { params: { busine
             <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
               Cancelar
               </Button>
-            <Button onClick={handleSubmit}>
+            <Button type="submit">
               {editingService ? 'Atualizar' : 'Criar'} Serviço
               </Button>
             </DialogFooter>

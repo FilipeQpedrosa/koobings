@@ -14,7 +14,7 @@ async function createSuperAdmin() {
     console.log('🔍 Checking if super admin already exists...')
     
     // Check if super admin already exists
-    const existingAdmin = await prisma.systemAdmin.findUnique({
+    const existingAdmin = await prisma.system_admins.findFirst({
       where: { email: 'f.queirozpedrosa@gmail.com' }
     })
     
@@ -32,12 +32,14 @@ async function createSuperAdmin() {
     const hashedPassword = await bcrypt.hash('admin123', 12)
     
     // Create the super admin
-    const admin = await prisma.systemAdmin.create({
+    const admin = await prisma.system_admins.create({
       data: {
+        id: 'admin-' + Date.now(),
         email: 'f.queirozpedrosa@gmail.com',
         name: 'Filipe Pedrosa',
         role: 'SUPER_ADMIN',
         passwordHash: hashedPassword,
+        updatedAt: new Date(),
       },
     })
     

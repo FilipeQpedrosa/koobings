@@ -224,6 +224,14 @@ export default function AdminBusinessDetailsPage() {
                 <Button 
                   variant="outline" 
                   className="w-full justify-start"
+                  onClick={() => router.push(`/admin/businesses/${id}/services`)}
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Gerir Serviços
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
                   onClick={() => router.push(`/admin/businesses/${id}/visibility`)}
                 >
                   <Tag className="mr-2 h-4 w-4" />

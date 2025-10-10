@@ -286,7 +286,10 @@ export async function POST(request: NextRequest) {
     });
 
     const service = await prisma.service.create({
-      data: cleanData,
+      data: {
+        ...cleanData,
+        id: 'service-' + Date.now(),
+      },
     });
 
     console.log('🔧 DEBUG: Service created successfully:', {
