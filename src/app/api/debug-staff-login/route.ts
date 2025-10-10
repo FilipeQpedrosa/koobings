@@ -15,12 +15,12 @@ export async function POST(request: NextRequest) {
     const staff = await prisma.staff.findFirst({
       where: {
         email: email,
-        business: {
+        Business: {
           slug: businessSlug
         }
       },
       include: {
-        business: {
+        Business: {
           select: {
             id: true,
             name: true,
@@ -47,9 +47,9 @@ export async function POST(request: NextRequest) {
       email: staff.email,
       name: staff.name,
       role: 'STAFF',
-      businessId: staff.business.id,
-      businessName: staff.business.name,
-      businessSlug: staff.business.slug,
+      businessId: staff.Business.id,
+      businessName: staff.Business.name,
+      businessSlug: staff.Business.slug,
       staffRole: staff.role,
       isAdmin: staff.role === 'ADMIN'
     });
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         name: staff.name,
         email: staff.email,
         role: staff.role,
-        business: staff.business
+        business: staff.Business
       }
     });
   } catch (error: any) {

@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
         name: true,
         email: true,
         role: true,
-        business: {
+        businessId: true,
+        Business: {
           select: {
             id: true,
             name: true,
