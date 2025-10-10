@@ -139,7 +139,6 @@ export default function StaffSettingsServicesPage({ params }: { params: { busine
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🔧 DEBUG: handleSubmit called with formData:', formData);
     
     if (!formData.name) {
       toast({
