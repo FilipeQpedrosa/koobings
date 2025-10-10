@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getRequestAuthUser } from '@/lib/jwt-safe';
 import { z } from 'zod';
-import { randomUUID } from 'crypto';
 
 
 // GET: List all services for a business
@@ -229,7 +228,6 @@ export async function POST(request: NextRequest) {
 
     // Create clean data object with only valid fields
     const cleanData: any = {
-      id: randomUUID(),
       updatedAt: new Date(),
       businessId,
       name: validatedData.name,
@@ -286,10 +284,7 @@ export async function POST(request: NextRequest) {
     });
 
     const service = await prisma.service.create({
-      data: {
-        ...cleanData,
-        id: 'service-' + Date.now(),
-      },
+      data: cleanData,
     });
 
     console.log('🔧 DEBUG: Service created successfully:', {

@@ -156,7 +156,7 @@ model Provider {
 }
 
 model Service {
-  id                   String              @id
+  id                   String              @id @default(cuid())
   createdAt            DateTime            @default(now())
   updatedAt            DateTime
   name                 String
