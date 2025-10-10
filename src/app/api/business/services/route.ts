@@ -107,9 +107,15 @@ export async function GET(req: NextRequest) {
 // POST: Create a new service
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔧 DEBUG: POST /api/business/services - Starting...');
+    console.log('🔧 DEBUG: Request headers:', Object.fromEntries(request.headers.entries()));
+    console.log('🔧 DEBUG: Request cookies:', Object.fromEntries(request.cookies.getAll().map(c => [c.name, c.value])));
+    
     const user = getRequestAuthUser(request);
+    console.log('🔧 DEBUG: getRequestAuthUser result:', user);
+    
     if (!user) {
-      console.error('Unauthorized: No JWT token.');
+      console.error('❌ Unauthorized: No JWT token or invalid token.');
       return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     }
 
