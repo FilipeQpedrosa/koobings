@@ -69,6 +69,7 @@ export default function SlotDetailsPage() {
   const [selectedClientId, setSelectedClientId] = useState<string>('');
 
   useEffect(() => {
+    console.log('🔧 DEBUG: Component mounted');
     setMounted(true);
   }, []);
 
@@ -174,6 +175,7 @@ export default function SlotDetailsPage() {
   };
 
   const enrollClient = async () => {
+    console.log('🔧 DEBUG: enrollClient called', { selectedClientId, mounted });
     if (!selectedClientId || !mounted) return;
     
     try {
