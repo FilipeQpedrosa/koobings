@@ -60,7 +60,6 @@ export default function SlotDetailsPage() {
   const [enrollments, setEnrollments] = useState<SlotEnrollment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
   
   // Form states
@@ -143,7 +142,7 @@ export default function SlotDetailsPage() {
   };
 
   const saveSlotDetails = async () => {
-    setSaving(true);
+    if (!mounted) return;
     try {
       const response = await fetch(`/api/slots/${slotId}/details`, {
         method: 'PATCH',
@@ -171,15 +170,12 @@ export default function SlotDetailsPage() {
         description: "Erro ao salvar detalhes da aula",
         variant: "destructive"
       });
-    } finally {
-      setSaving(false);
     }
   };
 
   const enrollClient = async () => {
-    if (!selectedClientId) return;
+    if (!selectedClientId || !mounted) return;
     
-    setSaving(true);
     try {
       const response = await fetch(`/api/slots/${slotId}/students/${selectedClientId}`, {
         method: 'POST',
@@ -206,14 +202,11 @@ export default function SlotDetailsPage() {
         description: "Erro ao inscrever cliente",
         variant: "destructive"
       });
-    } finally {
-      setSaving(false);
     }
   };
 
   const removeClient = async (enrollmentId: string) => {
     if (!mounted) return;
-    setSaving(true);
     try {
       const response = await fetch(`/api/slots/${slotId}/students/${enrollmentId}`, {
         method: 'DELETE',
@@ -235,14 +228,11 @@ export default function SlotDetailsPage() {
         description: "Erro ao remover cliente",
         variant: "destructive"
       });
-    } finally {
-      setSaving(false);
     }
   };
 
   const toggleAttendance = async (enrollmentId: string, currentAttendance: boolean) => {
     if (!mounted) return;
-    setSaving(true);
     try {
       const response = await fetch(`/api/slots/${slotId}/students/${enrollmentId}/attendance`, {
         method: 'PATCH',
@@ -270,8 +260,6 @@ export default function SlotDetailsPage() {
         description: "Erro ao atualizar presença",
         variant: "destructive"
       });
-    } finally {
-      setSaving(false);
     }
   };
 
