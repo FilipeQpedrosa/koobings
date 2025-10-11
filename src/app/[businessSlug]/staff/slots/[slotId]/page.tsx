@@ -71,6 +71,20 @@ export default function SlotDetailsPage() {
   useEffect(() => {
     console.log('🔧 DEBUG: Component mounted');
     setMounted(true);
+    
+    // Global error handler for this component
+    const handleError = (error: ErrorEvent) => {
+      console.error('🔧 DEBUG: Global error caught:', error);
+      if (error.message.includes('saving is not defined')) {
+        console.error('🔧 DEBUG: Found the saving error!', error);
+      }
+    };
+    
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
   }, []);
 
   useEffect(() => {
