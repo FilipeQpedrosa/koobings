@@ -212,6 +212,7 @@ export default function SlotDetailsPage() {
   };
 
   const removeClient = async (enrollmentId: string) => {
+    if (!mounted) return;
     setSaving(true);
     try {
       const response = await fetch(`/api/slots/${slotId}/students/${enrollmentId}`, {
@@ -240,6 +241,7 @@ export default function SlotDetailsPage() {
   };
 
   const toggleAttendance = async (enrollmentId: string, currentAttendance: boolean) => {
+    if (!mounted) return;
     setSaving(true);
     try {
       const response = await fetch(`/api/slots/${slotId}/students/${enrollmentId}/attendance`, {
@@ -320,8 +322,8 @@ export default function SlotDetailsPage() {
           </div>
         </div>
         
-        <Button onClick={saveSlotDetails} disabled={!mounted || saving}>
-          {saving ? 'Salvando...' : 'Salvar Alterações'}
+        <Button onClick={saveSlotDetails} disabled={!mounted}>
+          Salvar Alterações
         </Button>
       </div>
 
@@ -437,7 +439,7 @@ export default function SlotDetailsPage() {
                         <Button variant="outline" onClick={() => setShowAddClient(false)}>
                           Cancelar
                         </Button>
-                        <Button onClick={enrollClient} disabled={!selectedClientId || !mounted || saving}>
+                        <Button onClick={enrollClient} disabled={!selectedClientId || !mounted}>
                           Adicionar
                         </Button>
                       </div>
@@ -469,7 +471,7 @@ export default function SlotDetailsPage() {
                           size="sm"
                           variant={enrollment.attendance ? "default" : "outline"}
                           onClick={() => toggleAttendance(enrollment.id, enrollment.attendance || false)}
-                          disabled={!mounted || saving}
+                          disabled={!mounted}
                         >
                           {enrollment.attendance ? (
                             <CheckCircle className="h-4 w-4" />
@@ -481,7 +483,7 @@ export default function SlotDetailsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => removeClient(enrollment.id)}
-                          disabled={!mounted || saving}
+                          disabled={!mounted}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
