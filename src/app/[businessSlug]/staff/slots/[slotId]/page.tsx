@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +67,25 @@ export default function SlotDetailsPage() {
   const [assignedStaffId, setAssignedStaffId] = useState<string>('');
   const [showAddClient, setShowAddClient] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+
+  // Add error handler immediately on component mount
+  useLayoutEffect(() => {
+    console.log('🔧 DEBUG: useLayoutEffect - Setting up error handler');
+    
+    const handleError = (error: ErrorEvent) => {
+      console.error('🔧 DEBUG: Global error caught in useLayoutEffect:', error);
+      if (error.message.includes('saving is not defined')) {
+        console.error('🔧 DEBUG: Found the saving error in useLayoutEffect!', error);
+        console.error('🔧 DEBUG: Error stack:', error.error?.stack);
+      }
+    };
+    
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
 
   useEffect(() => {
     console.log('🔧 DEBUG: Component mounted');
@@ -459,7 +478,9 @@ export default function SlotDetailsPage() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {enrollments?.map((enrollment) => (
+                  {enrollments?.map((enrollment) => {
+                    console.log('🔧 DEBUG: Rendering enrollment:', enrollment.id);
+                    return (
                     <div key={enrollment.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <div>
@@ -493,7 +514,8 @@ export default function SlotDetailsPage() {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
