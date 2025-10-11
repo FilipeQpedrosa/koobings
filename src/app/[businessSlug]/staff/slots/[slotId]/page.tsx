@@ -178,7 +178,11 @@ export default function SlotDetailsPage() {
     if (!selectedClientId || !mounted) return;
     
     try {
-      const response = await fetch(`/api/slots/${slotId}/students/${selectedClientId}`, {
+      // Extract date from slotId or use current date
+      const urlParams = new URLSearchParams(window.location.search);
+      const date = urlParams.get('date') || new Date().toISOString().split('T')[0];
+      
+      const response = await fetch(`/api/slots/${slotId}/students/${selectedClientId}?date=${date}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
