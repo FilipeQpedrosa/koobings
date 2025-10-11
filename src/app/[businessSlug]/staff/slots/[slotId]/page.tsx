@@ -61,12 +61,17 @@ export default function SlotDetailsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Form states
   const [description, setDescription] = useState('');
   const [assignedStaffId, setAssignedStaffId] = useState<string>('');
   const [showAddClient, setShowAddClient] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (slotId) {
@@ -315,7 +320,7 @@ export default function SlotDetailsPage() {
           </div>
         </div>
         
-        <Button onClick={saveSlotDetails} disabled={saving}>
+        <Button onClick={saveSlotDetails} disabled={!mounted || saving}>
           {saving ? 'Salvando...' : 'Salvar Alterações'}
         </Button>
       </div>
@@ -432,7 +437,7 @@ export default function SlotDetailsPage() {
                         <Button variant="outline" onClick={() => setShowAddClient(false)}>
                           Cancelar
                         </Button>
-                        <Button onClick={enrollClient} disabled={!selectedClientId || saving}>
+                        <Button onClick={enrollClient} disabled={!selectedClientId || !mounted || saving}>
                           Adicionar
                         </Button>
                       </div>
@@ -464,7 +469,7 @@ export default function SlotDetailsPage() {
                           size="sm"
                           variant={enrollment.attendance ? "default" : "outline"}
                           onClick={() => toggleAttendance(enrollment.id, enrollment.attendance || false)}
-                          disabled={saving}
+                          disabled={!mounted || saving}
                         >
                           {enrollment.attendance ? (
                             <CheckCircle className="h-4 w-4" />
@@ -476,7 +481,7 @@ export default function SlotDetailsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => removeClient(enrollment.id)}
-                          disabled={saving}
+                          disabled={!mounted || saving}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
