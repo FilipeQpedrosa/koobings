@@ -13,20 +13,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ArrowLeft, Clock, Users, Edit3, Plus, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface SlotDetails {
   id: string;
   startTime: string;
   endTime: string;
   serviceName: string;
+  serviceDescription: string;
+  staffName: string;
   capacity: number;
-  booked: number;
-  available: boolean;
-  serviceId: string;
   price: number;
-  duration: number;
-  date: string;
+  enrolledStudents: SlotEnrollment[];
 }
 
 interface Staff {
@@ -45,15 +43,16 @@ interface Client {
 
 interface SlotEnrollment {
   id: string;
-  clientId: string;
-  client: Client;
-  status: 'CONFIRMED' | 'PENDING' | 'CANCELLED';
-  attendance?: boolean;
+  name: string;
+  email: string;
+  isPresent: boolean;
+  enrolledAt: string;
 }
 
 export default function SlotDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const { slotId } = params;
   
   const [slotDetails, setSlotDetails] = useState<SlotDetails | null>(null);
@@ -90,10 +89,11 @@ export default function SlotDetailsPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setSlotDetails(data.data.slot);
+          // The API returns the data directly, not nested under 'slot'
+          setSlotDetails(data.data);
           setDescription(data.data.description || '');
           setAssignedStaffId(data.data.assignedStaffId || '');
-          setEnrollments(data.data.enrollments || []);
+          setEnrollments(data.data.enrolledStudents || []);
         }
       }
     } catch (error) {
@@ -209,6 +209,12 @@ export default function SlotDetailsPage() {
   const removeClient = async (enrollmentId: string) => {
     if (!mounted) return;
     try {
+      // Find the client ID from the enrollment
+      const enrollment = enrollments.find(e => e.id === enrollmentId);
+      if (!enrollment) {
+        throw new Error('Enrollment not found');
+      }
+      
       const response = await fetch(`/api/slots/${slotId}/students/${enrollmentId}`, {
         method: 'DELETE',
         credentials: 'include'
@@ -290,7 +296,7 @@ export default function SlotDetailsPage() {
 
   const availableClients = clients.filter(client => 
     client.isEligible && 
-    !enrollments.some(enrollment => enrollment.clientId === client.id)
+    !enrollments.some(enrollment => enrollment.id === client.id)
   );
 
   return (
@@ -305,7 +311,6 @@ export default function SlotDetailsPage() {
           <div>
             <h1 className="text-3xl font-bold">{slotDetails.serviceName}</h1>
             <p className="text-muted-foreground">
-              {format(new Date(slotDetails.date), 'dd/MM/yyyy', { locale: ptBR })} • 
               {slotDetails.startTime} - {slotDetails.endTime}
             </p>
           </div>
@@ -334,8 +339,8 @@ export default function SlotDetailsPage() {
                   <p className="text-lg">{slotDetails.startTime} - {slotDetails.endTime}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Duração</label>
-                  <p className="text-lg">{slotDetails.duration} minutos</p>
+                  <label className="text-sm font-medium">Staff</label>
+                  <p className="text-lg">{slotDetails.staffName}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium">Preço</label>
@@ -343,7 +348,7 @@ export default function SlotDetailsPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium">Capacidade</label>
-                  <p className="text-lg">{slotDetails.booked}/{slotDetails.capacity}</p>
+                  <p className="text-lg">{slotDetails.enrolledStudents.length}/{slotDetails.capacity}</p>
                 </div>
               </div>
             </CardContent>
@@ -448,21 +453,21 @@ export default function SlotDetailsPage() {
                     <div key={enrollment.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <div>
-                          <p className="font-medium">{enrollment.client.name}</p>
-                          <p className="text-sm text-muted-foreground">{enrollment.client.email}</p>
+                          <p className="font-medium">{enrollment.name}</p>
+                          <p className="text-sm text-muted-foreground">{enrollment.email}</p>
                         </div>
-                        <Badge variant={enrollment.status === 'CONFIRMED' ? 'default' : 'secondary'}>
-                          {enrollment.status === 'CONFIRMED' ? 'Confirmado' : 'Pendente'}
+                        <Badge variant={enrollment.isPresent ? 'default' : 'secondary'}>
+                          {enrollment.isPresent ? 'Presente' : 'Ausente'}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          variant={enrollment.attendance ? "default" : "outline"}
-                          onClick={() => toggleAttendance(enrollment.id, enrollment.attendance || false)}
+                          variant={enrollment.isPresent ? "default" : "outline"}
+                          onClick={() => toggleAttendance(enrollment.id, enrollment.isPresent)}
                           disabled={!mounted}
                         >
-                          {enrollment.attendance ? (
+                          {enrollment.isPresent ? (
                             <CheckCircle className="h-4 w-4" />
                           ) : (
                             <XCircle className="h-4 w-4" />
