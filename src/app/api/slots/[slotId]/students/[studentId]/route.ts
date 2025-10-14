@@ -9,9 +9,15 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest, { params }: { params: { slotId: string, studentId: string } }) {
   try {
     console.log('🔍 /api/slots/[slotId]/students/[studentId] POST - Starting...');
+    console.log('🔍 Request URL:', request.url);
+    console.log('🔍 Request method:', request.method);
+    console.log('🔍 Request headers:', Object.fromEntries(request.headers.entries()));
     
     const user = getRequestAuthUser(request);
+    console.log('🔍 User from token:', user);
+    
     if (!user) {
+      console.log('❌ No user found in token');
       return NextResponse.json({ 
         success: false, 
         error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } 
@@ -19,7 +25,10 @@ export async function POST(request: NextRequest, { params }: { params: { slotId:
     }
 
     const businessId = user.businessId;
+    console.log('🔍 Business ID from token:', businessId);
+    
     if (!businessId) {
+      console.log('❌ No business ID in token');
       return NextResponse.json({ 
         success: false, 
         error: { code: 'BUSINESS_ID_MISSING', message: 'Business ID missing' } 
@@ -69,6 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: { slotId:
     }
 
     // Verify client exists and belongs to business
+    console.log('🔍 Looking for client:', { studentId, businessId });
     const client = await prisma.client.findFirst({
       where: { 
         id: studentId,
@@ -76,7 +86,18 @@ export async function POST(request: NextRequest, { params }: { params: { slotId:
       }
     });
 
+    console.log('🔍 Client found:', client ? 'YES' : 'NO');
+    if (client) {
+      console.log('🔍 Client details:', {
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        isEligible: client.isEligible
+      });
+    }
+
     if (!client) {
+      console.log('❌ Client not found');
       return NextResponse.json({ 
         success: false, 
         error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' } 

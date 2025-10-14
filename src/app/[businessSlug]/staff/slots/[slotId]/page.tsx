@@ -182,7 +182,15 @@ export default function SlotDetailsPage() {
       const urlParams = new URLSearchParams(window.location.search);
       const date = urlParams.get('date') || new Date().toISOString().split('T')[0];
       
-      const response = await fetch(`/api/slots/${slotId}/students/${selectedClientId}?date=${date}`, {
+      const apiUrl = `/api/slots/${slotId}/students/${selectedClientId}?date=${date}`;
+      console.log('🔍 Enrolling client:', {
+        slotId,
+        selectedClientId,
+        date,
+        apiUrl
+      });
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -190,7 +198,12 @@ export default function SlotDetailsPage() {
         credentials: 'include'
       });
 
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
+        const data = await response.json();
+        console.log('🔍 Success response:', data);
         toast({
           title: "Sucesso",
           description: "Cliente inscrito na aula"
@@ -199,7 +212,9 @@ export default function SlotDetailsPage() {
         setSelectedClientId('');
         fetchSlotDetails(); // Refresh data
       } else {
-        throw new Error('Failed to enroll');
+        const errorData = await response.json();
+        console.error('🔍 Error response:', errorData);
+        throw new Error(`Failed to enroll: ${errorData.error?.message || 'Unknown error'}`);
       }
     } catch (error) {
       toast({
